@@ -1,0 +1,594 @@
+import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
+import { getSupabase } from './supabase';
+
+const LOCAL_STORAGE_KEY = 'digifarma_local_procedures';
+const MENUS_STORAGE_KEY = 'digifarma_system_menus';
+const ACTIVE_VERSION_KEY = 'digifarma_active_version';
+
+export function getSavedSystemVersion(): SystemVersion | null {
+  const saved = localStorage.getItem(ACTIVE_VERSION_KEY);
+  if (saved === 'classico' || saved === 'v10') {
+    return saved;
+  }
+  return null;
+}
+
+export function saveSystemVersion(version: SystemVersion | null): void {
+  if (version) {
+    localStorage.setItem(ACTIVE_VERSION_KEY, version);
+  } else {
+    localStorage.removeItem(ACTIVE_VERSION_KEY);
+  }
+}
+
+export const DEFAULT_SYSTEM_MENUS: SystemMenu[] = [
+  {
+    id: 'cadastros',
+    label: 'Cadastros',
+    icon: 'FolderPlus',
+    version: 'ambos',
+    submenus: [
+      { id: 'clientes', label: 'Clientes', icon: 'Users' },
+      { id: 'fornecedores', label: 'Fornecedores', icon: 'Truck' },
+      { id: 'produtos', label: 'Produtos', icon: 'Package' },
+      { id: 'convenios', label: 'Convênios', icon: 'ShieldCheck' },
+    ],
+  },
+  {
+    id: 'estoque',
+    label: 'Estoque',
+    icon: 'Boxes',
+    version: 'ambos',
+    submenus: [
+      { id: 'entrada-notas', label: 'Entrada de Notas', icon: 'FileInput' },
+      { id: 'inventario', label: 'Inventário & Balanço', icon: 'ClipboardCheck' },
+      { id: 'transferencias', label: 'Transferências', icon: 'ArrowLeftRight' },
+      { id: 'validade-lotes', label: 'Controle de Lotes', icon: 'CalendarAlert' },
+    ],
+  },
+  {
+    id: 'utilitarios',
+    label: 'Utilitários',
+    icon: 'Wrench',
+    version: 'ambos',
+    submenus: [
+      { id: 'configuracoes', label: 'Configurações', icon: 'Settings' },
+      { id: 'usuarios', label: 'Usuários & Permissões', icon: 'UserCog' },
+      { id: 'backup', label: 'Backup & Integrações', icon: 'Database' },
+    ],
+  },
+];
+
+const DATA_VERSION_TAG = 'digifarma_seed_v3';
+
+export const INITIAL_PROCEDURES: Procedure[] = [
+  // ==========================================
+  // PROCEDIMENTOS DO DIGIFARMA CLÁSSICO
+  // ==========================================
+  {
+    id: 'proc-classico-cadastro-produto',
+    title: 'Cadastro de Medicamento e Código de Barras (EAN)',
+    subtitle: 'Passo a passo no ERP Digifarma Clássico para cadastrar medicamento, código EAN, lote e parametrização tributária',
+    category: 'Cadastros',
+    systemVersion: 'classico',
+    menuId: 'cadastros',
+    submenuId: 'produtos',
+    systemPath: 'Menu Principal ➔ Cadastros ➔ Produtos ➔ Incluir Novo (F2)',
+    author: 'Farmacêutico Responsável',
+    tags: ['Produtos', 'Medicamentos', 'Tributação', 'ERP Clássico'],
+    is_favorite: true,
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    updated_at: new Date(Date.now() - 3600000).toISOString(),
+    blocks: [
+      {
+        id: 'cp-1',
+        type: 'heading',
+        content: '1. Acesso à Tela de Inclusão de Produtos (Atalho F2)',
+        level: 2,
+      },
+      {
+        id: 'cp-2',
+        type: 'text',
+        content: 'No menu superior do Digifarma Clássico, clique em "Cadastros", selecione "Produtos" e pressione o botão "Incluir" (ou tecle F2 no teclado para acesso instantâneo).',
+      },
+      {
+        id: 'cp-3',
+        type: 'callout',
+        calloutType: 'info',
+        title: 'Dica de Agilidade com Leitor de Código de Barras',
+        content: 'Com a tela aberta, aponte o leitor de código de barras para o código EAN-13 na caixa do medicamento. O Digifarma buscará automaticamente a descrição oficial na base nacional da Anvisa.',
+      },
+      {
+        id: 'cp-4',
+        type: 'heading',
+        content: '2. Dados Cadastrais e Registro Anvisa',
+        level: 2,
+      },
+      {
+        id: 'cp-5',
+        type: 'text',
+        content: 'Confira a descrição completa do produto (ex: Dipirona Monoidratada 500mg/ml Gotas 20ml), o laboratório farmacêutico fabricante e o número de Registro MS de 13 dígitos.',
+      },
+      {
+        id: 'cp-6',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Figura 1: Conferência do código de barras EAN-13 e do registro MS na embalagem primária',
+        altText: 'Embalagem de medicamento',
+      },
+      {
+        id: 'cp-7',
+        type: 'step',
+        content: 'Verificar se o NCM correto (ex: 3004.90.99) foi preenchido conforme a DANFE do fornecedor.',
+        completed: false,
+      },
+      {
+        id: 'cp-8',
+        type: 'step',
+        content: 'Definir a classificação do produto: Medicamento Genérico, Referência, Similar ou Perfumaria.',
+        completed: false,
+      },
+      {
+        id: 'cp-9',
+        type: 'heading',
+        content: '3. Medicamentos Controlados e Portaria 344 (SNGPC)',
+        level: 2,
+      },
+      {
+        id: 'cp-10',
+        type: 'callout',
+        calloutType: 'warning',
+        title: 'Atenção com Medicamentos Controlados',
+        content: 'Caso o item pertença às listas A1, A2, B1, B2 ou C1 da Portaria 344/98, marque impreterivelmente a caixa "Controlado SNGPC" para que o PDV exija retenção de receita médica na venda.',
+      },
+      {
+        id: 'cp-11',
+        type: 'step',
+        content: 'Pressione a tecla F10 ou clique em "Gravar (F10)" para salvar o cadastro e liberar o produto para venda imediata.',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'proc-classico-cadastro-cliente',
+    title: 'Cadastro de Cliente e Limite de Convênio',
+    subtitle: 'Procedimento para registrar novos clientes particulares ou conveniados, limites a prazo e bloqueios',
+    category: 'Cadastros',
+    systemVersion: 'classico',
+    menuId: 'cadastros',
+    submenuId: 'clientes',
+    systemPath: 'Menu Principal ➔ Cadastros ➔ Clientes ➔ Incluir Novo',
+    author: 'Atendimento & Caixa',
+    tags: ['Cadastros', 'Clientes', 'Convênios', 'Crédito'],
+    is_favorite: false,
+    created_at: new Date(Date.now() - 86400000 * 4).toISOString(),
+    updated_at: new Date(Date.now() - 7200000).toISOString(),
+    blocks: [
+      {
+        id: 'cc-1',
+        type: 'heading',
+        content: '1. Consulta Prévia de CPF para Evitar Duplicidades',
+        level: 2,
+      },
+      {
+        id: 'cc-2',
+        type: 'text',
+        content: 'Acesse Cadastros > Clientes. Antes de clicar em "Novo", digite o CPF do cliente no campo de busca para certificar-se de que ele ainda não possui registro ativo no banco de dados.',
+      },
+      {
+        id: 'cc-3',
+        type: 'heading',
+        content: '2. Preenchimento de Dados e Endereço',
+        level: 2,
+      },
+      {
+        id: 'cc-4',
+        type: 'text',
+        content: 'Preencha o Nome Completo, CPF, Telefone Celular (com DDD para envio de comprovante via WhatsApp) e o CEP residencial. O sistema auto-completa logradouro e bairro.',
+      },
+      {
+        id: 'cc-5',
+        type: 'callout',
+        calloutType: 'info',
+        title: 'Vínculo de Convênio Empresarial',
+        content: 'Se o cliente for funcionário de empresa conveniada, selecione o convênio correspondente na aba "Convênio" e informe a matrícula interna.',
+      },
+      {
+        id: 'cc-6',
+        type: 'step',
+        content: 'Definir o limite máximo de compra a prazo (ex: R$ 300,00) autorizado pelo convênio.',
+        completed: false,
+      },
+      {
+        id: 'cc-7',
+        type: 'step',
+        content: 'Clicar em "Confirmar Cadastro" para emitir a ficha cadastral do cliente.',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'proc-classico-entrada-xml',
+    title: 'Entrada de Nota Fiscal por Importação de XML',
+    subtitle: 'Importação do arquivo XML da distribuidora, amarração de produtos, conferência cega e cálculo de custo',
+    category: 'Estoque',
+    systemVersion: 'classico',
+    menuId: 'estoque',
+    submenuId: 'entrada-notas',
+    systemPath: 'Menu Principal ➔ Estoque ➔ Entrada de Notas ➔ Importar XML (F5)',
+    author: 'Equipe de Logística',
+    tags: ['Estoque', 'Conferência', 'Boas Práticas', 'XML'],
+    is_favorite: true,
+    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    blocks: [
+      {
+        id: 'b-1',
+        type: 'heading',
+        content: '1. Importação do Arquivo XML da Distribuidora',
+        level: 2,
+      },
+      {
+        id: 'b-2',
+        type: 'text',
+        content: 'No menu principal, acesse Estoque > Entrada de Notas. Clique no botão "Importar XML" (ou pressione F5). Selecione o arquivo XML recebido da distribuidora ou insira a Chave de Acesso de 44 dígitos.',
+      },
+      {
+        id: 'b-3',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Figura 1: Triagem de volumes físicos e conferência dos lotes das caixas recebidas',
+        altText: 'Bancada de conferência de estoque',
+      },
+      {
+        id: 'b-4',
+        type: 'callout',
+        calloutType: 'warning',
+        title: 'Conferência Cega Obrigatória',
+        content: 'Nunca valide a nota sem abrir as caixas físicas. Todos os frascos e caixas devem ter lote e data de validade conferidos contra os dados da nota.',
+      },
+      {
+        id: 'b-5',
+        type: 'step',
+        content: 'Conferir se os códigos do fornecedor foram associados corretamente aos códigos internos da farmácia.',
+        completed: false,
+      },
+      {
+        id: 'b-6',
+        type: 'step',
+        content: 'Verificar a margem de lucro sugerida e atualizar os preços de venda caso haja alteração de custo.',
+        completed: false,
+      },
+      {
+        id: 'b-7',
+        type: 'step',
+        content: 'Clicar em "Confirmar Entrada" para atualizar o estoque físico e alimentar o contas a pagar.',
+        completed: false,
+      },
+    ],
+  },
+
+  // ==========================================
+  // PROCEDIMENTOS DO DIGIFARMA V10 (NOVA GERAÇÃO)
+  // ==========================================
+  {
+    id: 'proc-v10-cadastro-produto',
+    title: 'Cadastro Inteligente de Produtos no V10 Web',
+    subtitle: 'Cadastro ágil em nuvem com consulta automática na base Anvisa, foto do produto e sincronização em tempo real',
+    category: 'Cadastros',
+    systemVersion: 'v10',
+    menuId: 'cadastros',
+    submenuId: 'produtos',
+    systemPath: 'Digifarma V10 ➔ Cadastros ➔ Produtos ➔ + Novo Produto',
+    author: 'Equipe de Implantação V10',
+    tags: ['V10', 'Web', 'Medicamentos', 'Cloud', 'IA'],
+    is_favorite: true,
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    blocks: [
+      {
+        id: 'vp-1',
+        type: 'heading',
+        content: '1. Acesso ao Catálogo Central no V10',
+        level: 2,
+      },
+      {
+        id: 'vp-2',
+        type: 'text',
+        content: 'No painel lateral do Digifarma V10, clique em "Cadastros" e selecione "Produtos". No canto superior direito, clique no botão vermelho "+ Novo Produto".',
+      },
+      {
+        id: 'vp-3',
+        type: 'callout',
+        calloutType: 'success',
+        title: 'Preenchimento Automático por IA',
+        content: 'Ao digitar ou bipar o código de barras (EAN), o Digifarma V10 preenche automaticamente a foto oficial em alta resolução, bula resumida, princípio ativo e posologia.',
+      },
+      {
+        id: 'vp-4',
+        type: 'heading',
+        content: '2. Formação do Preço de Venda e Margem',
+        level: 2,
+      },
+      {
+        id: 'vp-5',
+        type: 'text',
+        content: 'Informe o custo de aquisição. O motor de precificação do V10 sugere automaticamente o PMC (Preço Máximo ao Consumidor) e calcula a margem líquida considerando o regime tributário da loja.',
+      },
+      {
+        id: 'vp-6',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Figura 1: Painel analítico de precificação e margem em tempo real no V10',
+        altText: 'Dashboard de precificação V10',
+      },
+      {
+        id: 'vp-7',
+        type: 'step',
+        content: 'Selecionar as categorias do e-commerce/delivery para disponibilização no catálogo digital.',
+        completed: false,
+      },
+      {
+        id: 'vp-8',
+        type: 'step',
+        content: 'Clicar em "Salvar e Publicar" para sincronizar com todos os caixas e filiais conectadas em segundos.',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'proc-v10-inventario-balanco',
+    title: 'Contagem de Inventário com Coletor e Celular no V10',
+    subtitle: 'Procedimento para realizar contagem de estoque e balanço periódico usando a câmera do celular ou leitor bluetooth',
+    category: 'Estoque',
+    systemVersion: 'v10',
+    menuId: 'estoque',
+    submenuId: 'inventario',
+    systemPath: 'Digifarma V10 ➔ Estoque ➔ Inventário & Balanço ➔ Iniciar Nova Contagem',
+    author: 'Coordenação de Estoque',
+    tags: ['V10', 'Inventário', 'Balanço', 'Mobile', 'Coletor'],
+    is_favorite: true,
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    updated_at: new Date(Date.now() - 14400000).toISOString(),
+    blocks: [
+      {
+        id: 'vi-1',
+        type: 'heading',
+        content: '1. Abertura da Sessão de Inventário',
+        level: 2,
+      },
+      {
+        id: 'vi-2',
+        type: 'text',
+        content: 'No Digifarma V10, acesse Estoque > Inventário & Balanço. Clique em "Nova Sessão" e defina o filtro (por Seção, Prateleira ou Laboratório). O sistema congelará o saldo contábil daquela área sem interromper as vendas.',
+      },
+      {
+        id: 'vi-3',
+        type: 'heading',
+        content: '2. Bipagem com Aplicativo Móvel',
+        level: 2,
+      },
+      {
+        id: 'vi-4',
+        type: 'text',
+        content: 'Abra o app "Digifarma Coletor" no celular corporativo ou no coletor de dados Android. Faça login e escaneie os itens prateleira por prateleira.',
+      },
+      {
+        id: 'vi-5',
+        type: 'callout',
+        calloutType: 'info',
+        title: 'Modo Offline Ativo',
+        content: 'Mesmo sem sinal Wi-Fi no estoque do fundo da loja, o app grava as contagens localmente e sincroniza assim que o sinal for restabelecido.',
+      },
+      {
+        id: 'vi-6',
+        type: 'step',
+        content: 'Escanear todos os produtos físicos e confirmar as quantidades contadas.',
+        completed: false,
+      },
+      {
+        id: 'vi-7',
+        type: 'step',
+        content: 'Abrir a tela de divergências no V10 Web e recontar apenas os itens com diferença apontada.',
+        completed: false,
+      },
+      {
+        id: 'vi-8',
+        type: 'step',
+        content: 'Solicitar aprovação do gerente e clicar em "Ajustar Saldos de Estoque".',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'proc-v10-usuarios-permissoes',
+    title: 'Criação de Usuários e Alçadas de Desconto no V10',
+    subtitle: 'Instruções para cadastrar operadores de caixa, balconistas e gerentes com permissões de acesso específicas',
+    category: 'Utilitários',
+    systemVersion: 'v10',
+    menuId: 'utilitarios',
+    submenuId: 'usuarios',
+    systemPath: 'Digifarma V10 ➔ Utilitários ➔ Usuários & Permissões ➔ Novo Operador',
+    author: 'Administrador de TI',
+    tags: ['V10', 'Segurança', 'Permissões', 'Usuários', 'Controle'],
+    is_favorite: false,
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    updated_at: new Date(Date.now() - 86400000).toISOString(),
+    blocks: [
+      {
+        id: 'vu-1',
+        type: 'heading',
+        content: '1. Acesso à Gestão de Acessos e Usuários',
+        level: 2,
+      },
+      {
+        id: 'vu-2',
+        type: 'text',
+        content: 'No menu Utilitários, clique em "Usuários & Permissões". Clique em "+ Convidar Usuário" e informe o e-mail corporativo do colaborador.',
+      },
+      {
+        id: 'vu-3',
+        type: 'callout',
+        calloutType: 'danger',
+        title: 'Alçadas de Desconto no PDV Web',
+        content: 'Balconistas e operadores de caixa só devem receber permissão de desconto até 12%. Qualquer valor superior exige liberação por PIN ou biometria do supervisor.',
+      },
+      {
+        id: 'vu-4',
+        type: 'step',
+        content: 'Vincular o usuário ao perfil correspondente (ex: Operador de PDV, Balcão, Comprador ou Gerente Geral).',
+        completed: false,
+      },
+      {
+        id: 'vu-5',
+        type: 'step',
+        content: 'Configurar se o usuário tem permissão para cancelar cupons fiscais e realizar sangrias de caixa.',
+        completed: false,
+      },
+      {
+        id: 'vu-6',
+        type: 'step',
+        content: 'Gerar o PIN de 4 dígitos para liberação rápida no caixa e enviar convite de ativação.',
+        completed: false,
+      },
+    ],
+  },
+];
+
+// Gerenciamento de Menus e Submenus
+export async function fetchSystemMenus(): Promise<SystemMenu[]> {
+  const local = localStorage.getItem(MENUS_STORAGE_KEY);
+  if (local) {
+    try {
+      const parsed = JSON.parse(local);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(DEFAULT_SYSTEM_MENUS));
+  return DEFAULT_SYSTEM_MENUS;
+}
+
+export async function saveSystemMenus(menus: SystemMenu[]): Promise<void> {
+  localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(menus));
+}
+
+// Gerenciamento de Procedimentos
+export async function fetchAllProcedures(): Promise<Procedure[]> {
+  // Verifica se precisa migrar/atualizar os procedimentos padrão com novos exemplos e caminhos
+  const currentSeedTag = localStorage.getItem('digifarma_seed_version');
+  if (currentSeedTag !== DATA_VERSION_TAG) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_PROCEDURES));
+    localStorage.setItem('digifarma_seed_version', DATA_VERSION_TAG);
+    return INITIAL_PROCEDURES;
+  }
+
+  const client = getSupabase();
+
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('procedures')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+        return data as Procedure[];
+      }
+    } catch (err) {
+      console.warn('Falha ao carregar do Supabase, buscando cache local:', err);
+    }
+  }
+
+  // Fallback LocalStorage
+  const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (local) {
+    try {
+      const parsed = JSON.parse(local);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      // Ignora erro de parse
+    }
+  }
+
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_PROCEDURES));
+  localStorage.setItem('digifarma_seed_version', DATA_VERSION_TAG);
+  return INITIAL_PROCEDURES;
+}
+
+export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
+  const now = new Date().toISOString();
+  const updatedProcedure: Procedure = {
+    ...procedure,
+    updated_at: now,
+    created_at: procedure.created_at || now,
+  };
+
+  const client = getSupabase();
+
+  if (client) {
+    try {
+      const { error } = await client
+        .from('procedures')
+        .upsert(updatedProcedure)
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('Erro ao salvar no Supabase:', error.message);
+      }
+    } catch (err) {
+      console.warn('Exceção ao salvar no Supabase:', err);
+    }
+  }
+
+  const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+  let list: Procedure[] = local ? JSON.parse(local) : [];
+  const existingIndex = list.findIndex((p) => p.id === updatedProcedure.id);
+
+  if (existingIndex >= 0) {
+    list[existingIndex] = updatedProcedure;
+  } else {
+    list.unshift(updatedProcedure);
+  }
+
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+  return updatedProcedure;
+}
+
+export async function deleteProcedure(id: string): Promise<boolean> {
+  const client = getSupabase();
+
+  if (client) {
+    try {
+      await client.from('procedures').delete().eq('id', id);
+    } catch (err) {
+      console.warn('Erro ao deletar no Supabase:', err);
+    }
+  }
+
+  const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (local) {
+    const list: Procedure[] = JSON.parse(local);
+    const filtered = list.filter((p) => p.id !== id);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
+  }
+
+  return true;
+}
+
+export async function toggleFavoriteProcedure(id: string): Promise<Procedure | null> {
+  const procedures = await fetchAllProcedures();
+  const target = procedures.find((p) => p.id === id);
+  if (!target) return null;
+
+  target.is_favorite = !target.is_favorite;
+  return await saveProcedure(target);
+}
