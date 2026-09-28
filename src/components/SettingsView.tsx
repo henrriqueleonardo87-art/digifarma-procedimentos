@@ -35,6 +35,7 @@ interface SettingsViewProps {
   onSaveMenus: (menus: SystemMenu[]) => Promise<void>;
   onSaveProcedures: (procedures: Procedure[]) => Promise<void>;
   onClose: () => void;
+  onSupabaseConnected?: () => void;
 }
 
 const AVAILABLE_ICONS = [
@@ -57,6 +58,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveMenus,
   onSaveProcedures,
   onClose,
+  onSupabaseConnected,
 }) => {
   const [activeTab, setActiveTab] = useState<'menus' | 'supabase' | 'backup'>('menus');
 
@@ -200,6 +202,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const res = await testConnection();
     setTestingSupabase(false);
     setSupabaseResult(res);
+
+    if (res.success && onSupabaseConnected) {
+      onSupabaseConnected();
+    }
   };
 
   const copySqlScript = () => {

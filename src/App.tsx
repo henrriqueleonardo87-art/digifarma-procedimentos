@@ -262,6 +262,10 @@ export function App() {
               onSaveMenus={handleSaveMenus}
               onSaveProcedures={handleSaveProceduresList}
               onClose={() => setIsConfiguring(false)}
+              onSupabaseConnected={() => {
+                checkConnection();
+                loadData();
+              }}
             />
           </main>
           <SupabaseModal
@@ -353,6 +357,10 @@ export function App() {
               onSaveMenus={handleSaveMenus}
               onSaveProcedures={handleSaveProceduresList}
               onClose={() => setIsConfiguring(false)}
+              onSupabaseConnected={() => {
+                checkConnection();
+                loadData();
+              }}
             />
           ) : loading ? (
             <div className="empty-state">
