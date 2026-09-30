@@ -47,6 +47,7 @@ interface SettingsViewProps {
   onClose: () => void;
   onSupabaseConnected?: () => void;
   onLogout?: () => void;
+  onlyMenus?: boolean;
 }
 
 const AVAILABLE_ICONS = [
@@ -72,6 +73,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onClose,
   onSupabaseConnected,
   onLogout,
+  onlyMenus = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'menus' | 'supabase' | 'backup' | 'account'>('menus');
 
@@ -383,50 +385,56 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
       </div>
 
       <div className="settings-page-title-box">
-        <h1 className="settings-page-title">Configurações do Digifarma</h1>
+        <h1 className="settings-page-title">
+          {onlyMenus ? 'Personalizar Módulos e Rotinas' : 'Configurações do Digifarma'}
+        </h1>
         <p className="settings-page-subtitle">
-          Gerencie a organização dos módulos do sistema, rotinas, conexão em nuvem e backups.
+          {onlyMenus
+            ? 'Crie, organize e edite a estrutura de módulos e rotinas operacionais do Digifarma V10 e Digifarma Clássico.'
+            : 'Gerencie a organização dos módulos do sistema, rotinas, conexão em nuvem e backups.'}
         </p>
       </div>
 
-      {/* Abas Limpas */}
-      <div className="settings-tabs-clean">
-        <button
-          type="button"
-          className={`settings-tab-item ${activeTab === 'menus' ? 'active' : ''}`}
-          onClick={() => setActiveTab('menus')}
-        >
-          <Layers size={16} />
-          <span>Módulos e Procedimentos</span>
-        </button>
+      {/* Abas Limpas (Ocultas no modo Personalizar) */}
+      {!onlyMenus && (
+        <div className="settings-tabs-clean">
+          <button
+            type="button"
+            className={`settings-tab-item ${activeTab === 'menus' ? 'active' : ''}`}
+            onClick={() => setActiveTab('menus')}
+          >
+            <Layers size={16} />
+            <span>Módulos e Procedimentos</span>
+          </button>
 
-        <button
-          type="button"
-          className={`settings-tab-item ${activeTab === 'supabase' ? 'active' : ''}`}
-          onClick={() => setActiveTab('supabase')}
-        >
-          <Database size={16} />
-          <span>Conexão Nuvem / Supabase</span>
-        </button>
+          <button
+            type="button"
+            className={`settings-tab-item ${activeTab === 'supabase' ? 'active' : ''}`}
+            onClick={() => setActiveTab('supabase')}
+          >
+            <Database size={16} />
+            <span>Conexão Nuvem / Supabase</span>
+          </button>
 
-        <button
-          type="button"
-          className={`settings-tab-item ${activeTab === 'backup' ? 'active' : ''}`}
-          onClick={() => setActiveTab('backup')}
-        >
-          <Download size={16} />
-          <span>Backup e Restauração</span>
-        </button>
+          <button
+            type="button"
+            className={`settings-tab-item ${activeTab === 'backup' ? 'active' : ''}`}
+            onClick={() => setActiveTab('backup')}
+          >
+            <Download size={16} />
+            <span>Backup e Restauração</span>
+          </button>
 
-        <button
-          type="button"
-          className={`settings-tab-item ${activeTab === 'account' ? 'active' : ''}`}
-          onClick={() => setActiveTab('account')}
-        >
-          <KeyRound size={16} />
-          <span>Minha Conta & Senha</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            className={`settings-tab-item ${activeTab === 'account' ? 'active' : ''}`}
+            onClick={() => setActiveTab('account')}
+          >
+            <KeyRound size={16} />
+            <span>Minha Conta & Senha</span>
+          </button>
+        </div>
+      )}
 
       {/* ==============================================================
           ABA 1: GESTÃO DE MÓDULOS E ROTINAS (ORGANIZADO)

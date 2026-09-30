@@ -43,7 +43,9 @@ export function App() {
   // Visão Ativa do Sistema: 'dashboard' | 'v10' | 'r78' | 'procedure-detail' | 'config' | 'editor'
   const [currentView, setCurrentView] = useState<string>('dashboard');
 
-  const pendingReviewCount = procedures.filter((p) => p.status === 'pendente').length;
+  const pendingReviewCount = procedures.filter(
+    (p) => p.status === 'pendente' && p.isActive !== false
+  ).length;
 
   const handleApproveProcedure = async (procedureId: string, reviewerName: string) => {
     const proc = procedures.find((p) => p.id === procedureId);
@@ -51,6 +53,7 @@ export function App() {
     const updated: Procedure = {
       ...proc,
       status: 'aprovado',
+      isActive: true,
       reviewedBy: reviewerName,
       reviewedAt: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -67,6 +70,58 @@ export function App() {
       status: 'ajustes_solicitados',
       rejectionReason: reason,
       reviewedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
+
+  const handleToggleActiveProcedure = async (procedureId: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const isCurrentlyActive = proc.isActive !== false;
+    const updated: Procedure = {
+      ...proc,
+      isActive: !isCurrentlyActive,
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
+
+  const handleUnpublishProcedure = async (procedureId: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const updated: Procedure = {
+      ...proc,
+      status: 'despublicado',
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
+
+  const handleSendToReview = async (procedureId: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const updated: Procedure = {
+      ...proc,
+      status: 'pendente',
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
+
+  const handlePublishDirectly = async (procedureId: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const updated: Procedure = {
+      ...proc,
+      status: 'aprovado',
+      isActive: true,
+      reviewedBy: currentUser?.name || 'Administrador',
       reviewedAt: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -352,14 +407,18 @@ export function App() {
             <ProcedureView
               procedure={activeProcedure}
               menus={menus}
-              onEdit={handleEditProcedure}
-              onDelete={handleDeleteClick}
+              onEdit={() => handleEditProcedure(activeProcedure)}
+              onDelete={() => handleDeleteClick(activeProcedure)}
               onOpenImageLightbox={(url, caption) =>
                 setLightboxState({ isOpen: true, url, caption })
               }
               onUpdateStepCompletion={handleStepCompletionToggle}
               onBack={handleBackFromProcedure}
               autoPrint={autoPrintActive}
+              onToggleActive={() => handleToggleActiveProcedure(activeProcedure.id)}
+              onUnpublish={() => handleUnpublishProcedure(activeProcedure.id)}
+              onSendToReview={() => handleSendToReview(activeProcedure.id)}
+              onPublish={() => handlePublishDirectly(activeProcedure.id)}
             />
           ) : currentView === 'v10' ? (
             <VersionModulesView
@@ -369,7 +428,7 @@ export function App() {
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
-              onOpenConfig={() => setCurrentView('config')}
+              onOpenConfig={() => setCurrentView('personalize')}
             />
           ) : currentView === 'r78' ? (
             <VersionModulesView
@@ -379,7 +438,7 @@ export function App() {
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
-              onOpenConfig={() => setCurrentView('config')}
+              onOpenConfig={() => setCurrentView('personalize')}
             />
           ) : currentView === 'revision' ? (
             <ReviewView
@@ -395,6 +454,22 @@ export function App() {
               onApproveProcedure={handleApproveProcedure}
               onRequestAdjustments={handleRequestAdjustments}
             />
+          ) : currentView === 'personalize' ? (
+            <SettingsView
+              menus={menus}
+              procedures={procedures}
+              activeVersion="v10"
+              currentUser={currentUser}
+              onSaveMenus={handleSaveMenus}
+              onSaveProcedures={handleSaveProceduresList}
+              onLogout={handleLogout}
+              onClose={() => setCurrentView('dashboard')}
+              onlyMenus={true}
+              onSupabaseConnected={() => {
+                checkConnection();
+                loadData();
+              }}
+            />
           ) : currentView === 'config' ? (
             <SettingsView
               menus={menus}
@@ -405,6 +480,7 @@ export function App() {
               onSaveProcedures={handleSaveProceduresList}
               onLogout={handleLogout}
               onClose={() => setCurrentView('dashboard')}
+              onlyMenus={false}
               onSupabaseConnected={() => {
                 checkConnection();
                 loadData();
@@ -417,6 +493,12 @@ export function App() {
               activeVersion="v10"
               onSelectProcedure={handleSelectProcedure}
               onNewProcedure={handleNewProcedure}
+              onToggleActive={handleToggleActiveProcedure}
+              onUnpublish={handleUnpublishProcedure}
+              onSendToReview={handleSendToReview}
+              onPublish={handlePublishDirectly}
+              onDelete={handleDeleteClick}
+              onEdit={handleEditProcedure}
             />
           )}
         </main>

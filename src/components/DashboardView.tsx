@@ -10,6 +10,13 @@ import {
   TrendingUp,
   Search,
   Printer,
+  Edit3,
+  Trash2,
+  Eye,
+  EyeOff,
+  FileX,
+  ClipboardCheck,
+  Ban,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -19,6 +26,12 @@ interface DashboardViewProps {
   activeVersion: SystemVersion;
   onSelectProcedure: (id: string, autoPrint?: boolean) => void;
   onNewProcedure: () => void;
+  onToggleActive?: (id: string) => void;
+  onUnpublish?: (id: string) => void;
+  onSendToReview?: (id: string) => void;
+  onPublish?: (id: string) => void;
+  onDelete?: (proc: Procedure) => void;
+  onEdit?: (proc: Procedure) => void;
 }
 
 // Cores temáticas harmônicas para os módulos
@@ -37,6 +50,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   menus,
   onSelectProcedure,
   onNewProcedure,
+  onToggleActive,
+  onUnpublish,
+  onSendToReview,
+  onPublish,
+  onDelete,
+  onEdit,
 }) => {
   const [hoveredModuleIndex, setHoveredModuleIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,18 +121,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ];
   }, [totalProcedures]);
 
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'publicados' | 'revisao' | 'inativos'>('todos');
+
+  // Contagens por status
+  const publishedCount = useMemo(() => {
+    return procedures.filter((p) => p.status === 'aprovado' && p.isActive !== false).length;
+  }, [procedures]);
+
+  const reviewCount = useMemo(() => {
+    return procedures.filter(
+      (p) => (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false
+    ).length;
+  }, [procedures]);
+
+  const inactiveCount = useMemo(() => {
+    return procedures.filter((p) => p.isActive === false).length;
+  }, [procedures]);
+
   // Procedimentos filtrados para a listagem
   const filteredProcedures = useMemo(() => {
-    if (!searchTerm.trim()) return procedures;
+    let list = procedures;
+    if (statusFilter === 'publicados') {
+      list = list.filter((p) => p.status === 'aprovado' && p.isActive !== false);
+    } else if (statusFilter === 'revisao') {
+      list = list.filter(
+        (p) => (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false
+      );
+    } else if (statusFilter === 'inativos') {
+      list = list.filter((p) => p.isActive === false);
+    }
+
+    if (!searchTerm.trim()) return list;
     const q = searchTerm.toLowerCase();
-    return procedures.filter(
+    return list.filter(
       (p) =>
         p.title.toLowerCase().includes(q) ||
         p.subtitle?.toLowerCase().includes(q) ||
         p.category?.toLowerCase().includes(q) ||
         p.systemPath?.toLowerCase().includes(q)
     );
-  }, [procedures, searchTerm]);
+  }, [procedures, searchTerm, statusFilter]);
 
   // Renderizador: Gráfico de Área / Linha
   const renderAreaChart = () => {
@@ -410,16 +457,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
+        {/* Abas Rápidas de Filtragem por Status */}
+        <div className="dash-status-filter-tabs">
+          <button
+            type="button"
+            className={`dash-filter-tab ${statusFilter === 'todos' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('todos')}
+          >
+            <span>Todos</span>
+            <span className="tab-count">{totalProcedures}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`dash-filter-tab ${statusFilter === 'publicados' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('publicados')}
+          >
+            <CheckCircle2 size={13} color="#10b981" />
+            <span>Publicados</span>
+            <span className="tab-count">{publishedCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`dash-filter-tab ${statusFilter === 'revisao' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('revisao')}
+          >
+            <Clock size={13} color="#f59e0b" />
+            <span>Em Revisão</span>
+            <span className="tab-count">{reviewCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`dash-filter-tab ${statusFilter === 'inativos' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('inativos')}
+          >
+            <Ban size={13} color="#94a3b8" />
+            <span>Inativos</span>
+            <span className="tab-count">{inactiveCount}</span>
+          </button>
+        </div>
+
         {/* Tabela Compacta de Linhas */}
         <div className="compact-table-container">
           <table className="compact-table">
             <thead>
               <tr>
-                <th style={{ width: '45%' }}>Procedimento / Rotina</th>
-                <th style={{ width: '18%' }}>Módulo</th>
+                <th style={{ width: '42%' }}>Procedimento / Rotina</th>
+                <th style={{ width: '16%' }}>Módulo</th>
                 <th style={{ width: '15%' }}>Versão</th>
                 <th style={{ width: '10%' }}>Etapas</th>
-                <th style={{ width: '12%', textAlign: 'right' }}>Ações</th>
+                <th style={{ width: '17%', textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -430,22 +519,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 const isV10 = proc.systemVersion === 'v10';
 
                 return (
-                  <tr key={proc.id} onClick={() => onSelectProcedure(proc.id, false)}>
+                  <tr key={proc.id} onClick={() => onSelectProcedure(proc.id, false)} className={proc.isActive === false ? 'row-inactive' : ''}>
                     <td>
                       <div className="proc-cell-title">
-                        <span className="proc-cell-bullet" />
+                        <span className={`proc-cell-bullet ${proc.isActive === false ? 'inactive' : ''}`} />
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <strong>{proc.title}</strong>
-                            {proc.status === 'pendente' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <strong style={{ opacity: proc.isActive === false ? 0.7 : 1 }}>{proc.title}</strong>
+                            {proc.isActive === false ? (
+                              <span className="proc-status-pill inactive">🚫 Inativo</span>
+                            ) : proc.status === 'aprovado' ? (
+                              <span className="proc-status-pill approved">✓ Publicado</span>
+                            ) : proc.status === 'pendente' ? (
                               <span className="proc-status-pill pending">⏳ Em Revisão</span>
-                            )}
-                            {proc.status === 'ajustes_solicitados' && (
+                            ) : proc.status === 'ajustes_solicitados' ? (
                               <span className="proc-status-pill adjustments">⚠️ Ajustes Solicitados</span>
-                            )}
-                            {proc.status === 'aprovado' && (
-                              <span className="proc-status-pill approved">✓ Homologado</span>
-                            )}
+                            ) : proc.status === 'despublicado' ? (
+                              <span className="proc-status-pill unpublished">📄 Despublicado</span>
+                            ) : null}
                           </div>
                           {proc.systemPath && (
                             <span className="proc-cell-route">{proc.systemPath}</span>
@@ -479,14 +570,89 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <ArrowRight size={11} />
                         </button>
 
+                        {onEdit && (
+                          <button
+                            type="button"
+                            className="btn-cell-action"
+                            onClick={() => onEdit(proc)}
+                            title="Editar no Canva Studio"
+                          >
+                            <Edit3 size={11} />
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           className="btn-cell-action print"
                           onClick={() => onSelectProcedure(proc.id, true)}
-                          title="Gerar PDF / Imprimir"
+                          title="Gerar PDF em A4 Paisagem"
                         >
                           <Printer size={12} />
                         </button>
+
+                        {/* Publicar se não estiver aprovado */}
+                        {proc.status !== 'aprovado' && onPublish && (
+                          <button
+                            type="button"
+                            className="btn-cell-action success"
+                            onClick={() => onPublish(proc.id)}
+                            title="Publicar procedimento diretamente"
+                          >
+                            <CheckCircle2 size={12} color="#10b981" />
+                          </button>
+                        )}
+
+                        {/* Despublicar se estiver aprovado */}
+                        {proc.status === 'aprovado' && onUnpublish && (
+                          <button
+                            type="button"
+                            className="btn-cell-action"
+                            onClick={() => onUnpublish(proc.id)}
+                            title="Despublicar procedimento"
+                          >
+                            <FileX size={12} />
+                          </button>
+                        )}
+
+                        {/* Mandar para Revisão */}
+                        {proc.status !== 'pendente' && onSendToReview && (
+                          <button
+                            type="button"
+                            className="btn-cell-action"
+                            onClick={() => onSendToReview(proc.id)}
+                            title="Enviar para homologação na tela de Revisões"
+                          >
+                            <ClipboardCheck size={12} />
+                          </button>
+                        )}
+
+                        {/* Inativar / Reativar (não apaga) */}
+                        {onToggleActive && (
+                          <button
+                            type="button"
+                            className="btn-cell-action"
+                            onClick={() => onToggleActive(proc.id)}
+                            title={proc.isActive === false ? 'Reativar procedimento' : 'Inativar procedimento (não apaga)'}
+                          >
+                            {proc.isActive === false ? (
+                              <Eye size={12} color="#10b981" />
+                            ) : (
+                              <EyeOff size={12} color="#94a3b8" />
+                            )}
+                          </button>
+                        )}
+
+                        {/* Apagar de vez */}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            className="btn-cell-action danger"
+                            onClick={() => onDelete(proc)}
+                            title="Excluir procedimento definitivamente"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

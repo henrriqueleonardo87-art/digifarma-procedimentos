@@ -4493,7 +4493,67 @@ h2.head {
 
 /* ── 4. APRESENTAÇÃO EDITORIAL E PDF OFICIAL V10 (MEDIA_1790766959762.HTML) ── */
 .presentation-manual-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+  background: var(--paper-2);
+  padding: 1.5rem 1rem 4rem;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .presentation-manual-root {
+  background: #090b10;
+}
+
+/* Padrão Único A4 Paisagem (297mm x 210mm) na tela */
+.presentation-manual-root .slide,
+.canva-pdf-preview-container .slide {
+  width: 960px;
+  max-width: 960px;
+  height: 678.8px;
+  max-height: 678.8px;
+  aspect-ratio: 297 / 210;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 40px;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+  margin: 0 auto 2rem;
+  flex-shrink: 0;
+}
+
+.presentation-manual-root .slide .inner,
+.canva-pdf-preview-container .slide .inner {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.presentation-manual-root .shotframe .frame,
+.canva-pdf-preview-container .shotframe .frame {
+  max-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.presentation-manual-root .shotframe .frame img,
+.canva-pdf-preview-container .shotframe .frame img {
+  max-height: 310px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
 }
 
 .proc-action-bar {
@@ -5100,7 +5160,7 @@ h2.head {
 
 /* ── 5. REGRAS DE IMPRESSÃO OFICIAL EM ALTA DEFINIÇÃO FULL-BLEED (@PAGE & @MEDIA PRINT) ── */
 @page {
-  size: 297mm 167.0625mm !important; /* Formato Padrão de Slide 16:9 Widescreen */
+  size: A4 landscape !important; /* Padrão Universal A4 Paisagem (297mm x 210mm) */
   margin: 0mm !important; /* Sem margens automáticas, cabeçalhos ou rodapés do navegador */
 }
 
@@ -5213,11 +5273,11 @@ h2.head {
     width: 297mm !important;
     min-width: 297mm !important;
     max-width: 297mm !important;
-    height: 167.0625mm !important;
-    min-height: 167.0625mm !important;
-    max-height: 167.0625mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    max-height: 210mm !important;
     margin: 0 !important;
-    padding: 8mm 14mm !important;
+    padding: 10mm 15mm !important;
     box-sizing: border-box !important;
     border: none !important;
     border-radius: 0 !important;
@@ -5289,7 +5349,7 @@ h2.head {
   }
 
   .shotframe .frame img {
-    max-height: 88mm !important;
+    max-height: 105mm !important;
     width: auto !important;
     max-width: 100% !important;
     object-fit: contain !important;
@@ -9923,6 +9983,128 @@ input[type="checkbox"]:focus-visible,
   background: rgba(16, 185, 129, 0.12);
   color: #10b981;
   border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.proc-status-pill.inactive {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.proc-status-pill.unpublished {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.review-alert-banner.danger {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+/* Abas de Filtragem por Status no Dashboard */
+.dash-status-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.dash-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--paper-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dash-filter-tab:hover {
+  background: var(--paper-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.dash-filter-tab.active {
+  background: var(--primary-500);
+  color: #ffffff;
+  border-color: var(--primary-500);
+}
+
+.dash-filter-tab .tab-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.dash-filter-tab.active .tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.row-inactive {
+  opacity: 0.65;
+}
+
+.row-inactive:hover {
+  opacity: 1;
+}
+
+.proc-cell-bullet.inactive {
+  background-color: #64748b !important;
+}
+
+.btn-cell-action.success:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+}
+
+.btn-cell-action.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.btn-proc-action.primary-success {
+  background-color: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+.btn-proc-action.primary-success:hover {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.btn-proc-action.reactivate {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.btn-proc-action.reactivate:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.btn-proc-action.inactivate {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-proc-action.inactivate:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 /* ── BANNER DE ALERTA DE REVISÃO (EM PROCEDIMENTO E EDITOR) ── */

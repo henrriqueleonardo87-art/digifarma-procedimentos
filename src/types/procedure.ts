@@ -163,7 +163,7 @@ export interface SlideConfig {
   shapes?: SlideShape[];
 }
 
-export type ProcedureStatus = 'pendente' | 'aprovado' | 'ajustes_solicitados' | 'rascunho';
+export type ProcedureStatus = 'pendente' | 'aprovado' | 'ajustes_solicitados' | 'rascunho' | 'despublicado';
 
 export interface ReviewFeedback {
   id: string;
@@ -193,6 +193,7 @@ export interface Procedure {
   reviewedBy?: string;
   reviewedAt?: string;
   reviewFeedbacks?: ReviewFeedback[];
+  isActive?: boolean;
   is_favorite?: boolean;
   created_at?: string;
   updated_at?: string;

@@ -534,6 +534,42 @@ export function generateProcedureHtml(procedure: Procedure): string {
       .stats { grid-template-columns: 1fr 1fr; }
       .print-signatures-grid { grid-template-columns: 1fr; gap: 20px; }
     }
+
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+    @media print {
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 297mm !important;
+        background: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .slide {
+        width: 297mm !important;
+        height: 210mm !important;
+        min-height: 210mm !important;
+        max-height: 210mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        overflow: hidden !important;
+        padding: 10mm 15mm !important;
+        border: none !important;
+      }
+      .slide:last-of-type, .slide:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+      .shotframe .frame img {
+        max-height: 105mm !important;
+        object-fit: contain !important;
+      }
+      .interactive-check-box { display: none !important; }
+    }
   </style>
 </head>
 <body>

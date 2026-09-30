@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'revision' ? 'active' : ''}`}
           onClick={() => handleNavClick('revision')}
-          title="Central de Revisão e Homologação de POPs"
+          title="Central de Revisões"
         >
           <span className="ic" style={{ position: 'relative' }}>
             <ClipboardCheck size={18} />
@@ -161,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </span>
           {!isCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
-              <span style={{ whiteSpace: 'nowrap' }}>Revisão de POPs</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Revisões</span>
               {pendingReviewCount && pendingReviewCount > 0 ? (
                 <span className="sidebar-pending-badge">{pendingReviewCount}</span>
               ) : null}
@@ -171,8 +171,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           type="button"
-          className={`nav-item ${currentView === 'config' ? 'active' : ''}`}
-          onClick={() => handleNavClick('config')}
+          className={`nav-item ${currentView === 'personalize' ? 'active' : ''}`}
+          onClick={() => handleNavClick('personalize')}
           title="Personalizar Módulos, Rotinas e Menus"
         >
           <span className="ic">

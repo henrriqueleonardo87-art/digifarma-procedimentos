@@ -20,6 +20,10 @@ import {
   Lock,
   Check,
   Clock,
+  FileX,
+  Eye,
+  EyeOff,
+  ClipboardCheck,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -41,6 +45,10 @@ interface ProcedureViewProps {
   onUpdateStepCompletion: (blockId: string, completed: boolean) => void;
   onBack?: () => void;
   autoPrint?: boolean;
+  onToggleActive?: () => void;
+  onUnpublish?: () => void;
+  onSendToReview?: () => void;
+  onPublish?: () => void;
 }
 
 export const ProcedureView: React.FC<ProcedureViewProps> = ({
@@ -52,6 +60,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   onUpdateStepCompletion,
   onBack,
   autoPrint = false,
+  onToggleActive,
+  onUnpublish,
+  onSendToReview,
+  onPublish,
 }) => {
   // Disparo automático de impressão quando solicitado direto do card
   React.useEffect(() => {
@@ -448,6 +460,27 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           <span className={`version-pill ${isV10 ? 'v10' : 'classico'}`}>
             {versionTag}
           </span>
+          {procedure.isActive === false ? (
+            <span className="proc-status-pill inactive" title="Procedimento Inativo">
+              🚫 Inativo
+            </span>
+          ) : procedure.status === 'aprovado' ? (
+            <span className="proc-status-pill approved" title="Procedimento Homologado e Publicado">
+              ✓ Publicado
+            </span>
+          ) : procedure.status === 'pendente' ? (
+            <span className="proc-status-pill pending" title="Aguardando homologação em Revisões">
+              ⏳ Em Revisão
+            </span>
+          ) : procedure.status === 'ajustes_solicitados' ? (
+            <span className="proc-status-pill adjustments" title="Ajustes Solicitados pelo Revisor">
+              ⚠️ Ajustes Solicitados
+            </span>
+          ) : procedure.status === 'despublicado' ? (
+            <span className="proc-status-pill unpublished" title="Procedimento Despublicado">
+              📄 Despublicado
+            </span>
+          ) : null}
           <span className="proc-action-title">{procedure.title}</span>
           {procedure.systemPath && (
             <span className="proc-action-path">{procedure.systemPath}</span>
@@ -455,6 +488,77 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
 
         <div className="proc-action-right">
+          {/* Publicar diretamente */}
+          {procedure.status !== 'aprovado' && onPublish && (
+            <button
+              type="button"
+              className="btn-proc-action primary-success"
+              onClick={onPublish}
+              title="Publicar procedimento diretamente"
+            >
+              <CheckCircle2 size={15} />
+              <span>Publicar</span>
+            </button>
+          )}
+
+          {/* Despublicar */}
+          {procedure.status === 'aprovado' && onUnpublish && (
+            <button
+              type="button"
+              className="btn-proc-action"
+              onClick={onUnpublish}
+              title="Despublicar procedimento (remover de circulação)"
+            >
+              <FileX size={15} />
+              <span>Despublicar</span>
+            </button>
+          )}
+
+          {/* Mandar para Revisão a qualquer momento */}
+          {procedure.status !== 'pendente' && onSendToReview && (
+            <button
+              type="button"
+              className="btn-proc-action"
+              onClick={onSendToReview}
+              title="Enviar este procedimento para homologação na tela de Revisões"
+            >
+              <ClipboardCheck size={15} />
+              <span>Mandar p/ Revisão</span>
+            </button>
+          )}
+
+          {/* Inativar / Reativar sem apagar */}
+          {onToggleActive && (
+            <button
+              type="button"
+              className={`btn-proc-action ${procedure.isActive === false ? 'reactivate' : 'inactivate'}`}
+              onClick={onToggleActive}
+              title={procedure.isActive === false ? 'Reativar procedimento' : 'Inativar procedimento (não apaga)'}
+            >
+              {procedure.isActive === false ? (
+                <>
+                  <Eye size={15} />
+                  <span>Reativar</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff size={15} />
+                  <span>Inativar</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="btn-proc-action"
+            onClick={onEdit}
+            title="Editar conteúdo, passos e imagens no Canva Studio"
+          >
+            <Edit3 size={15} />
+            <span>Editar</span>
+          </button>
+
           <button
             type="button"
             className="btn-proc-action"
@@ -472,20 +576,25 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             title="Baixar arquivo HTML dinâmico com animações e GIFs"
           >
             <FileDown size={15} />
-            <span>Exportar HTML</span>
+            <span>HTML</span>
           </button>
 
-          <button type="button" className="btn-proc-action primary" onClick={handlePrint}>
+          <button
+            type="button"
+            className="btn-proc-action primary"
+            onClick={handlePrint}
+            title="Imprimir ou gerar PDF oficial em A4 Paisagem"
+          >
             <Printer size={15} />
             <span>Imprimir PDF</span>
           </button>
 
-          <button type="button" className="btn-proc-action" onClick={onEdit}>
-            <Edit3 size={15} />
-            <span>Editar</span>
-          </button>
-
-          <button type="button" className="btn-proc-action danger" onClick={onDelete} title="Excluir POP">
+          <button
+            type="button"
+            className="btn-proc-action danger"
+            onClick={onDelete}
+            title="Apagar procedimento definitivamente"
+          >
             <Trash2 size={15} />
           </button>
         </div>
@@ -497,6 +606,47 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         isOpen={isTimelineOpen}
         onClose={() => setIsTimelineOpen(false)}
       />
+
+      {/* Banner de Procedimento Inativo */}
+      {procedure.isActive === false && (
+        <div className="review-alert-banner danger no-print" style={{ margin: '16px auto', maxWidth: '1120px' }}>
+          <Ban size={24} color="#ef4444" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: '0.95rem' }}>Procedimento Inativo</strong>
+            <p style={{ margin: '4px 0 0 0', lineHeight: 1.45 }}>
+              Este procedimento está <strong>inativado</strong>. Ele permanece salvo com todo o histórico preservado, mas não aparece nas rotinas operacionais ativas.
+            </p>
+          </div>
+          {onToggleActive && (
+            <button
+              type="button"
+              className="btn-banner-edit"
+              onClick={onToggleActive}
+              style={{ background: '#10b981', color: '#fff', borderColor: '#10b981' }}
+            >
+              Reativar Procedimento
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Banner de Procedimento Despublicado */}
+      {procedure.status === 'despublicado' && procedure.isActive !== false && (
+        <div className="review-alert-banner warning no-print" style={{ margin: '16px auto', maxWidth: '1120px' }}>
+          <FileX size={24} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: '0.95rem' }}>Procedimento Despublicado</strong>
+            <p style={{ margin: '4px 0 0 0', lineHeight: 1.45 }}>
+              Este procedimento foi retirado do ar. Você pode editá-lo, enviá-lo para revisão ou publicá-lo diretamente.
+            </p>
+          </div>
+          {onPublish && (
+            <button type="button" className="btn-banner-edit" onClick={onPublish}>
+              Publicar Agora
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Banner de Revisão / Ajustes Solicitados pelo Revisor */}
       {procedure.status === 'ajustes_solicitados' && procedure.rejectionReason && (
