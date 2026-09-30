@@ -369,6 +369,7 @@ export function App() {
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
+              onOpenConfig={() => setCurrentView('config')}
             />
           ) : currentView === 'r78' ? (
             <VersionModulesView
@@ -378,6 +379,7 @@ export function App() {
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
+              onOpenConfig={() => setCurrentView('config')}
             />
           ) : currentView === 'revision' ? (
             <ReviewView

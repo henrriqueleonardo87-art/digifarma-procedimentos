@@ -143,16 +143,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     e.preventDefault();
     if (!newMenuLabel.trim()) return;
 
-    const id = newMenuLabel
+    const baseId = newMenuLabel
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]/g, '-');
 
-    if (currentMenus.some((m) => m.id === id)) {
-      alert('Já existe um módulo com este identificador.');
+    const duplicateSameVersion = currentMenus.some(
+      (m) => m.id === baseId && (m.version === newMenuVersion || m.version === 'ambos' || newMenuVersion === 'ambos')
+    );
+
+    if (duplicateSameVersion) {
+      alert(`Já existe um módulo "${newMenuLabel}" configurado para esta mesma versão.`);
       return;
     }
+
+    const id = currentMenus.some((m) => m.id === baseId)
+      ? `${baseId}-${newMenuVersion}`
+      : baseId;
 
     const created: SystemMenu = {
       id,

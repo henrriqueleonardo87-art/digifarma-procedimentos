@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck, Sliders } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface SidebarProps {
@@ -167,6 +167,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ) : null}
             </div>
           )}
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'config' ? 'active' : ''}`}
+          onClick={() => handleNavClick('config')}
+          title="Personalizar Módulos, Rotinas e Menus"
+        >
+          <span className="ic">
+            <Sliders size={18} />
+          </span>
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Personalizar</span>}
         </button>
       </div>
 

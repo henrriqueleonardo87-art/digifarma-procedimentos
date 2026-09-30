@@ -7,6 +7,7 @@ import {
   Users,
   Package,
   ShieldAlert,
+  ShieldCheck,
   Settings,
   ArrowLeft,
   ChevronRight,
@@ -15,6 +16,14 @@ import {
   Sparkles,
   Search,
   Plus,
+  FolderPlus,
+  Boxes,
+  Wrench,
+  Truck,
+  Database,
+  Layers,
+  Folder,
+  Sliders,
 } from 'lucide-react';
 import type { Procedure, SystemMenu } from '../types/procedure';
 
@@ -25,87 +34,70 @@ interface VersionModulesViewProps {
   onSelectProcedure: (id: string, autoPrint?: boolean) => void;
   onBackToDashboard: () => void;
   onNewProcedure: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
+  onOpenConfig?: () => void;
 }
 
-interface ModuleCardDef {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: React.FC<{ size?: number; className?: string }>;
-  tags: string[];
-}
-
-// Módulos base padronizados no formato exato da imagem de referência
-const MODULE_DEFS: ModuleCardDef[] = [
-  {
-    id: 'caixa',
-    title: 'Caixa',
-    subtitle: 'Abrir e gerenciar caixa',
-    icon: CreditCard,
-    tags: ['caixa', 'financeiro', 'sangria', 'fechamento'],
-  },
-  {
-    id: 'vendas',
-    title: 'Vendas',
-    subtitle: 'Nova venda e consultas',
-    icon: ShoppingCart,
-    tags: ['venda', 'balcao', 'f7', 'atendimento', 'fidelidade'],
-  },
-  {
-    id: 'notas-fiscais',
-    title: 'Notas Fiscais',
-    subtitle: 'Emissão e consulta',
-    icon: FileText,
-    tags: ['fiscal', 'nfce', 'nfe', 'xml', 'danfe'],
-  },
-  {
-    id: 'estatisticas',
-    title: 'Estatísticas',
-    subtitle: 'Relatórios e gráficos',
-    icon: BarChart3,
-    tags: ['estatisticas', 'relatorio', 'metricas', 'indicadores'],
-  },
-  {
-    id: 'clientes',
-    title: 'Clientes',
-    subtitle: 'Cadastro de clientes',
-    icon: Users,
-    tags: ['cliente', 'convenio', 'cadastro', 'cpf', '360'],
-  },
-  {
-    id: 'estoque',
-    title: 'Estoque',
-    subtitle: 'Inventário e validades',
-    icon: Package,
-    tags: ['estoque', 'inventario', 'lote', 'validade', 'pvps'],
-  },
-  {
-    id: 'controlados',
-    title: 'Controlados',
-    subtitle: 'Portaria 344 e Anvisa',
-    icon: ShieldAlert,
-    tags: ['sngpc', 'controlado', 'portaria344', 'receita', 'anvisa'],
-  },
-  {
-    id: 'configuracoes',
-    title: 'Configurações',
-    subtitle: 'Usuários e parâmetros',
-    icon: Settings,
-    tags: ['config', 'usuario', 'permissao', 'alcada', 'backup'],
-  },
-];
+// Mapeamento dinâmico de ícones para menus e submenus configurados
+const getMenuIconComponent = (iconName?: string): React.FC<{ size?: number; className?: string }> => {
+  switch (iconName) {
+    case 'CreditCard':
+      return CreditCard;
+    case 'ShoppingCart':
+      return ShoppingCart;
+    case 'FileText':
+      return FileText;
+    case 'BarChart3':
+      return BarChart3;
+    case 'Users':
+      return Users;
+    case 'Package':
+      return Package;
+    case 'ShieldAlert':
+      return ShieldAlert;
+    case 'ShieldCheck':
+      return ShieldCheck;
+    case 'Settings':
+      return Settings;
+    case 'FolderPlus':
+      return FolderPlus;
+    case 'Boxes':
+      return Boxes;
+    case 'Wrench':
+      return Wrench;
+    case 'Truck':
+      return Truck;
+    case 'Database':
+      return Database;
+    case 'Layers':
+      return Layers;
+    default:
+      return Folder;
+  }
+};
 
 export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   version,
   procedures,
+  menus,
   onSelectProcedure,
   onBackToDashboard,
   onNewProcedure,
+  onOpenConfig,
 }) => {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico';
+
+  // Filtra estritamente os MENUS criados em Configurações para esta versão
+  const versionMenus = useMemo(() => {
+    return (menus || []).filter((m) => {
+      const mVer = m.version || 'ambos';
+      if (mVer === 'ambos') return true;
+      if (version === 'v10') return mVer === 'v10';
+      return mVer === 'classico' || mVer === 'r78';
+    });
+  }, [menus, version]);
 
   // Procedimentos da versão selecionada
   const versionProcedures = useMemo(() => {
@@ -116,31 +108,35 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     });
   }, [procedures, version]);
 
+  // Módulo ativo atualmente selecionado (se houver)
+  const activeMenu = useMemo(() => {
+    if (!selectedModuleId) return null;
+    return versionMenus.find((m) => m.id === selectedModuleId) || null;
+  }, [selectedModuleId, versionMenus]);
+
   // Procedimentos pertencentes ao módulo selecionado
   const moduleProcedures = useMemo(() => {
-    if (!selectedModuleId) return [];
+    if (!selectedModuleId || !activeMenu) return [];
 
-    const modDef = MODULE_DEFS.find((m) => m.id === selectedModuleId);
-    const tags = modDef?.tags || [selectedModuleId];
+    const menuLabel = activeMenu.label.toLowerCase();
+    const menuId = selectedModuleId.toLowerCase();
 
     return versionProcedures.filter((p) => {
       const cat = (p.category || '').toLowerCase();
       const mId = (p.menuId || '').toLowerCase();
-      const subId = (p.submenuId || '').toLowerCase();
-      const title = p.title.toLowerCase();
       const path = (p.systemPath || '').toLowerCase();
+      const title = p.title.toLowerCase();
 
-      return tags.some(
-        (t) =>
-          cat.includes(t) ||
-          mId.includes(t) ||
-          subId.includes(t) ||
-          title.includes(t) ||
-          path.includes(t) ||
-          p.tags?.some((pt) => pt.toLowerCase().includes(t))
+      return (
+        mId === menuId ||
+        cat === menuLabel ||
+        cat.includes(menuLabel) ||
+        path.includes(menuLabel) ||
+        title.includes(menuLabel) ||
+        p.tags?.some((pt) => pt.toLowerCase().includes(menuLabel))
       );
     });
-  }, [versionProcedures, selectedModuleId]);
+  }, [versionProcedures, selectedModuleId, activeMenu]);
 
   // Procedimentos filtrados pela busca
   const searchResults = useMemo(() => {
@@ -155,13 +151,12 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     );
   }, [versionProcedures, searchTerm]);
 
-  const activeModuleDef = MODULE_DEFS.find((m) => m.id === selectedModuleId);
-
   // =========================================================================
-  // CENÁRIO 2: SUBMENUS EM CARDS (QUANDO UM MÓDULO É CLICADO)
+  // CENÁRIO 2: SUBMENUS E ROTINAS EM CARDS (QUANDO UM MÓDULO É CLICADO)
   // =========================================================================
-  if (selectedModuleId && activeModuleDef) {
-    const ActiveIcon = activeModuleDef.icon;
+  if (selectedModuleId && activeMenu) {
+    const ActiveIcon = getMenuIconComponent(activeMenu.icon);
+    const submenus = activeMenu.submenus || [];
 
     return (
       <div className="modules-drilldown-container">
@@ -185,7 +180,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               {versionName}
             </span>
             <span className="crumb-sep">/</span>
-            <span className="crumb-active">{activeModuleDef.title}</span>
+            <span className="crumb-active">{activeMenu.label}</span>
           </div>
         </div>
 
@@ -195,19 +190,21 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             <ActiveIcon size={28} />
           </div>
           <div>
-            <h1 className="module-focus-title">Módulo {activeModuleDef.title}</h1>
+            <h1 className="module-focus-title">Módulo {activeMenu.label}</h1>
             <p className="module-focus-sub">
-              {activeModuleDef.subtitle} · Selecione o submenu abaixo para abrir o passo a passo homologado
+              {submenus.length > 0
+                ? `${submenus.length} rotinas e submenus configurados · Selecione uma opção para abrir o passo a passo homologado`
+                : 'Selecione ou cadastre uma rotina abaixo para abrir o passo a passo homologado'}
             </p>
           </div>
         </div>
 
-        {/* Grade de Submenus em Cards Exatamente como a Imagem */}
+        {/* Grade de Submenus e Procedimentos em Cards */}
         <div className="image-cards-grid">
           {/* Card Novo para o Módulo Ativo */}
           <div
             className="image-card-item image-card-new-item"
-            onClick={() => onNewProcedure(activeModuleDef.title, activeModuleDef.id, version)}
+            onClick={() => onNewProcedure(activeMenu.label, activeMenu.id, version)}
             role="button"
             tabIndex={0}
           >
@@ -216,62 +213,132 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             </div>
             <h3 className="image-card-title">Novo</h3>
             <p className="image-card-subtitle">
-              Cadastrar rotina em {activeModuleDef.title}
+              Cadastrar rotina em {activeMenu.label}
             </p>
             <span className="image-card-count-badge new-badge">
               + Novo neste Módulo
             </span>
           </div>
 
-          {moduleProcedures.map((proc) => {
+          {/* Cards para cada Submenu configurado em Configurações */}
+          {submenus.map((sub) => {
+            const SubIcon = getMenuIconComponent(sub.icon || activeMenu.icon);
+            const subProcs = moduleProcedures.filter((p) => {
+              const subId = (p.submenuId || '').toLowerCase();
+              const cat = (p.category || '').toLowerCase();
+              const path = (p.systemPath || '').toLowerCase();
+              const target = sub.label.toLowerCase();
+              return subId === sub.id.toLowerCase() || cat.includes(target) || path.includes(target);
+            });
+
             return (
               <div
-                key={proc.id}
+                key={sub.id}
                 className="image-card-item"
-                onClick={() => onSelectProcedure(proc.id, false)}
+                onClick={() => {
+                  if (subProcs.length > 0) {
+                    onSelectProcedure(subProcs[0].id, false);
+                  } else {
+                    onNewProcedure(activeMenu.label, activeMenu.id, version);
+                  }
+                }}
                 role="button"
                 tabIndex={0}
               >
                 <div className="image-card-icon-center">
-                  <ActiveIcon size={26} />
+                  <SubIcon size={26} />
                 </div>
-                <h3 className="image-card-title">{proc.title}</h3>
+                <h3 className="image-card-title">{sub.label}</h3>
                 <p className="image-card-subtitle">
-                  {proc.subtitle || 'Clique para abrir o roteiro passo a passo'}
+                  {subProcs.length > 0
+                    ? subProcs[0].title
+                    : `Rotina do módulo ${activeMenu.label}`}
                 </p>
 
-                <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="btn-subcard-action"
-                    onClick={() => onSelectProcedure(proc.id, false)}
-                    title="Abrir passo a passo completo"
-                  >
-                    <BookOpen size={13} />
-                    <span>Abrir</span>
-                    <ChevronRight size={12} />
-                  </button>
+                {subProcs.length > 0 ? (
+                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-subcard-action"
+                      onClick={() => onSelectProcedure(subProcs[0].id, false)}
+                      title="Abrir passo a passo completo"
+                    >
+                      <BookOpen size={13} />
+                      <span>Abrir</span>
+                      <ChevronRight size={12} />
+                    </button>
 
-                  <button
-                    type="button"
-                    className="btn-subcard-print"
-                    onClick={() => onSelectProcedure(proc.id, true)}
-                    title="Imprimir ou gerar PDF deste procedimento"
-                  >
-                    <Printer size={13} />
-                    <span>PDF</span>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      className="btn-subcard-print"
+                      onClick={() => onSelectProcedure(subProcs[0].id, true)}
+                      title="Imprimir ou gerar PDF deste procedimento"
+                    >
+                      <Printer size={13} />
+                      <span>PDF</span>
+                    </button>
+                  </div>
+                ) : (
+                  <span className="image-card-count-badge">
+                    Submenu Configurado
+                  </span>
+                )}
               </div>
             );
           })}
+
+          {/* Procedimentos vinculados diretamente a este módulo que não são de submenus acima */}
+          {moduleProcedures
+            .filter((proc) => !submenus.some((s) => (proc.submenuId || '').toLowerCase() === s.id.toLowerCase()))
+            .map((proc) => {
+              return (
+                <div
+                  key={proc.id}
+                  className="image-card-item"
+                  onClick={() => onSelectProcedure(proc.id, false)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="image-card-icon-center">
+                    <ActiveIcon size={26} />
+                  </div>
+                  <h3 className="image-card-title">{proc.title}</h3>
+                  <p className="image-card-subtitle">
+                    {proc.subtitle || 'Clique para abrir o roteiro passo a passo'}
+                  </p>
+
+                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-subcard-action"
+                      onClick={() => onSelectProcedure(proc.id, false)}
+                      title="Abrir passo a passo completo"
+                    >
+                      <BookOpen size={13} />
+                      <span>Abrir</span>
+                      <ChevronRight size={12} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-subcard-print"
+                      onClick={() => onSelectProcedure(proc.id, true)}
+                      title="Imprimir ou gerar PDF deste procedimento"
+                    >
+                      <Printer size={13} />
+                      <span>PDF</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
     );
   }
 
   // =========================================================================
-  // CENÁRIO 1: GRADE DE MÓDULOS PRINCIPAIS EM CARDS (ESTILO DA IMAGEM)
+  // CENÁRIO 1: GRADE DE MÓDULOS PRINCIPAIS EM CARDS (BASEADA EM CONFIGURAÇÕES)
   // =========================================================================
   return (
     <div className="modules-drilldown-container">
@@ -355,7 +422,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           </div>
         </div>
       ) : (
-        /* Grade de Menus em Cards Idêntica à Imagem de Referência */
+        /* Grade de Menus em Cards Baseada nos Menus Cadastrados em Configurações */
         <div className="image-cards-grid">
           {/* Card Novo */}
           <div
@@ -374,19 +441,20 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             </span>
           </div>
 
-          {MODULE_DEFS.map((mod) => {
-            const ModIcon = mod.icon;
+          {/* Cards dos Menus da Versão configurados pelo usuário */}
+          {versionMenus.map((mod) => {
+            const ModIcon = getMenuIconComponent(mod.icon);
             const count = versionProcedures.filter((p) => {
               const cat = (p.category || '').toLowerCase();
               const mId = (p.menuId || '').toLowerCase();
-              const subId = (p.submenuId || '').toLowerCase();
-              const title = p.title.toLowerCase();
-              return mod.tags.some(
-                (t) =>
-                  cat.includes(t) ||
-                  mId.includes(t) ||
-                  subId.includes(t) ||
-                  title.includes(t)
+              const path = (p.systemPath || '').toLowerCase();
+              const label = mod.label.toLowerCase();
+              return (
+                mId === mod.id.toLowerCase() ||
+                cat === label ||
+                cat.includes(label) ||
+                path.includes(label) ||
+                p.tags?.some((t) => t.toLowerCase() === label)
               );
             }).length;
 
@@ -401,17 +469,59 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 <div className="image-card-icon-center">
                   <ModIcon size={26} />
                 </div>
-                <h3 className="image-card-title">{mod.title}</h3>
-                <p className="image-card-subtitle">{mod.subtitle}</p>
+                <h3 className="image-card-title">{mod.label}</h3>
+                <p className="image-card-subtitle">
+                  {mod.submenus && mod.submenus.length > 0
+                    ? `${mod.submenus.length} ${mod.submenus.length === 1 ? 'rotina' : 'rotinas'} (${mod.submenus.map((s) => s.label).slice(0, 2).join(', ')}${mod.submenus.length > 2 ? '...' : ''})`
+                    : `Módulo do ${versionName}`}
+                </p>
 
-                {count > 0 && (
+                {count > 0 ? (
                   <span className="image-card-count-badge">
                     {count} {count === 1 ? 'procedimento' : 'procedimentos'}
                   </span>
-                )}
+                ) : mod.submenus && mod.submenus.length > 0 ? (
+                  <span className="image-card-count-badge">
+                    {mod.submenus.length} submenus
+                  </span>
+                ) : null}
               </div>
             );
           })}
+
+          {/* Estado Vazio caso a versão não tenha nenhum menu cadastrado */}
+          {versionMenus.length === 0 && (
+            <div
+              className="version-empty-menus-box"
+              style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '40px 24px',
+                background: 'rgba(30, 41, 59, 0.45)',
+                borderRadius: '12px',
+                border: '1px dashed #334155',
+              }}
+            >
+              <FolderPlus size={40} style={{ color: 'var(--red)', margin: '0 auto 10px', opacity: 0.8 }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>
+                Nenhum módulo configurado para o {versionName}
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 16px' }}>
+                Você pode criar e organizar os módulos e rotinas desta versão acessando "Personalizar" no menu lateral.
+              </p>
+              {onOpenConfig && (
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  onClick={onOpenConfig}
+                  style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Sliders size={14} />
+                  <span>Personalizar Menus Agora</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

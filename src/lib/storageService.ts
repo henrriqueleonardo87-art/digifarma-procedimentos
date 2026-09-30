@@ -699,10 +699,10 @@ export const INITIAL_PROCEDURES: Procedure[] = [
 // Gerenciamento de Menus e Submenus
 export async function fetchSystemMenus(): Promise<SystemMenu[]> {
   const local = localStorage.getItem(MENUS_STORAGE_KEY);
-  if (local) {
+  if (local !== null) {
     try {
       const parsed = JSON.parse(local);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     } catch {
