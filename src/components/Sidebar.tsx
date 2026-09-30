@@ -7,6 +7,8 @@ interface SidebarProps {
   onToggleDarkMode: () => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function navIcon(name: string) {
@@ -38,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleDarkMode,
   isOpenMobile,
   onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const handleNavClick = (view: string) => {
     onChangeView(view);
@@ -45,20 +49,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className={`sidebar no-print ${isOpenMobile ? 'mobile-open' : ''}`} id="sidebar">
+    <aside
+      className={`sidebar no-print ${isOpenMobile ? 'mobile-open' : ''} ${
+        isCollapsed ? 'collapsed' : ''
+      }`}
+      id="sidebar"
+    >
       {/* Brand Header */}
       <div className="brand">
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flex: 1 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isCollapsed ? '0' : '0.75rem',
+            cursor: 'pointer',
+            flex: 1,
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+          }}
           onClick={() => handleNavClick('dashboard')}
+          title="Digifarma - Início"
         >
           <div className="brand-logo-icon">
             <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
           </div>
-          <div>
-            <div className="name">Digifarma</div>
-            <div className="sub brand-product">Treinamento & POPs</div>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <div className="name">Digifarma</div>
+              <div className="sub brand-product">Treinamento & POPs</div>
+            </div>
+          )}
         </div>
 
         {onCloseMobile && (
@@ -80,63 +99,93 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
           onClick={() => handleNavClick('dashboard')}
+          title="Tela inicial"
         >
           <span className="ic">{navIcon('grid')}</span>
-          <span>Tela inicial</span>
+          {!isCollapsed && <span>Tela inicial</span>}
         </button>
 
         <button
           type="button"
           className={`nav-item ${currentView === 'v10' ? 'active' : ''}`}
           onClick={() => handleNavClick('v10')}
+          title="Digifarma V10"
         >
           <span className="ic">{navIcon('rocket')}</span>
-          <span>Digifarma V10</span>
+          {!isCollapsed && <span>Digifarma V10</span>}
         </button>
 
         <button
           type="button"
           className={`nav-item ${currentView === 'r78' ? 'active' : ''}`}
           onClick={() => handleNavClick('r78')}
+          title="Digifarma R78"
         >
           <span className="ic">{navIcon('monitor')}</span>
-          <span>Digifarma R78</span>
+          {!isCollapsed && <span>Digifarma R78</span>}
         </button>
       </div>
 
       {/* Rodapé do Menu Lateral */}
       <div className="sidebar-foot">
-        <div className="theme-toggle">
+        {!isCollapsed ? (
+          <div className="theme-toggle">
+            <button
+              type="button"
+              data-theme="light"
+              className={!darkMode ? 'active' : ''}
+              onClick={() => {
+                if (darkMode) onToggleDarkMode();
+              }}
+            >
+              ☀ Claro
+            </button>
+            <button
+              type="button"
+              data-theme="dark"
+              className={darkMode ? 'active' : ''}
+              onClick={() => {
+                if (!darkMode) onToggleDarkMode();
+              }}
+            >
+              ☾ Escuro
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            data-theme="light"
-            className={!darkMode ? 'active' : ''}
-            onClick={() => {
-              if (darkMode) onToggleDarkMode();
-            }}
+            className="theme-toggle-compact-btn"
+            onClick={onToggleDarkMode}
+            title={darkMode ? 'Mudar para tema Claro' : 'Mudar para tema Escuro'}
+            aria-label="Alternar tema"
           >
-            ☀ Claro
+            {darkMode ? '☾' : '☀'}
           </button>
-          <button
-            type="button"
-            data-theme="dark"
-            className={darkMode ? 'active' : ''}
-            onClick={() => {
-              if (!darkMode) onToggleDarkMode();
-            }}
-          >
-            ☾ Escuro
-          </button>
-        </div>
+        )}
 
         <button
           type="button"
           className={`nav-item sidebar-config-item ${currentView === 'config' ? 'active' : ''}`}
           onClick={() => handleNavClick('config')}
+          title="Configurações"
         >
           <span className="ic">{navIcon('settings')}</span>
-          <span>Configurações</span>
+          {!isCollapsed && <span>Configurações</span>}
         </button>
+
+        {/* Botão para Recolher / Expandir Menu Lateral no Desktop */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sidebar-collapse-toggle-btn no-print"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+          >
+            <span className="collapse-arrow">{isCollapsed ? '❯' : '❮'}</span>
+            {!isCollapsed && <span className="collapse-label">Recolher</span>}
+          </button>
+        )}
       </div>
     </aside>
   );

@@ -34,13 +34,16 @@ import type {
   CalloutVariant,
   SystemMenu,
   SystemVersion,
+  ProcedureHistoryItem,
 } from '../types/procedure';
+import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
 
 interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
   menus: SystemMenu[];
   activeVersion: SystemVersion;
+  currentUser?: AppUser | null;
   onSave: (procedure: Procedure) => Promise<void>;
   onCancel: () => void;
 }
@@ -49,6 +52,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   initialProcedure,
   menus,
   activeVersion,
+  currentUser,
   onSave,
   onCancel,
 }) => {
@@ -61,7 +65,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   const [menuId, setMenuId] = useState(initialProcedure?.menuId || (menus[0]?.id || 'cadastros'));
   const [submenuId, setSubmenuId] = useState(initialProcedure?.submenuId || '');
   const category = initialProcedure?.category || 'Cadastros';
-  const [author, setAuthor] = useState(initialProcedure?.author || 'Farmacêutico Responsável');
+  const [author, setAuthor] = useState(
+    initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo'
+  );
   const [tagsInput, setTagsInput] = useState(initialProcedure?.tags?.join(', ') || '');
   const [blocks, setBlocks] = useState<ProcedureBlock[]>(
     initialProcedure?.blocks && initialProcedure.blocks.length > 0
@@ -267,6 +273,22 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     const selectedMenu = menus.find((m) => m.id === menuId);
     const categoryName = selectedMenu?.label || category || 'Geral';
 
+    const nowIso = new Date().toISOString();
+    const isNew = !initialProcedure?.id;
+    const authorName = currentUser?.name || currentUser?.username || author.trim() || 'Leonardo';
+
+    const currentHistory: ProcedureHistoryItem[] = Array.isArray(initialProcedure?.history)
+      ? [...initialProcedure.history]
+      : [];
+
+    const newHistoryItem: ProcedureHistoryItem = {
+      action: isNew ? 'create' : 'update',
+      timestamp: nowIso,
+      user: authorName,
+      description: isNew ? 'Criação do procedimento' : 'Atualização de conteúdo e passos',
+      details: isNew ? 'Criação do procedimento' : 'Atualização de conteúdo e passos',
+    };
+
     const procedureToSave: Procedure = {
       id: initialProcedure?.id || `proc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: title.trim(),
@@ -276,11 +298,15 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       menuId,
       submenuId: submenuId || undefined,
       systemPath: systemPath.trim() || undefined,
-      author: author.trim() || 'Administrador',
+      author: author.trim() || authorName,
       tags,
       blocks,
       is_favorite: initialProcedure?.is_favorite || false,
-      created_at: initialProcedure?.created_at,
+      created_at: initialProcedure?.created_at || nowIso,
+      updated_at: nowIso,
+      createdBy: initialProcedure?.createdBy || authorName,
+      updatedBy: authorName,
+      history: [newHistoryItem, ...currentHistory],
     };
 
     try {

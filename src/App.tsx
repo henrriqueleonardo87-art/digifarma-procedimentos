@@ -9,7 +9,11 @@ import { ImageLightbox } from './components/ImageLightbox';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
 import { VersionModulesView } from './components/VersionModulesView';
+import { LoginScreen } from './components/LoginScreen';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
 import type { Procedure, SystemMenu } from './types/procedure';
+import type { AppUser } from './types/auth';
+import { getCurrentUser, logout as authLogout } from './lib/authService';
 import {
   fetchAllProcedures,
   saveProcedure,
@@ -21,6 +25,12 @@ import { testConnection } from './lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 export function App() {
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => getCurrentUser());
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('digifarma_sidebar_collapsed') === 'true';
+  });
+
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [menus, setMenus] = useState<SystemMenu[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -216,6 +226,23 @@ export function App() {
     await handleSaveProcedure(updatedProc);
   };
 
+  const handleToggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('digifarma_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  const handleLogout = () => {
+    authLogout();
+    setCurrentUser(null);
+  };
+
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+  }
+
   return (
     <div className="app">
       {/* ── SIDEBAR FIXO / OFF-CANVAS MOBILE ── */}
@@ -231,6 +258,8 @@ export function App() {
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
 
       {/* Backdrop para fechar o menu lateral no celular ao tocar fora */}
@@ -242,9 +271,14 @@ export function App() {
         />
       )}
 
-      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "TREINAMENTO" ── */}
-      <div className="app-content">
-        <Navbar onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
+      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "OLÁ, PESSOA" ── */}
+      <div className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <Navbar
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onChangePasswordClick={() => setIsResetPasswordOpen(true)}
+          onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        />
 
         <main className="main" id="main">
           {loading ? (
@@ -257,6 +291,7 @@ export function App() {
               initialProcedure={editingProcedure}
               menus={menus}
               activeVersion={currentView === 'r78' ? 'classico' : 'v10'}
+              currentUser={currentUser}
               onSave={handleSaveProcedure}
               onCancel={() => {
                 setIsEditing(false);
@@ -300,8 +335,10 @@ export function App() {
               menus={menus}
               procedures={procedures}
               activeVersion="v10"
+              currentUser={currentUser}
               onSaveMenus={handleSaveMenus}
               onSaveProcedures={handleSaveProceduresList}
+              onLogout={handleLogout}
               onClose={() => setCurrentView('dashboard')}
               onSupabaseConnected={() => {
                 checkConnection();
@@ -345,6 +382,34 @@ export function App() {
         caption={lightboxState.caption}
         onClose={() => setLightboxState({ isOpen: false, url: '' })}
       />
+
+      {/* Modal Obrigatório de Redefinição de Senha no 1º Acesso */}
+      {currentUser && currentUser.must_change_password && (
+        <ResetPasswordModal
+          user={currentUser}
+          isOpen={true}
+          forced={true}
+          onSuccess={() => {
+            const fresh = getCurrentUser();
+            setCurrentUser(fresh);
+          }}
+        />
+      )}
+
+      {/* Modal Voluntário de Redefinição de Senha */}
+      {currentUser && !currentUser.must_change_password && (
+        <ResetPasswordModal
+          user={currentUser}
+          isOpen={isResetPasswordOpen}
+          forced={false}
+          onClose={() => setIsResetPasswordOpen(false)}
+          onSuccess={() => {
+            setIsResetPasswordOpen(false);
+            const fresh = getCurrentUser();
+            setCurrentUser(fresh);
+          }}
+        />
+      )}
     </div>
   );
 }

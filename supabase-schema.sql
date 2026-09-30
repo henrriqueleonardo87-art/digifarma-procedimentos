@@ -27,6 +27,36 @@ ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "systemVersion" TEXT DEFA
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "menuId" TEXT DEFAULT 'geral';
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "submenuId" TEXT DEFAULT 'geral';
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "systemPath" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "createdBy" TEXT DEFAULT 'Leonardo';
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "updatedBy" TEXT DEFAULT 'Leonardo';
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "history" JSONB DEFAULT '[]'::jsonb;
+
+-- 2. Tabela de Usuários e Autenticação Simples
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    password TEXT NOT NULL,
+    must_change_password BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir acesso completo a app_users" ON public.app_users;
+CREATE POLICY "Permitir acesso completo a app_users"
+    ON public.app_users FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+INSERT INTO public.app_users (id, username, name, password, must_change_password)
+VALUES
+    ('user-icaro', 'Icaro', 'Icaro', 'Trein@mento123', true),
+    ('user-leonardo', 'Leonardo', 'Leonardo', 'Trein@mento123', true),
+    ('user-wallace', 'Wallace', 'Wallace', 'Trein@mento123', true),
+    ('user-whitalo', 'Whitalo', 'Whitalo', 'Trein@mento123', true)
+ON CONFLICT (username) DO NOTHING;
 
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE public.procedures ENABLE ROW LEVEL SECURITY;

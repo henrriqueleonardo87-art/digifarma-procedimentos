@@ -63,6 +63,15 @@ export interface SystemMenu {
   submenus: SubmenuItem[];
 }
 
+export interface ProcedureHistoryItem {
+  id?: string;
+  action: 'create' | 'update' | 'revision' | string;
+  timestamp: string;
+  user: string;
+  description?: string;
+  details?: string;
+}
+
 export interface Procedure {
   id: string;
   title: string;
@@ -73,6 +82,9 @@ export interface Procedure {
   submenuId?: string;
   systemPath?: string;
   author: string;
+  createdBy?: string;
+  updatedBy?: string;
+  history?: ProcedureHistoryItem[];
   tags: string[];
   blocks: ProcedureBlock[];
   is_favorite?: boolean;

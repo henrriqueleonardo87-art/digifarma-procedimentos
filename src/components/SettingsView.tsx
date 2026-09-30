@@ -23,8 +23,17 @@ import {
   ShieldCheck,
   CreditCard,
   CheckCircle2,
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff,
+  UserCheck,
+  AlertCircle,
+  LogOut,
 } from 'lucide-react';
 import type { SystemMenu, SubmenuItem, SystemVersion, Procedure } from '../types/procedure';
+import type { AppUser } from '../types/auth';
+import { updatePassword } from '../lib/authService';
 import { getSavedConfig, saveConfig, testConnection } from '../lib/supabase';
 import { INITIAL_PROCEDURES, DEFAULT_SYSTEM_MENUS } from '../lib/storageService';
 
@@ -32,10 +41,12 @@ interface SettingsViewProps {
   menus: SystemMenu[];
   procedures: Procedure[];
   activeVersion: SystemVersion | null;
+  currentUser?: AppUser | null;
   onSaveMenus: (menus: SystemMenu[]) => Promise<void>;
   onSaveProcedures: (procedures: Procedure[]) => Promise<void>;
   onClose: () => void;
   onSupabaseConnected?: () => void;
+  onLogout?: () => void;
 }
 
 const AVAILABLE_ICONS = [
@@ -55,12 +66,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   menus,
   procedures,
   activeVersion,
+  currentUser,
   onSaveMenus,
   onSaveProcedures,
   onClose,
   onSupabaseConnected,
+  onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<'menus' | 'supabase' | 'backup'>('menus');
+  const [activeTab, setActiveTab] = useState<'menus' | 'supabase' | 'backup' | 'account'>('menus');
+
+  // Account & Password State
+  const [accountNewPass, setAccountNewPass] = useState('');
+  const [accountConfirmPass, setAccountConfirmPass] = useState('');
+  const [accountShowPass, setAccountShowPass] = useState(false);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountSuccessMsg, setAccountSuccessMsg] = useState<string | null>(null);
+  const [accountErrorMsg, setAccountErrorMsg] = useState<string | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountErrorMsg(null);
+    setAccountSuccessMsg(null);
+
+    if (!currentUser?.id) {
+      setAccountErrorMsg('Nenhum usuário logado detectado.');
+      return;
+    }
+
+    if (accountNewPass.length < 6) {
+      setAccountErrorMsg('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    if (accountNewPass !== accountConfirmPass) {
+      setAccountErrorMsg('A confirmação da senha não coincide.');
+      return;
+    }
+
+    setAccountSaving(true);
+    try {
+      const res = await updatePassword(currentUser.id, accountNewPass);
+      if (res.success) {
+        setAccountSuccessMsg('Senha alterada com sucesso!');
+        setAccountNewPass('');
+        setAccountConfirmPass('');
+      } else {
+        setAccountErrorMsg(res.error || 'Erro ao alterar senha.');
+      }
+    } catch {
+      setAccountErrorMsg('Erro ao alterar senha. Tente novamente.');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
 
   // Menus State
   const [currentMenus, setCurrentMenus] = useState<SystemMenu[]>(menus);
@@ -350,6 +408,15 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
         >
           <Download size={16} />
           <span>Backup e Restauração</span>
+        </button>
+
+        <button
+          type="button"
+          className={`settings-tab-item ${activeTab === 'account' ? 'active' : ''}`}
+          onClick={() => setActiveTab('account')}
+        >
+          <KeyRound size={16} />
+          <span>Minha Conta & Senha</span>
         </button>
       </div>
 
@@ -674,6 +741,122 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ==============================================================
+          ABA 4: MINHA CONTA & REDEFINIR SENHA
+          ============================================================== */}
+      {activeTab === 'account' && (
+        <div className="settings-panel-box">
+          <h2 className="settings-section-title">Minha Conta & Alteração de Senha</h2>
+          <p className="settings-section-desc">
+            Altere sua senha de acesso e visualize os detalhes do seu usuário autenticado.
+          </p>
+
+          {/* Card com Detalhes do Usuário */}
+          <div className="user-profile-summary-card">
+            <div className="profile-avatar-circle">
+              <span>{currentUser?.name?.charAt(0) || 'U'}</span>
+            </div>
+            <div className="profile-details-info">
+              <div className="profile-name-row">
+                <span className="profile-name">{currentUser?.name || currentUser?.username || 'Usuário'}</span>
+                <span className="profile-badge-active">
+                  <UserCheck size={13} />
+                  <span>Acesso Autorizado</span>
+                </span>
+              </div>
+              <span className="profile-sub-text">
+                Login / Usuário: <strong>{currentUser?.username || '—'}</strong>
+              </span>
+            </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginLeft: 'auto', gap: '0.4rem', color: 'var(--red)' }}
+                onClick={onLogout}
+                title="Desconectar do sistema"
+              >
+                <LogOut size={15} />
+                <span>Desconectar</span>
+              </button>
+            )}
+          </div>
+
+          {/* Alertas */}
+          {accountErrorMsg && (
+            <div className="login-alert-error" style={{ marginBottom: '1.25rem' }}>
+              <AlertCircle size={16} />
+              <span>{accountErrorMsg}</span>
+            </div>
+          )}
+
+          {accountSuccessMsg && (
+            <div className="settings-toast-pill" style={{ display: 'inline-flex', marginBottom: '1.25rem' }}>
+              <Check size={14} />
+              <span>{accountSuccessMsg}</span>
+            </div>
+          )}
+
+          {/* Formulário de Alteração de Senha */}
+          <form onSubmit={handleChangePassword} className="settings-password-form" style={{ maxWidth: '520px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.85rem', color: 'var(--text-primary)' }}>
+              Cadastrar Nova Senha
+            </h3>
+
+            <div className="form-group">
+              <label className="form-label">
+                <Lock size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                Nova Senha
+              </label>
+              <div className="login-password-wrap">
+                <input
+                  type={accountShowPass ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Mínimo 6 caracteres"
+                  value={accountNewPass}
+                  onChange={(e) => setAccountNewPass(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="login-toggle-eye"
+                  onClick={() => setAccountShowPass(!accountShowPass)}
+                  tabIndex={-1}
+                >
+                  {accountShowPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <Lock size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                Confirmar Nova Senha
+              </label>
+              <input
+                type={accountShowPass ? 'text' : 'password'}
+                className="form-input"
+                placeholder="Repita a nova senha"
+                value={accountConfirmPass}
+                onChange={(e) => setAccountConfirmPass(e.target.value)}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={accountSaving}
+              style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+            >
+              <KeyRound size={15} />
+              <span>{accountSaving ? 'Atualizando Senha...' : 'Atualizar Minha Senha'}</span>
+            </button>
+          </form>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Edit3,
   Printer,
@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Lightbulb,
   Info,
+  History,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -17,6 +18,7 @@ import type {
   CalloutBlock,
   SystemMenu,
 } from '../types/procedure';
+import { ProcedureTimelineModal } from './ProcedureTimelineModal';
 
 interface ProcedureViewProps {
   procedure: Procedure;
@@ -79,11 +81,18 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
     return stepBlocks.filter((s) => s.completed).length;
   }, [stepBlocks]);
 
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
   const isV10 = procedure.systemVersion === 'v10';
   const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA R78';
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = '';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1200);
   };
 
   return (
@@ -108,6 +117,16 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
 
         <div className="proc-action-right">
+          <button
+            type="button"
+            className="btn-proc-action"
+            onClick={() => setIsTimelineOpen(true)}
+            title="Ver linha do tempo e histórico de alterações"
+          >
+            <History size={15} color="var(--red)" />
+            <span>Histórico</span>
+          </button>
+
           <button type="button" className="btn-proc-action primary" onClick={handlePrint}>
             <Printer size={15} />
             <span>Imprimir PDF</span>
@@ -123,6 +142,13 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal / Drawer de Histórico e Linha do Tempo */}
+      <ProcedureTimelineModal
+        procedure={procedure}
+        isOpen={isTimelineOpen}
+        onClose={() => setIsTimelineOpen(false)}
+      />
 
       {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
       <section className="slide deep cover">
