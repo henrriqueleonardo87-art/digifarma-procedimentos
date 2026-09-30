@@ -9,6 +9,7 @@ import { ImageLightbox } from './components/ImageLightbox';
 import { VersionSelectScreen } from './components/VersionSelectScreen';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
+import { AiChatWidget } from './components/AiChatWidget';
 import type { Procedure, StepBlock, SystemMenu, SystemVersion } from './types/procedure';
 import {
   fetchAllProcedures,
@@ -327,6 +328,8 @@ export function App() {
         activeVersion={activeVersion}
         onChangeVersion={handleSelectVersion}
         onReturnToVersionSelect={() => setActiveVersion(null)}
+        procedures={procedures}
+        onSelectProcedure={handleSelectProcedure}
       />
 
       <div className="app-main">
@@ -400,6 +403,13 @@ export function App() {
           )}
         </main>
       </div>
+
+      {/* Assistente Flutuante IA Leo (Padrão LH Group) */}
+      <AiChatWidget
+        procedures={procedures}
+        activeVersion={activeVersion || 'v10'}
+        onSelectProcedure={handleSelectProcedure}
+      />
 
       {/* Modal de Supabase */}
       <SupabaseModal

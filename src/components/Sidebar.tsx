@@ -24,6 +24,9 @@ import {
   Rocket,
   BarChart3,
   CheckCircle2,
+  Lock,
+  Star,
+  Pill,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -58,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   onNewProcedure,
 }) => {
-  // Módulos abertos (por padrão todos abertos para acesso direto)
+  // Módulos abertos
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     cadastros: true,
     estoque: true,
@@ -136,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   }, [versionProcedures, searchQuery]);
 
-  // Encontra o procedimento associado a um item do menu (ex: "Produtos" dentro de "Cadastros")
+  // Encontra o procedimento associado a um item do menu
   const findProcedureForMenuItem = (menuId: string, itemSubId: string) => {
     return versionProcedures.find(
       (p) =>
@@ -178,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="mini-rail-btn"
               onClick={() => {
                 onToggleCollapse();
-                setExpandedMenus((prev) => ({ ...prev, [menu.id]: true }));
+                toggleMenuExpand(menu.id);
               }}
               title={menu.label}
             >
@@ -186,35 +189,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
         </div>
-
-        <div style={{ padding: '0.75rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-          <button
-            className="mini-rail-btn"
-            onClick={onNewProcedure}
-            title="Novo Procedimento"
-          >
-            <Plus size={18} color="var(--primary-500)" />
-          </button>
-          <button
-            className="mini-rail-btn"
-            onClick={onOpenSettings}
-            title="Configurações de Menus"
-          >
-            <Settings size={18} />
-          </button>
-        </div>
       </aside>
     );
   }
 
-  // ==============================================================
-  // MODO EXPANDIDO (ESTRUTURA DIRETA: MÓDULO ➔ PROCEDIMENTO)
-  // ==============================================================
   return (
     <aside className="app-sidebar no-print">
-      {/* Topo do Sidebar: Versão e Botão Recolher */}
+      {/* Header do Menu com Logo e Versão */}
       <div className="sidebar-header-minimal">
-        <div className="sidebar-version-pill">
+        <div className="sidebar-version-badge">
           {activeVersion === 'v10' ? (
             <>
               <Rocket size={13} color="#10b981" />
@@ -237,14 +220,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Busca Rápida */}
+      {/* Busca Global Instantânea (Ctrl + Espaço) */}
       <div className="sidebar-search-container">
         <div className="search-input-wrapper">
           <Search size={14} className="search-icon" />
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar procedimento..."
+            placeholder="Buscar procedimento... (Ctrl+Espaço)"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
@@ -260,22 +243,71 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Árvore de Procedimentos */}
+      {/* Árvore de Procedimentos e Atalhos */}
       <div className="sidebar-tree-scroll">
-        {/* Botão de Painel de Métricas (Dashboard) */}
-        <button
-          type="button"
-          className={`sidebar-dashboard-btn ${isDashboardActive ? 'active' : ''}`}
-          onClick={onOpenDashboard}
-        >
-          <BarChart3 size={15} />
-          <span>Painel & Métricas</span>
-          <span className="sidebar-count-tag">{versionProcedures.length}</span>
-        </button>
+        {/* Navegação Principal em Cards Estilo LH Group */}
+        <div className="sidebar-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+          <button
+            type="button"
+            className={`nav-item-lh ${isDashboardActive ? 'active' : ''}`}
+            onClick={onOpenDashboard}
+          >
+            <span className="ic">
+              <BarChart3 size={15} />
+            </span>
+            <span className="label">Painel Executivo</span>
+            <span className="sidebar-count-tag">{versionProcedures.length}</span>
+          </button>
+
+          {/* Atalho Rápido para Procedimentos Destaques */}
+          {versionProcedures.some((p) => p.id === 'proc-v10-tabela-f7-ia') && (
+            <button
+              type="button"
+              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-tabela-f7-ia' ? 'active' : ''}`}
+              onClick={() => onSelectProcedure('proc-v10-tabela-f7-ia')}
+            >
+              <span className="ic" style={{ color: 'var(--red)' }}>
+                <Pill size={15} />
+              </span>
+              <span className="label">F7 Tabela com IA</span>
+              <span className="sidebar-mini-badge v10">V10</span>
+            </button>
+          )}
+
+          {versionProcedures.some((p) => p.id === 'proc-v10-painel-360-cliente') && (
+            <button
+              type="button"
+              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-painel-360-cliente' ? 'active' : ''}`}
+              onClick={() => onSelectProcedure('proc-v10-painel-360-cliente')}
+            >
+              <span className="ic" style={{ color: '#f59e0b' }}>
+                <Star size={15} />
+              </span>
+              <span className="label">Painel 360º Cliente</span>
+              <span className="sidebar-mini-badge v10">CRM</span>
+            </button>
+          )}
+
+          {versionProcedures.some((p) => p.id === 'proc-v10-caixa-cego-gestor') && (
+            <button
+              type="button"
+              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-caixa-cego-gestor' ? 'active' : ''}`}
+              onClick={() => onSelectProcedure('proc-v10-caixa-cego-gestor')}
+            >
+              <span className="ic" style={{ color: '#10b981' }}>
+                <Lock size={15} />
+              </span>
+              <span className="label">Caixa Cego Gestor</span>
+              <span className="sidebar-mini-badge">Segurança</span>
+            </button>
+          )}
+        </div>
+
+        <div style={{ height: '1px', background: 'var(--border)', margin: '6px 4px 8px' }} />
 
         {searchResults !== null ? (
           /* RESULTADOS DA BUSCA */
-          <div className="search-results-list" style={{ marginTop: '0.5rem' }}>
+          <div className="search-results-list">
             <div className="sidebar-section-title">
               Resultados da Busca ({searchResults.length})
             </div>
@@ -306,7 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           /* NAVEGAÇÃO DIRETA: MÓDULOS ➔ ITENS / PROCEDIMENTOS */
-          <div className="modules-accordion-tree" style={{ marginTop: '0.4rem' }}>
+          <div className="modules-accordion-tree">
             <div className="sidebar-section-title">
               Módulos e Procedimentos
             </div>
@@ -316,7 +348,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               return (
                 <div key={menu.id} className="module-group">
-                  {/* Cabeçalho do Módulo (ex: Cadastros, Estoque, Utilitários) */}
+                  {/* Cabeçalho do Módulo */}
                   <div
                     className="module-header-row"
                     onClick={() => toggleMenuExpand(menu.id)}
@@ -333,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   </div>
 
-                  {/* Itens do Módulo (Produtos, Clientes, Entrada de Notas, etc.) */}
+                  {/* Itens do Módulo */}
                   {isExpanded && (
                     <div className="module-children">
                       {menu.submenus.map((item) => {

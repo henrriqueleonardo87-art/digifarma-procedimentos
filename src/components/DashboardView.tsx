@@ -664,6 +664,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* ==============================================================
+          FAIXA DO DIA (DAY STRIP) - PADRÃO LH GROUP / V10
+          ============================================================== */}
+      <div className="dashboard-day-strip">
+        <div className="day-mini-card">
+          <span className="mini-card-kicker">DIRETRIZ BPF DO DIA</span>
+          <strong>ISO 9001 & Boas Práticas</strong>
+          <small>Rastreabilidade de lotes, validação e dupla checagem</small>
+        </div>
+        <div className="day-mini-card">
+          <span className="mini-card-kicker">PADRONIZAÇÃO OPERACIONAL</span>
+          <strong>Evite divergências no caixa e balcão</strong>
+          <small>Consulte o POP homologado antes de alterar parâmetros fiscais</small>
+        </div>
+        <div className="day-mini-card">
+          <span className="mini-card-kicker">COBERTURA DA BASE</span>
+          <strong>{totalProcedures} Procedimentos Ativos</strong>
+          <small>{totalSteps} etapas operacionais detalhadas com telas reais</small>
+        </div>
+        <div className="day-mini-action">
+          <span className="insight-kicker">AÇÃO RECOMENDADA</span>
+          <strong>Validar F7 com IA e Caixa Cego</strong>
+          <small>Rotinas prioritárias homologadas para a versão V10 Cloud</small>
+        </div>
+      </div>
+
+      {/* ==============================================================
           GRADE DE 4 GRÁFICOS DIVERSIFICADOS (LINHA, PIZZA, RADAR, BARRAS)
           ============================================================== */}
       <div className="dashboard-charts-grid">
@@ -729,76 +755,153 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* ==============================================================
-          LISTA DE ACESSO RÁPIDO COM BUSCA INSTANTÂNEA
+          LISTA DE ACESSO RÁPIDO / TABELA FORMATO LH GROUP
           ============================================================== */}
       <div className="dashboard-procedures-panel">
-        <div className="dashboard-search-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileText size={17} color="var(--primary-500)" />
-            <h2 className="card-box-title">
-              Procedimentos do Digifarma {activeVersion === 'v10' ? 'V10' : 'Clássico'}
-            </h2>
+        <div className="dashboard-table-header">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={18} color="var(--primary-500)" />
+              <h2 className="card-box-title" style={{ margin: 0 }}>
+                Base de Procedimentos Operacionais (POPs)
+              </h2>
+            </div>
+            <p className="card-box-description" style={{ margin: '4px 0 0 0' }}>
+              Consulte, filtre e acesse os manuais homologados do Digifarma {activeVersion === 'v10' ? 'V10 Cloud' : 'Clássico Desktop'}.
+            </p>
           </div>
 
-          <div className="dashboard-search-input-wrap">
-            <Search size={14} className="dashboard-search-icon" />
-            <input
-              type="text"
-              className="dashboard-search-input"
-              placeholder="Buscar procedimento..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                className="dashboard-search-clear"
-                onClick={() => setSearchTerm('')}
-              >
-                ✕
-              </button>
-            )}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="dashboard-search-input-wrap">
+              <Search size={14} className="dashboard-search-icon" />
+              <input
+                type="text"
+                className="dashboard-search-input"
+                placeholder="Filtrar por nome, rota, código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="dashboard-search-clear"
+                  onClick={() => setSearchTerm('')}
+                  title="Limpar filtro"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-dashboard-new"
+              onClick={onNewProcedure}
+            >
+              <Plus size={15} />
+              <span>Novo POP</span>
+            </button>
           </div>
         </div>
 
-        <div className="dashboard-proc-cards-list">
+        {/* Tabela Formatada no Padrão LH Group */}
+        <div className="table-wrap">
           {filteredProcedures.length === 0 ? (
             <div className="dashboard-empty-search">
               <p>Nenhum procedimento encontrado para "{searchTerm}".</p>
             </div>
           ) : (
-            filteredProcedures.map((proc) => {
-              return (
-                <div
-                  key={proc.id}
-                  className="dashboard-proc-card"
-                  onClick={() => onSelectProcedure(proc.id)}
-                >
-                  <div className="proc-card-left">
-                    <div className="proc-card-icon">
-                      <FileText size={18} />
-                    </div>
-                    <div>
-                      <h3 className="proc-card-title">{proc.title}</h3>
-                      {proc.systemPath && (
-                        <span className="proc-card-path">{proc.systemPath}</span>
-                      )}
-                    </div>
-                  </div>
+            <table className="table-lh">
+              <thead>
+                <tr>
+                  <th style={{ width: '100px' }}>Data</th>
+                  <th style={{ width: '100px' }}>Versão</th>
+                  <th>Procedimento / POP</th>
+                  <th>Módulo / Rota do ERP</th>
+                  <th style={{ width: '130px' }}>Etapas</th>
+                  <th style={{ width: '130px' }}>Status</th>
+                  <th style={{ width: '110px', textAlign: 'right' }}>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProcedures.map((proc) => {
+                  const stepCount = proc.blocks.filter((b) => b.type === 'step' || b.type === 'heading').length;
+                  const checkCount = proc.blocks.filter((b) => b.type === 'step').length;
+                  const isV10 = proc.systemVersion === 'v10';
+                  const menuObj = menus.find((m) => m.id === proc.menuId);
 
-                  <div className="proc-card-right">
-                    <span className="proc-card-date">
-                      <Clock size={12} />
-                      {formatDate(proc.updated_at)}
-                    </span>
-                    <div className="btn-open-proc">
-                      <span>Acessar</span>
-                      <ArrowRight size={14} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+                  return (
+                    <tr
+                      key={proc.id}
+                      className="tx-row-editable"
+                      onClick={() => onSelectProcedure(proc.id)}
+                      title="Clique duas vezes ou selecione para abrir o procedimento completo"
+                    >
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={12} />
+                          {formatDate(proc.updated_at)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`version-pill ${isV10 ? 'v10' : 'classico'}`}>
+                          {isV10 ? 'V10 Cloud' : 'Desktop'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
+                            {proc.title}
+                          </span>
+                          {proc.subtitle && (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {proc.subtitle}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="module-tag-pill">
+                            {menuObj?.label || proc.category || 'Geral'}
+                          </span>
+                          {proc.systemPath && (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {proc.systemPath}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {stepCount} {stepCount === 1 ? 'etapa' : 'etapas'}
+                          {checkCount > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> • {checkCount} itens</span>}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="status-pill status-confirmado">
+                          <span className="dot" />
+                          Homologado
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          className="btn-table-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectProcedure(proc.id);
+                          }}
+                        >
+                          <span>Acessar</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
