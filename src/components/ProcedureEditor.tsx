@@ -28,6 +28,11 @@ import {
   ChevronDown,
   Check,
   ArrowRight,
+  Sliders,
+  FileText,
+  CheckSquare,
+  Award,
+  Layers,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -45,6 +50,7 @@ import type {
   IndicatorGlow,
   IndicatorSize,
   IndicatorIconName,
+  ProcedureStatus,
 } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
@@ -138,7 +144,7 @@ const SvgArrow: React.FC<{
       : direction === 'up'
       ? 270
       : direction === 'down-right'
-      ? 45
+      ? 135
       : direction === 'up-right'
       ? -45
       : 0;
@@ -263,7 +269,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         ]
   );
 
-  // Imagens associadas às etapas
+  // Imagens associadas às etapas (armazenadas por step id ou index)
   const initialImages = initialProcedure?.blocks?.filter((b): b is ImageBlock => b.type === 'image') || [];
   const [images, setImages] = useState<Record<number, string>>(
     initialImages.reduce((acc, img, idx) => {
@@ -288,16 +294,30 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         ]
   );
 
-  // Configurações de Slides & Indicadores (Mãozinhas, Spotlights, Setas, Formas, Cores)
-  const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(
-    initialProcedure?.slidesConfig || [
-      { id: 'slide-cover', slideType: 'cover', bgTheme: 'deep' },
-      {
-        id: 'slide-step-0',
+  // ─────────────────────────────────────────────────────────────
+  // GESTÃO DINÂMICA DE PÁGINAS / SLIDES DO PROCEDIMENTO
+  // ─────────────────────────────────────────────────────────────
+  const initializeSlides = (): SlideConfig[] => {
+    if (initialProcedure?.slidesConfig && initialProcedure.slidesConfig.length > 0) {
+      return initialProcedure.slidesConfig.map((s, idx) => ({
+        ...s,
+        id: s.id || `slide-${s.slideType || 'page'}-${idx}`,
+        indicators: s.indicators || [],
+      }));
+    }
+
+    const defaultSlides: SlideConfig[] = [
+      { id: 'slide-cover', slideType: 'cover', bgTheme: 'deep', indicators: [] },
+    ];
+
+    const currentStepsList = initialSteps.length > 0 ? initialSteps : [steps[0]];
+    currentStepsList.forEach((_, idx) => {
+      defaultSlides.push({
+        id: `slide-step-${idx}`,
         slideType: 'step',
-        stepIndex: 0,
+        stepIndex: idx,
         bgTheme: 'light',
-        indicators: [
+        indicators: idx === 0 ? [
           {
             id: `ind-${Date.now()}-1`,
             type: 'hand',
@@ -308,16 +328,24 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             label: 'Campo Código',
             glow: 'soft',
           },
-        ],
-      },
-      { id: 'slide-bpf', slideType: 'callout', bgTheme: 'light' },
-      { id: 'slide-checklist', slideType: 'checklist', bgTheme: 'light' },
-      { id: 'slide-signatures', slideType: 'signatures', bgTheme: 'deep' },
-    ]
-  );
+        ] : [],
+      });
+    });
 
-  // Slide Ativo no Modo Canva (0 = Capa, 1..N = Etapas, N+1 = BPF, N+2 = Checklist, N+3 = Assinaturas)
+    defaultSlides.push({ id: 'slide-bpf', slideType: 'callout', bgTheme: 'light', indicators: [] });
+    defaultSlides.push({ id: 'slide-checklist', slideType: 'checklist', bgTheme: 'light', indicators: [] });
+    defaultSlides.push({ id: 'slide-signatures', slideType: 'signatures', bgTheme: 'deep', indicators: [] });
+
+    return defaultSlides;
+  };
+
+  const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(initializeSlides);
+
+  // Slide Ativo no Modo Canva (0..N-1)
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
+  // Menu popup para adicionar páginas
+  const [showAddPageMenu, setShowAddPageMenu] = useState(false);
 
   // Indicador selecionado para edição de propriedades e arraste
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
@@ -335,6 +363,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Garante que activeSlideIndex esteja sempre dentro dos limites válidos
+  const safeActiveSlideIndex = Math.min(Math.max(0, activeSlideIndex), Math.max(0, slidesConfig.length - 1));
+  const currentSlide: SlideConfig | undefined = slidesConfig[safeActiveSlideIndex] || slidesConfig[0];
+
+  // Identifica a etapa associada se a página for do tipo 'step'
+  const currentStepIndex = currentSlide?.slideType === 'step' ? (currentSlide.stepIndex ?? 0) : 0;
+  void currentStepIndex;
 
   // ─────────────────────────────────────────────────────────────
   // 1. SUPORTE GLOBAL A COLAR IMAGENS DA ÁREA DE TRANSFERÊNCIA (CTRL+V)
@@ -358,7 +394,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
     window.addEventListener('paste', handleGlobalPaste);
     return () => window.removeEventListener('paste', handleGlobalPaste);
-  }, [activeSlideIndex, steps.length]);
+  }, [safeActiveSlideIndex, steps.length, currentSlide]);
 
   const processPastedImageFile = async (file: File) => {
     setUploading(true);
@@ -369,17 +405,17 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       const dataUrl = event.target?.result as string;
       if (!dataUrl) return;
 
-      const stepIdx = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
-      setImages((prev) => ({ ...prev, [stepIdx]: dataUrl }));
+      const targetStepIdx = currentSlide?.slideType === 'step' ? (currentSlide.stepIndex ?? 0) : 0;
+      setImages((prev) => ({ ...prev, [targetStepIdx]: dataUrl }));
 
-      showToast(`Imagem anexada com sucesso à Etapa ${(stepIdx + 1).toString().padStart(2, '0')}!`);
+      showToast(`Imagem anexada com sucesso à Etapa ${(targetStepIdx + 1).toString().padStart(2, '0')}!`);
       setUploading(false);
 
       // Upload assíncrono para o Supabase Storage se disponível
       try {
         const publicUrl = await uploadProcedureImage(file);
         if (publicUrl) {
-          setImages((prev) => ({ ...prev, [stepIdx]: publicUrl }));
+          setImages((prev) => ({ ...prev, [targetStepIdx]: publicUrl }));
         }
       } catch {
         // Fallback em Base64 mantido com segurança
@@ -402,103 +438,84 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
+  // 2. ATALHO DE TECLADO: DELETE E BACKSPACE PARA REMOVER ELEMENTOS
   // ─────────────────────────────────────────────────────────────
-  // 2. GESTÃO DE INDICADORES, FORMAS, ARRASTE & PROPRIEDADES (VINCULADO AO SLIDE ATIVO!)
-  // ─────────────────────────────────────────────────────────────
-  const currentStepIndex = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
-  const currentStep = steps[currentStepIndex];
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isTyping =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.getAttribute('contenteditable') === 'true' ||
+          (activeEl as HTMLElement).isContentEditable);
 
-  // Helper universal para obter as configurações do slide atual (0=Capa, 1..N=Etapas, N+1=BPF, N+2=Checklist, N+3=Assinaturas)
-  const getSlideConfigForIndex = (slideIdx: number): SlideConfig | undefined => {
-    if (slideIdx === 0) {
-      return slidesConfig.find((s) => s.slideType === 'cover' || s.id === 'slide-cover');
-    }
-    if (slideIdx <= steps.length) {
-      const stepIdx = slideIdx - 1;
-      return slidesConfig.find((s) => s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`);
-    }
-    if (slideIdx === steps.length + 1) {
-      return slidesConfig.find((s) => s.slideType === 'callout' || s.id === 'slide-bpf');
-    }
-    if (slideIdx === steps.length + 2) {
-      return slidesConfig.find((s) => s.slideType === 'checklist' || s.id === 'slide-checklist');
-    }
-    return slidesConfig.find((s) => s.slideType === 'signatures' || s.id === 'slide-signatures');
-  };
+      if (isTyping) return;
 
-  const getIndicatorsForSlideIndex = (slideIdx: number): SlideIndicator[] => {
-    const cfg = getSlideConfigForIndex(slideIdx);
-    return cfg?.indicators || [];
-  };
-
-  const updateIndicatorsForSlideIndex = (
-    slideIdx: number,
-    updater: (current: SlideIndicator[]) => SlideIndicator[]
-  ) => {
-    const isCover = slideIdx === 0;
-    const isStep = slideIdx >= 1 && slideIdx <= steps.length;
-    const isBpf = slideIdx === steps.length + 1;
-    const isChecklist = slideIdx === steps.length + 2;
-    const isSignatures = slideIdx === steps.length + 3;
-
-    const stepIdx = isStep ? slideIdx - 1 : undefined;
-    const targetId = isCover
-      ? 'slide-cover'
-      : isStep
-      ? `slide-step-${stepIdx}`
-      : isBpf
-      ? 'slide-bpf'
-      : isChecklist
-      ? 'slide-checklist'
-      : 'slide-signatures';
-
-    const slideType = isCover
-      ? 'cover'
-      : isStep
-      ? 'step'
-      : isBpf
-      ? 'callout'
-      : isChecklist
-      ? 'checklist'
-      : 'signatures';
-
-    setSlidesConfig((prev) => {
-      const existingIdx = prev.findIndex((s) => {
-        if (isCover) return s.slideType === 'cover' || s.id === 'slide-cover';
-        if (isStep) return s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`;
-        if (isBpf) return s.slideType === 'callout' || s.id === 'slide-bpf';
-        if (isChecklist) return s.slideType === 'checklist' || s.id === 'slide-checklist';
-        if (isSignatures) return s.slideType === 'signatures' || s.id === 'slide-signatures';
-        return false;
-      });
-
-      if (existingIdx !== -1) {
-        const copy = [...prev];
-        copy[existingIdx] = {
-          ...copy[existingIdx],
-          indicators: updater(copy[existingIdx].indicators || []),
-        };
-        return copy;
-      } else {
-        return [
-          ...prev,
-          {
-            id: targetId,
-            slideType,
-            stepIndex: stepIdx,
-            bgTheme: isCover || isSignatures ? 'deep' : 'light',
-            indicators: updater([]),
-          },
-        ];
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedIndicatorId) {
+          e.preventDefault();
+          removeIndicator(selectedIndicatorId);
+        }
       }
-    });
-  };
+    };
 
-  // Adicionar Indicador com auto-seleção e vinculação DIRETA ao slide selecionado
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIndicatorId, safeActiveSlideIndex, slidesConfig]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. GESTÃO DE INDICADORES, FORMAS, ARRASTE & PROPRIEDADES
+  // ─────────────────────────────────────────────────────────────
+  const activeSlideIndicators: SlideIndicator[] = currentSlide?.indicators || [];
+  const selectedIndicator = activeSlideIndicators.find((i) => i.id === selectedIndicatorId);
+
   const pushIndicator = (indicator: SlideIndicator, toastMsg?: string) => {
-    updateIndicatorsForSlideIndex(activeSlideIndex, (list) => [...list, indicator]);
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === safeActiveSlideIndex
+          ? {
+              ...slide,
+              indicators: [...(slide.indicators || []), indicator],
+            }
+          : slide
+      )
+    );
     setSelectedIndicatorId(indicator.id);
     if (toastMsg) showToast(toastMsg);
+  };
+
+  const updateSelectedIndicator = (updates: Partial<SlideIndicator>) => {
+    if (!selectedIndicatorId) return;
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === safeActiveSlideIndex
+          ? {
+              ...slide,
+              indicators: (slide.indicators || []).map((ind) =>
+                ind.id === selectedIndicatorId ? { ...ind, ...updates } : ind
+              ),
+            }
+          : slide
+      )
+    );
+  };
+
+  const removeIndicator = (indId: string) => {
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === safeActiveSlideIndex
+          ? {
+              ...slide,
+              indicators: (slide.indicators || []).filter((ind) => ind.id !== indId),
+            }
+          : slide
+      )
+    );
+    if (selectedIndicatorId === indId) {
+      setSelectedIndicatorId(null);
+    }
+    showToast('Elemento removido.');
   };
 
   // Mãozinhas
@@ -514,8 +531,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 50,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
-      `Mãozinha indicadora (${direction}) adicionada ao slide atual!`
+      `Mãozinha indicadora (${direction}) adicionada à página atual!`
     );
   };
 
@@ -532,6 +550,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 50,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
       `Seta indicadora (${direction}) adicionada!`
     );
@@ -553,6 +572,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         opacity: fillMode === 'filled' ? 0.65 : 1.0,
         glow: 'soft',
         label: fillMode === 'filled' ? 'Destaque' : '',
+        scale: 1.0,
       },
       fillMode === 'outline' ? 'Moldura vazada adicionada!' : 'Caixa destacada adicionada!'
     );
@@ -573,12 +593,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         size: 'md',
         opacity: fillMode === 'filled' ? 0.75 : 1.0,
         glow: 'soft',
+        scale: 1.0,
       },
       fillMode === 'outline' ? 'Círculo vazado adicionado!' : 'Bolinha destacada adicionada!'
     );
   };
 
-  // Badges (Zero prompts: cria e abre na barra de propriedades)
+  // Badges
   const addBadge = (label = 'Campo Obrigatório', color = '#ef4444') => {
     const newId = `badge-${Date.now()}`;
     pushIndicator(
@@ -593,12 +614,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 45,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
       'Badge criada! Edite o texto e a cor na barra acima.'
     );
   };
 
-  // Caixa de Texto Livre com Fonte e Cores customizáveis
+  // Caixa de Texto Livre
   const addTextBox = (label = 'Instrução do Campo...', textColor = '#ffffff') => {
     const newId = `text-${Date.now()}`;
     pushIndicator(
@@ -614,6 +636,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 45,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
       'Caixa de texto criada! Altere fonte e cores na barra acima.'
     );
@@ -632,12 +655,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 50,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
       `Ícone (${iconName}) adicionado!`
     );
   };
 
-  // Menu Suspenso Interativo Completo com Opções Customizáveis
+  // Menu Suspenso Interativo
   const addDropdown = (
     label = 'Instruções e Ações Fiscais',
     content = 'Selecione uma opção ou consulte as orientações abaixo:'
@@ -662,6 +686,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 50,
         size: 'md',
         glow: 'soft',
+        scale: 1.0,
       },
       'Menu suspenso adicionado! Adicione ou edite opções na barra acima.'
     );
@@ -678,12 +703,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         x: 50,
         y: 50,
         size: 'md',
+        scale: 1.0,
       },
       'Radar sonar pulsante adicionado!'
     );
   };
 
-  // GIF Animado (com preset instantâneo ou link)
+  // GIF Animado
   const addAnimatedGif = (gifUrl = 'https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif') => {
     const newId = `gif-${Date.now()}`;
     pushIndicator(
@@ -694,29 +720,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         x: 60,
         y: 45,
         size: 'md',
+        scale: 1.0,
       },
       'GIF animado anexado!'
     );
   };
 
-  // Atualizar indicador selecionado no slide ativo
-  const updateSelectedIndicator = (updates: Partial<SlideIndicator>) => {
-    if (!selectedIndicatorId) return;
-    updateIndicatorsForSlideIndex(activeSlideIndex, (list) =>
-      list.map((ind) => (ind.id === selectedIndicatorId ? { ...ind, ...updates } : ind))
-    );
-  };
-
-  // Remover indicador (com feedback in-site, zero confirm de navegador)
-  const removeIndicator = (indId: string) => {
-    updateIndicatorsForSlideIndex(activeSlideIndex, (list) => list.filter((i) => i.id !== indId));
-    if (selectedIndicatorId === indId) {
-      setSelectedIndicatorId(null);
-    }
-    showToast('Elemento removido.');
-  };
-
-  // Arraste Suave de Indicadores pelo Mouse (Drag & Drop na Tela)
+  // Arraste Suave de Indicadores pelo Mouse
   const handleIndicatorMouseDown = (e: React.MouseEvent, indId: string) => {
     e.stopPropagation();
     setSelectedIndicatorId(indId);
@@ -729,8 +739,17 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       const x = Math.max(2, Math.min(98, Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100)));
       const y = Math.max(2, Math.min(98, Math.round(((moveEvent.clientY - rect.top) / rect.height) * 100)));
 
-      updateIndicatorsForSlideIndex(activeSlideIndex, (list) =>
-        list.map((ind) => (ind.id === indId ? { ...ind, x, y } : ind))
+      setSlidesConfig((prev) =>
+        prev.map((slide, idx) =>
+          idx === safeActiveSlideIndex
+            ? {
+                ...slide,
+                indicators: (slide.indicators || []).map((ind) =>
+                  ind.id === indId ? { ...ind, x, y } : ind
+                ),
+              }
+            : slide
+        )
       );
     };
 
@@ -743,116 +762,99 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Clique no Shotframe para Desmarcar ou Reposicionar
+  // Clique no Shotframe para Reposicionar
   const handleShotframeClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
 
     if (selectedIndicatorId) {
-      // Reposiciona o elemento selecionado no ponto clicado
       updateSelectedIndicator({ x, y });
     }
   };
 
-  // Alternar Cor / Tema do Slide Ativo (Deep Escuro vs Claro)
+  // Alternar Cor / Tema do Slide Ativo (Deep vs Claro)
   const toggleSlideTheme = () => {
-    setSlidesConfig((prev) => {
-      const isCover = activeSlideIndex === 0;
-      const isStep = activeSlideIndex >= 1 && activeSlideIndex <= steps.length;
-      const stepIdx = isStep ? activeSlideIndex - 1 : undefined;
-
-      return prev.map((s) => {
-        const matches =
-          (isCover && (s.slideType === 'cover' || s.id === 'slide-cover')) ||
-          (isStep && (s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`)) ||
-          (activeSlideIndex === steps.length + 1 && (s.slideType === 'callout' || s.id === 'slide-bpf')) ||
-          (activeSlideIndex === steps.length + 2 && (s.slideType === 'checklist' || s.id === 'slide-checklist')) ||
-          (activeSlideIndex === steps.length + 3 && (s.slideType === 'signatures' || s.id === 'slide-signatures'));
-
-        if (matches) {
+    setSlidesConfig((prev) =>
+      prev.map((s, idx) => {
+        if (idx === safeActiveSlideIndex) {
           const next = s.bgTheme === 'deep' || s.bgTheme === 'dark' ? 'light' : 'deep';
           return { ...s, bgTheme: next };
         }
         return s;
-      });
-    });
+      })
+    );
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 3. GESTÃO DE ETAPAS (ADICIONAR / REMOVER / REORDENAR)
+  // 4. GESTÃO TOTAL DE PÁGINAS (REORDENAR, DELETAR, ADICIONAR QUALQUER PÁGINA)
   // ─────────────────────────────────────────────────────────────
-  const addStep = () => {
-    const newStepNum = steps.length + 1;
-    const newStep: StepBlock = {
-      id: `step-${Date.now()}-${newStepNum}`,
-      type: 'step',
-      title: `Nova Etapa ${newStepNum}: Roteiro Operacional`,
-      content: 'Instrução do passo a passo no sistema Digifarma.',
-      instruction: 'Descreva a validação necessária e os botões que devem ser acionados nesta etapa.',
-      expectedResult: 'Registro processado e confirmado com sucesso no banco de dados.',
-      tips: 'Atalho ou dica operacional para maior agilidade.',
-      completed: false,
-    };
-
-    setSteps([...steps, newStep]);
-    setSlidesConfig([
-      ...slidesConfig,
-      {
-        id: `slide-step-${steps.length}`,
-        slideType: 'step',
-        stepIndex: steps.length,
-        bgTheme: 'light',
-        indicators: [],
-      },
-    ]);
-    setActiveSlideIndex(steps.length + 1);
-    showToast(`Etapa ${newStepNum} criada!`);
-  };
-
-  const removeStep = (indexToRemove: number) => {
-    if (steps.length <= 1) {
-      showToast('O procedimento deve conter pelo menos uma etapa operacional.');
-      return;
-    }
-    const updated = steps.filter((_, idx) => idx !== indexToRemove);
-    setSteps(updated);
-
-    const updatedImgs: Record<number, string> = {};
-    Object.entries(images).forEach(([k, v]) => {
-      const idx = Number(k);
-      if (idx < indexToRemove) updatedImgs[idx] = v;
-      else if (idx > indexToRemove) updatedImgs[idx - 1] = v;
-    });
-    setImages(updatedImgs);
-
-    if (activeSlideIndex > updated.length) {
-      setActiveSlideIndex(updated.length);
-    }
-    showToast('Etapa excluída.');
-  };
-
-  const moveStep = (fromIdx: number, toIdx: number) => {
-    if (toIdx < 0 || toIdx >= steps.length) return;
-    const updated = [...steps];
+  const movePage = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= slidesConfig.length) return;
+    const updated = [...slidesConfig];
     const [moved] = updated.splice(fromIdx, 1);
     updated.splice(toIdx, 0, moved);
-    setSteps(updated);
+    setSlidesConfig(updated);
+    setActiveSlideIndex(toIdx);
+    showToast('Página reordenada.');
+  };
 
-    const remappedImgs: Record<number, string> = {};
-    if (images[fromIdx]) remappedImgs[toIdx] = images[fromIdx];
-    if (images[toIdx]) remappedImgs[fromIdx] = images[toIdx];
-    Object.entries(images).forEach(([k, v]) => {
-      const n = Number(k);
-      if (n !== fromIdx && n !== toIdx) remappedImgs[n] = v;
-    });
-    setImages(remappedImgs);
+  const deletePage = (idxToDelete: number) => {
+    if (slidesConfig.length <= 1) {
+      showToast('O documento deve conter pelo menos uma página.');
+      return;
+    }
+    const updated = slidesConfig.filter((_, idx) => idx !== idxToDelete);
+    setSlidesConfig(updated);
+    if (safeActiveSlideIndex >= updated.length) {
+      setActiveSlideIndex(Math.max(0, updated.length - 1));
+    } else if (safeActiveSlideIndex === idxToDelete) {
+      setActiveSlideIndex(Math.max(0, idxToDelete - 1));
+    }
+    setSelectedIndicatorId(null);
+    showToast('Página excluída.');
+  };
 
-    setActiveSlideIndex(toIdx + 1);
+  const addPage = (slideType: SlideConfig['slideType']) => {
+    setShowAddPageMenu(false);
+    let stepIdx: number | undefined = undefined;
+
+    if (slideType === 'step') {
+      const nextNum = steps.length + 1;
+      const newStep: StepBlock = {
+        id: `step-${Date.now()}-${nextNum}`,
+        type: 'step',
+        title: `Nova Etapa ${nextNum}: Roteiro Operacional`,
+        content: 'Instrução do passo a passo no sistema Digifarma.',
+        instruction: 'Descreva a validação necessária e os botões que devem ser acionados nesta etapa.',
+        expectedResult: 'Registro processado e confirmado com sucesso no banco de dados.',
+        tips: 'Atalho ou dica operacional para maior agilidade.',
+        completed: false,
+      };
+      stepIdx = steps.length;
+      setSteps([...steps, newStep]);
+    }
+
+    const newSlide: SlideConfig = {
+      id: `slide-${slideType}-${Date.now()}`,
+      slideType,
+      stepIndex: stepIdx,
+      title: slideType === 'custom' ? 'Página Livre' : undefined,
+      bgTheme: slideType === 'cover' || slideType === 'signatures' ? 'deep' : 'light',
+      indicators: [],
+    };
+
+    const insertAt = safeActiveSlideIndex + 1;
+    const updated = [...slidesConfig];
+    updated.splice(insertAt, 0, newSlide);
+    setSlidesConfig(updated);
+    setActiveSlideIndex(insertAt);
+    setSelectedIndicatorId(null);
+    showToast('Nova página adicionada ao documento!');
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 4. PERSISTÊNCIA, EXPORTAÇÃO DUPLA & IMPRESSÃO
+  // 5. PERSISTÊNCIA, EXPORTAÇÃO DUPLA & IMPRESSÃO
   // ─────────────────────────────────────────────────────────────
   const constructProcedureToSave = (): Procedure => {
     const blocks: ProcedureBlock[] = [];
@@ -881,15 +883,22 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     const systemCategory = selectedMenu?.label || 'Geral';
 
     const nowIso = new Date().toISOString();
+    const isResubmission = initialProcedure?.status === 'ajustes_solicitados';
+
     const historyItem: ProcedureHistoryItem = {
       id: `hist-${Date.now()}`,
-      action: initialProcedure ? 'update' : 'create',
+      action: isResubmission ? 'revision' : initialProcedure ? 'update' : 'create',
       timestamp: nowIso,
       user: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
-      description: initialProcedure
+      description: isResubmission
+        ? `Ajustes operacionais realizados e reenviado para revisão por ${currentUser?.name || 'Autor'}`
+        : initialProcedure
         ? `Atualização completa via Studio Canva por ${currentUser?.name || 'Gestor'}`
-        : `Elaboração e homologação via Studio Canva por ${currentUser?.name || 'Gestor'}`,
+        : `Elaboração via Studio Canva por ${currentUser?.name || 'Gestor'} (aguardando revisão)`,
     };
+
+    // Todo POP novo ou com ajustes solicitados fica com status 'pendente' até aprovação oficial
+    const nextStatus: ProcedureStatus = initialProcedure?.status === 'aprovado' ? 'aprovado' : 'pendente';
 
     return {
       id: initialProcedure?.id || `proc-${Date.now()}`,
@@ -902,8 +911,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       systemPath,
       author,
       updatedBy: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
+      status: nextStatus,
+      rejectionReason: isResubmission ? undefined : initialProcedure?.rejectionReason,
       history: [historyItem, ...(initialProcedure?.history || [])],
-      tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma R78', systemCategory, 'BPF'],
+      tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico', systemCategory, 'BPF'],
       blocks,
       slidesConfig,
       created_at: initialProcedure?.created_at || nowIso,
@@ -916,7 +927,11 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       setSaving(true);
       const proc = constructProcedureToSave();
       await onSave(proc);
-      showToast('Procedimento salvo com sucesso!');
+      showToast(
+        initialProcedure?.status === 'ajustes_solicitados'
+          ? 'Procedimento reenviado para a Tela de Revisão com sucesso!'
+          : 'Procedimento salvo e enviado para aprovação!'
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast(`Erro ao salvar: ${msg}`);
@@ -940,14 +955,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     }, 1200);
   };
 
-  const totalSlidesCount = 1 + steps.length + 3;
-
-  // Elemento atualmente selecionado para a barra flutuante de propriedades
-  const activeSlideIndicators = getIndicatorsForSlideIndex(activeSlideIndex);
-  const selectedIndicator = activeSlideIndicators.find((i) => i.id === selectedIndicatorId);
-
   // ─────────────────────────────────────────────────────────────
-  // 5. RENDERIZADOR UNIVERSAL DE INDICADORES (STAGE & PRINT)
+  // 6. RENDERIZADOR UNIVERSAL DE INDICADORES (STAGE & PRINT)
   // ─────────────────────────────────────────────────────────────
   const renderIndicatorItem = (
     ind: SlideIndicator,
@@ -958,6 +967,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     const opacity = ind.opacity ?? 1.0;
     const glow = ind.glow ?? 'none';
     const size = ind.size ?? 'md';
+    const scale = ind.scale ?? 1.0;
 
     const glowStyle =
       glow === 'neon'
@@ -1150,7 +1160,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           position: 'absolute',
           left: `${ind.x}%`,
           top: `${ind.y}%`,
-          transform: 'translate(-50%, -50%)',
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: 'center center',
           cursor: isInteractive ? 'grab' : 'default',
           zIndex: isSelected ? 35 : 20,
           userSelect: 'none',
@@ -1181,41 +1192,77 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 6. RENDERIZADOR DO DOCUMENTO OFICIAL A4 (PREVIEW & PRINT)
+  // 7. RENDERIZADORES DE SLIDE INDIVIDUAL (CANVAS DO STUDIO & PDF)
   // ─────────────────────────────────────────────────────────────
-  const renderPresentationManual = (isEditable: boolean) => {
-    return (
-      <div className="presentation-manual-root" id="printable-procedure">
-        {/* Página 1: Capa Editorial */}
-        <section className="slide deep cover" style={{ position: 'relative' }}>
+  const renderSlideContent = (
+    slide: SlideConfig,
+    slideIdx: number,
+    isEditable: boolean,
+    isStage: boolean = false
+  ) => {
+    const isDark = slide.bgTheme === 'deep' || slide.bgTheme === 'dark';
+    const indicators = slide.indicators || [];
+
+    // TIPO 1: CAPA EDITORIAL
+    if (slide.slideType === 'cover') {
+      return (
+        <section
+          key={slide.id || `slide-${slideIdx}`}
+          className={`slide deep cover ${isStage ? 'canva-slide-canvas' : ''}`}
+          ref={isStage ? shotframeRef : undefined}
+          onClick={isStage ? handleShotframeClick : undefined}
+          style={{ position: 'relative' }}
+        >
           <div className="inner">
             <div className="logo">
               <span className="a">Digi</span>
               <span className="b">farma</span>
             </div>
             <div className="v10-badge">
-              {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+              {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
             </div>
-            <h1
-              className="display"
-              contentEditable={isEditable}
-              suppressContentEditableWarning
-              onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
-            >
-              {title}
-            </h1>
-            <p
-              className="lead"
-              contentEditable={isEditable}
-              suppressContentEditableWarning
-              onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
-            >
-              {subtitle}
-            </p>
 
-            <div className="stats">
+            {isStage ? (
+              <input
+                type="text"
+                className="canva-inline-display-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Título Principal do Manual..."
+              />
+            ) : (
+              <h1
+                className="display"
+                contentEditable={isEditable}
+                suppressContentEditableWarning
+                onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
+              >
+                {title}
+              </h1>
+            )}
+
+            {isStage ? (
+              <textarea
+                className="canva-inline-lead-input"
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
+                placeholder="Subtítulo ou resumo operacional da rotina..."
+                rows={2}
+              />
+            ) : (
+              <p
+                className="lead"
+                contentEditable={isEditable}
+                suppressContentEditableWarning
+                onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
+              >
+                {subtitle}
+              </p>
+            )}
+
+            <div className="stats" style={{ marginTop: '36px' }}>
               <div className="stat">
-                <div className="n">{steps.length}<small>etapas</small></div>
+                <div className="n">{steps.length || 1}<small>etapas</small></div>
                 <div className="l">Roteiro operacional documentado</div>
               </div>
               <div className="stat">
@@ -1223,120 +1270,279 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <div className="l">Conformidade com Boas Práticas (BPF)</div>
               </div>
               <div className="stat">
-                <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
+                {isStage ? (
+                  <div className="n" style={{ fontSize: '20px' }}>
+                    <select
+                      value={menuId}
+                      onChange={(e) => setMenuId(e.target.value)}
+                      className="canva-select-module"
+                    >
+                      {menus.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
+                )}
                 <div className="l">Módulo integrado do sistema</div>
               </div>
               <div className="stat">
-                <div className="n">{author}</div>
+                {isStage ? (
+                  <input
+                    type="text"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className="canva-inline-author-input"
+                    placeholder="Autor / Responsável"
+                  />
+                ) : (
+                  <div className="n">{author}</div>
+                )}
                 <div className="l">Responsável técnico / elaboração</div>
               </div>
             </div>
           </div>
 
-          {/* Renderização de todos os indicadores adicionados na Capa */}
-          {getIndicatorsForSlideIndex(0).map((ind) => renderIndicatorItem(ind, isEditable))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
         </section>
+      );
+    }
 
-        {/* Páginas 2..N: Etapas Operacionais com Shotframes e Formas */}
-        {steps.map((step, idx) => {
-          const stepNum = String(idx + 1).padStart(2, '0');
-          const imgUrl = images[idx];
-          const indicators = getIndicatorsForSlideIndex(idx + 1);
-          const slideCfg = getSlideConfigForIndex(idx + 1);
-          const isDark = slideCfg?.bgTheme === 'deep' || slideCfg?.bgTheme === 'dark';
+    // TIPO 2: ETAPA OPERACIONAL
+    if (slide.slideType === 'step') {
+      const stepIdx = slide.stepIndex ?? 0;
+      const step = steps[stepIdx] || steps[0];
+      const stepNum = String(stepIdx + 1).padStart(2, '0');
+      const imgUrl = images[stepIdx];
 
-          return (
-            <section key={step.id} className={`slide ${isDark ? 'deep' : 'light'} step-slide`}>
-              <div className="inner">
-                <p className="eyebrow">
-                  <span>ETAPA {stepNum}</span> · Digifarma Treinamento
-                </p>
+      return (
+        <section
+          key={slide.id || `slide-${slideIdx}`}
+          className={`slide ${isDark ? 'deep' : 'light'} step-slide ${isStage ? 'canva-slide-canvas' : ''}`}
+        >
+          <div className="inner">
+            <p className="eyebrow">
+              <span>ETAPA {stepNum}</span> · Roteiro Passo a Passo
+            </p>
 
-                <h2
-                  className="head"
-                  contentEditable={isEditable}
-                  suppressContentEditableWarning
-                  onBlur={(e) => {
-                    const val = e.currentTarget.textContent || step.title;
-                    setSteps((prev) =>
-                      prev.map((s, sIdx) => (sIdx === idx ? { ...s, title: val } : s))
-                    );
-                  }}
-                >
-                  {step.title}
-                </h2>
+            {isStage ? (
+              <input
+                type="text"
+                className="canva-inline-head-input"
+                value={step.title || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSteps((prev) =>
+                    prev.map((s, idx) => (idx === stepIdx ? { ...s, title: val } : s))
+                  );
+                }}
+                placeholder="Título da Etapa..."
+              />
+            ) : (
+              <h2
+                className="head"
+                contentEditable={isEditable}
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  const val = e.currentTarget.textContent || step.title;
+                  setSteps((prev) =>
+                    prev.map((s, sIdx) => (sIdx === stepIdx ? { ...s, title: val } : s))
+                  );
+                }}
+              >
+                {step.title}
+              </h2>
+            )}
 
-                <p
-                  className="lead"
-                  contentEditable={isEditable}
-                  suppressContentEditableWarning
-                  onBlur={(e) => {
-                    const val = e.currentTarget.textContent || step.instruction || step.content || '';
-                    setSteps((prev) =>
-                      prev.map((s, sIdx) =>
-                        sIdx === idx ? { ...s, instruction: val, content: val } : s
-                      )
-                    );
-                  }}
-                >
-                  {step.instruction || step.content}
-                </p>
+            {isStage ? (
+              <textarea
+                className="canva-inline-lead-input light"
+                value={step.instruction || step.content}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSteps((prev) =>
+                    prev.map((s, idx) =>
+                      idx === stepIdx ? { ...s, instruction: val, content: val } : s
+                    )
+                  );
+                }}
+                placeholder="Instrução passo a passo detalhada..."
+                rows={2}
+              />
+            ) : (
+              <p
+                className="lead"
+                contentEditable={isEditable}
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  const val = e.currentTarget.textContent || step.instruction || step.content || '';
+                  setSteps((prev) =>
+                    prev.map((s, sIdx) =>
+                      sIdx === stepIdx ? { ...s, instruction: val, content: val } : s
+                    )
+                  );
+                }}
+              >
+                {step.instruction || step.content}
+              </p>
+            )}
 
-                <div className="feature-split">
-                  <div className="feature-left">
-                    {step.expectedResult && (
-                      <div className="fitem">
-                        <div className="fico">✓</div>
-                        <div className="ftxt">
-                          <h4>Resultado Esperado</h4>
-                          <p>{step.expectedResult}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {step.tips && (
-                      <div className="fitem">
-                        <div className="fico">💡</div>
-                        <div className="ftxt">
-                          <h4>Dica de Agilidade</h4>
-                          <p>{step.tips}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {step.warnings && (
-                      <div className="fitem warning">
-                        <div className="fico">⚠️</div>
-                        <div className="ftxt">
-                          <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                          <p>{step.warnings}</p>
-                        </div>
-                      </div>
+            <div className="feature-split">
+              <div className="feature-left">
+                {/* Resultado Esperado */}
+                <div className="fitem">
+                  <div className="fico">✓</div>
+                  <div className="ftxt" style={{ flex: 1 }}>
+                    <h4>Resultado Esperado</h4>
+                    {isStage ? (
+                      <input
+                        type="text"
+                        className="canva-inline-fitem-input"
+                        value={step.expectedResult || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSteps((prev) =>
+                            prev.map((s, idx) =>
+                              idx === stepIdx ? { ...s, expectedResult: val } : s
+                            )
+                          );
+                        }}
+                        placeholder="O que deve acontecer..."
+                      />
+                    ) : (
+                      <p>{step.expectedResult || 'Registro processado e confirmado.'}</p>
                     )}
                   </div>
+                </div>
 
-                  <div className="shotframe">
-                    <div className="frame">
-                      {imgUrl ? (
-                        <img src={imgUrl} alt={step.title} />
-                      ) : (
-                        <div style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
-                          Captura de Tela do Digifarma
-                        </div>
-                      )}
+                {/* Dica de Agilidade */}
+                <div className="fitem">
+                  <div className="fico">💡</div>
+                  <div className="ftxt" style={{ flex: 1 }}>
+                    <h4>Dica de Agilidade</h4>
+                    {isStage ? (
+                      <input
+                        type="text"
+                        className="canva-inline-fitem-input"
+                        value={step.tips || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSteps((prev) =>
+                            prev.map((s, idx) =>
+                              idx === stepIdx ? { ...s, tips: val } : s
+                            )
+                          );
+                        }}
+                        placeholder="Atalhos do teclado..."
+                      />
+                    ) : (
+                      <p>{step.tips || 'Atalho F2 para busca rápida.'}</p>
+                    )}
+                  </div>
+                </div>
 
-                      {/* Renderização de todos os indicadores na folha oficial */}
-                      {indicators.map((ind) => renderIndicatorItem(ind, isEditable))}
-                    </div>
+                {/* Ponto Crítico */}
+                <div className="fitem warning">
+                  <div className="fico">⚠️</div>
+                  <div className="ftxt" style={{ flex: 1 }}>
+                    <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
+                    {isStage ? (
+                      <input
+                        type="text"
+                        className="canva-inline-fitem-input"
+                        value={step.warnings || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSteps((prev) =>
+                            prev.map((s, idx) =>
+                              idx === stepIdx ? { ...s, warnings: val } : s
+                            )
+                          );
+                        }}
+                        placeholder="Atenção especial para evitar erros..."
+                      />
+                    ) : (
+                      <p>{step.warnings || 'Valide a numeração do lote.'}</p>
+                    )}
                   </div>
                 </div>
               </div>
-            </section>
-          );
-        })}
 
-        {/* Página BPF / Diretrizes */}
-        <section className="slide light" style={{ position: 'relative' }}>
+              {/* Shotframe da Etapa */}
+              <div className="shotframe">
+                <div
+                  className={`frame ${isStage ? 'canva-interactive-frame' : ''}`}
+                  ref={isStage ? shotframeRef : undefined}
+                  onClick={isStage ? handleShotframeClick : undefined}
+                  title={isStage ? 'Clique na imagem para posicionar. Arraste qualquer forma com o mouse!' : undefined}
+                >
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={step.title}
+                      className={isStage ? 'canva-step-img' : undefined}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="canva-placeholder-drop" style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
+                      <ImageIcon size={38} color="var(--red)" />
+                      <strong>Nenhuma imagem anexada</strong>
+                      <span>Cole um print com Ctrl+V ou use o botão abaixo</span>
+                    </div>
+                  )}
+
+                  {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+                </div>
+
+                {isStage && (
+                  <div className="shotframe-toolbar-bottom">
+                    <button
+                      type="button"
+                      className="btn-shot-action"
+                      onClick={() => handleManualUploadClick(stepIdx)}
+                    >
+                      <Upload size={13} />
+                      <span>Importar Arquivo</span>
+                    </button>
+
+                    {imgUrl && (
+                      <button
+                        type="button"
+                        className="btn-shot-action danger"
+                        onClick={() => {
+                          setImages((prev) => {
+                            const copy = { ...prev };
+                            delete copy[stepIdx];
+                            return copy;
+                          });
+                        }}
+                      >
+                        <Trash2 size={13} />
+                        <span>Remover Foto</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // TIPO 3: BOAS PRÁTICAS (BPF)
+    if (slide.slideType === 'callout') {
+      return (
+        <section
+          key={slide.id || `slide-${slideIdx}`}
+          className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
+          ref={isStage ? shotframeRef : undefined}
+          onClick={isStage ? handleShotframeClick : undefined}
+          style={{ position: 'relative' }}
+        >
           <div className="inner">
             <p className="eyebrow">
               <span>BPF</span> · Boas Práticas &amp; Diretrizes
@@ -1346,49 +1552,90 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               Recomendações técnicas homologadas para garantia da qualidade operacional.
             </p>
 
-            <div style={{ marginTop: '28px' }}>
-              {callouts.map((c, cIdx) => (
+            <div className="canva-callouts-list" style={{ marginTop: '28px' }}>
+              {callouts.map((c, i) => (
                 <div key={c.id} className="fitem" style={{ marginBottom: '16px' }}>
                   <div className="fico">
                     <Info size={22} color="var(--red)" />
                   </div>
-                  <div className="ftxt">
-                    <h4
-                      contentEditable={isEditable}
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const val = e.currentTarget.textContent || c.title || '';
-                        setCallouts((prev) =>
-                          prev.map((item, idx) => (idx === cIdx ? { ...item, title: val } : item))
-                        );
-                      }}
-                    >
-                      {c.title}
-                    </h4>
-                    <p
-                      contentEditable={isEditable}
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const val = e.currentTarget.textContent || c.content;
-                        setCallouts((prev) =>
-                          prev.map((item, idx) => (idx === cIdx ? { ...item, content: val } : item))
-                        );
-                      }}
-                    >
-                      {c.content}
-                    </p>
+                  <div className="ftxt" style={{ flex: 1 }}>
+                    {isStage ? (
+                      <>
+                        <input
+                          type="text"
+                          className="canva-inline-head-input"
+                          style={{ fontSize: '1.05rem', marginBottom: '4px' }}
+                          value={c.title || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCallouts((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
+                            );
+                          }}
+                          placeholder="Título da Diretriz..."
+                        />
+                        <textarea
+                          className="canva-inline-lead-input light"
+                          value={c.content}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCallouts((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
+                            );
+                          }}
+                          placeholder="Texto explicativo da norma sanitária..."
+                          rows={2}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <h4
+                          contentEditable={isEditable}
+                          suppressContentEditableWarning
+                          onBlur={(e) => {
+                            const val = e.currentTarget.textContent || c.title || '';
+                            setCallouts((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
+                            );
+                          }}
+                        >
+                          {c.title}
+                        </h4>
+                        <p
+                          contentEditable={isEditable}
+                          suppressContentEditableWarning
+                          onBlur={(e) => {
+                            const val = e.currentTarget.textContent || c.content;
+                            setCallouts((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
+                            );
+                          }}
+                        >
+                          {c.content}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Renderização de todos os indicadores no slide BPF */}
-          {getIndicatorsForSlideIndex(steps.length + 1).map((ind) => renderIndicatorItem(ind, isEditable))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
         </section>
+      );
+    }
 
-        {/* Página Checklist */}
-        <section className="slide light" style={{ position: 'relative' }}>
+    // TIPO 4: CHECKLIST DE HOMOLOGAÇÃO
+    if (slide.slideType === 'checklist') {
+      return (
+        <section
+          key={slide.id || `slide-${slideIdx}`}
+          className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
+          ref={isStage ? shotframeRef : undefined}
+          onClick={isStage ? handleShotframeClick : undefined}
+          style={{ position: 'relative' }}
+        >
           <div className="inner">
             <p className="eyebrow">
               <span>CHECKLIST</span> · Homologação
@@ -1398,7 +1645,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               Validação obrigatória de cada uma das {steps.length} etapas cadastradas.
             </p>
 
-            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="canva-checklist-preview" style={{ marginTop: '24px' }}>
               {steps.map((s, i) => (
                 <div key={s.id} className="canva-check-row">
                   <div className="canva-check-circle">✓</div>
@@ -1413,12 +1660,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             </div>
           </div>
 
-          {/* Renderização de todos os indicadores no slide Checklist */}
-          {getIndicatorsForSlideIndex(steps.length + 2).map((ind) => renderIndicatorItem(ind, isEditable))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
         </section>
+      );
+    }
 
-        {/* Página Final: Homologação & Assinaturas */}
-        <section className="slide deep" style={{ position: 'relative' }}>
+    // TIPO 5: HOMOLOGAÇÃO & ASSINATURAS
+    if (slide.slideType === 'signatures') {
+      return (
+        <section
+          key={slide.id || `slide-${slideIdx}`}
+          className={`slide deep ${isStage ? 'canva-slide-canvas' : ''}`}
+          ref={isStage ? shotframeRef : undefined}
+          onClick={isStage ? handleShotframeClick : undefined}
+          style={{ position: 'relative' }}
+        >
           <div className="inner">
             <div className="logo">
               <span className="a">Digi</span>
@@ -1436,14 +1692,24 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <div className="print-sign-col">
                 <span className="print-sign-title">ELABORADO POR</span>
                 <div className="print-sign-line"></div>
-                <span
-                  className="print-sign-name"
-                  contentEditable={isEditable}
-                  suppressContentEditableWarning
-                  onBlur={(e) => setAuthor(e.currentTarget.textContent || author)}
-                >
-                  {author}
-                </span>
+                {isStage ? (
+                  <input
+                    type="text"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className="canva-inline-sign-input"
+                    placeholder="Nome do Elaborador"
+                  />
+                ) : (
+                  <span
+                    className="print-sign-name"
+                    contentEditable={isEditable}
+                    suppressContentEditableWarning
+                    onBlur={(e) => setAuthor(e.currentTarget.textContent || author)}
+                  >
+                    {author}
+                  </span>
+                )}
                 <span className="print-sign-role">Digifarma Sistemas</span>
               </div>
 
@@ -1463,11 +1729,93 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             </div>
           </div>
 
-          {/* Renderização de todos os indicadores no slide Assinaturas */}
-          {getIndicatorsForSlideIndex(steps.length + 3).map((ind) => renderIndicatorItem(ind, isEditable))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
         </section>
+      );
+    }
+
+    // TIPO 6: PÁGINA LIVRE / PERSONALIZADA
+    return (
+      <section
+        key={slide.id || `slide-${slideIdx}`}
+        className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
+        ref={isStage ? shotframeRef : undefined}
+        onClick={isStage ? handleShotframeClick : undefined}
+        style={{ position: 'relative' }}
+      >
+        <div className="inner">
+          <p className="eyebrow">
+            <span>PÁGINA LIVRE</span> · Conteúdo Adicional
+          </p>
+          {isStage ? (
+            <input
+              type="text"
+              className="canva-inline-head-input"
+              value={slide.title || 'Título da Página'}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSlidesConfig((prev) =>
+                  prev.map((s, idx) => (idx === slideIdx ? { ...s, title: val } : s))
+                );
+              }}
+              placeholder="Título da Página..."
+            />
+          ) : (
+            <h2 className="head">{slide.title || 'Página de Conteúdo Livre'}</h2>
+          )}
+
+          {isStage ? (
+            <textarea
+              className="canva-inline-lead-input light"
+              value={slide.subtitle || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSlidesConfig((prev) =>
+                  prev.map((s, idx) => (idx === slideIdx ? { ...s, subtitle: val } : s))
+                );
+              }}
+              placeholder="Digite o texto, orientações ou instruções desta página..."
+              rows={5}
+            />
+          ) : (
+            <p className="lead">{slide.subtitle || 'Instruções e anotações adicionais.'}</p>
+          )}
+        </div>
+
+        {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+      </section>
+    );
+  };
+
+  // Renderiza todas as páginas no formato de impressão oficial A4 paisagem
+  const renderPresentationManual = (isEditable: boolean) => {
+    return (
+      <div className="presentation-manual-root" id="printable-procedure">
+        {slidesConfig.map((slide, idx) => renderSlideContent(slide, idx, isEditable, false))}
       </div>
     );
+  };
+
+  const getSlideTitle = (slide: SlideConfig, idx: number): string => {
+    switch (slide.slideType) {
+      case 'cover':
+        return 'Capa Editorial';
+      case 'step': {
+        const sIdx = slide.stepIndex ?? 0;
+        const step = steps[sIdx];
+        return step?.title ? `Etapa ${(sIdx + 1).toString().padStart(2, '0')}: ${step.title.slice(0, 18)}...` : `Etapa ${(sIdx + 1).toString().padStart(2, '0')}`;
+      }
+      case 'callout':
+        return 'Boas Práticas BPF';
+      case 'checklist':
+        return 'Checklist Auditoria';
+      case 'signatures':
+        return 'Homologação & Assinaturas';
+      case 'custom':
+        return slide.title || 'Página Livre';
+      default:
+        return `Página ${idx + 1}`;
+    }
   };
 
   return (
@@ -1479,6 +1827,17 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         style={{ display: 'none' }}
         onChange={handleFileInputChange}
       />
+
+      {/* ── ALERTA DE AJUSTES SOLICITADOS PELO REVISOR ── */}
+      {initialProcedure?.status === 'ajustes_solicitados' && (
+        <div className="review-alert-banner no-print" style={{ margin: '8px 16px 0', borderRadius: '8px' }}>
+          <div className="review-alert-icon">⚠️</div>
+          <div className="review-alert-body">
+            <h4>Ajustes Solicitados pelo Revisor</h4>
+            <p>{initialProcedure.rejectionReason || 'Corrija os pontos apontados pelo revisor e reenvie para aprovação.'}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── TOPBAR DO STUDIO (CANVA TOOLBAR) ── */}
       <header className="canva-topbar no-print">
@@ -1504,7 +1863,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             />
             <div className="canva-meta-pills">
               <span className="canva-version-pill">
-                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
               </span>
               <span className="canva-path-text">{systemPath}</span>
             </div>
@@ -1556,12 +1915,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
           <button
             type="button"
-            className="canva-action-btn save"
+            className={`canva-action-btn save ${initialProcedure?.status === 'ajustes_solicitados' ? 'resubmit' : ''}`}
             onClick={handleSave}
             disabled={saving || uploading}
           >
             <Save size={15} />
-            <span>{saving ? 'Gravando...' : uploading ? 'Enviando foto...' : 'Salvar POP'}</span>
+            <span>
+              {saving
+                ? 'Gravando...'
+                : uploading
+                ? 'Enviando foto...'
+                : initialProcedure?.status === 'ajustes_solicitados'
+                ? 'Reenviar para Revisão'
+                : 'Salvar POP'}
+            </span>
           </button>
         </div>
       </header>
@@ -1577,132 +1944,156 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       {/* ── MODO 1: STUDIO VISUAL CANVA COM PAINEL DE FERRAMENTAS ── */}
       {editorMode === 'canva' && (
         <div className="canva-workspace no-print">
-          {/* Barra Lateral Esquerda: Miniaturas dos Slides (Thumbnails) */}
+          {/* Barra Lateral Esquerda: Gerenciador de Páginas e Miniaturas */}
           <aside className="canva-thumbnails-rail">
-            <div className="thumbnails-header">
-              <span className="thumbnails-title">Slides ({totalSlidesCount})</span>
+            <div className="thumbnails-header" style={{ position: 'relative' }}>
+              <span className="thumbnails-title">Páginas ({slidesConfig.length})</span>
               <button
                 type="button"
                 className="btn-add-slide-mini"
-                onClick={addStep}
-                title="Adicionar nova etapa operacional"
+                onClick={() => setShowAddPageMenu(!showAddPageMenu)}
+                title="Adicionar nova página ao procedimento"
               >
                 <Plus size={14} />
-                <span>Etapa</span>
+                <span>Página</span>
               </button>
+
+              {/* Menu Suspenso de Seleção de Tipo de Página */}
+              {showAddPageMenu && (
+                <div
+                  className="page-type-selector-menu"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    zIndex: 100,
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                    padding: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    minWidth: '200px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('step')}
+                  >
+                    <Sliders size={13} color="var(--red)" />
+                    <span>Nova Etapa Operacional</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('callout')}
+                  >
+                    <Info size={13} color="#3b82f6" />
+                    <span>Boas Práticas (BPF)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('checklist')}
+                  >
+                    <CheckSquare size={13} color="#10b981" />
+                    <span>Checklist de Validação</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('signatures')}
+                  >
+                    <Award size={13} color="#f59e0b" />
+                    <span>Homologação / Assinaturas</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('cover')}
+                  >
+                    <Layers size={13} color="#a855f7" />
+                    <span>Capa Editorial</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="page-type-opt-btn"
+                    onClick={() => addPage('custom')}
+                  >
+                    <FileText size={13} color="#94a3b8" />
+                    <span>Página Livre</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="thumbnails-scroll-list">
-              {/* Slide 0: Capa */}
-              <div
-                className={`thumb-card ${activeSlideIndex === 0 ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSlideIndex(0);
-                  setSelectedIndicatorId(null);
-                }}
-              >
-                <span className="thumb-num">01</span>
-                <div className="thumb-preview cover-preview">
-                  <strong>Capa Editorial</strong>
-                  <span>{title.slice(0, 32)}...</span>
-                </div>
-              </div>
+              {slidesConfig.map((slide, idx) => {
+                const isCurrentActive = idx === safeActiveSlideIndex;
+                const slideTitle = getSlideTitle(slide, idx);
 
-              {/* Slides 1..N: Etapas */}
-              {steps.map((step, idx) => (
-                <div
-                  key={step.id}
-                  className={`thumb-card ${activeSlideIndex === idx + 1 ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveSlideIndex(idx + 1);
-                    setSelectedIndicatorId(null);
-                  }}
-                >
-                  <span className="thumb-num">{String(idx + 2).padStart(2, '0')}</span>
-                  <div className="thumb-preview">
-                    <strong>Etapa {(idx + 1).toString().padStart(2, '0')}</strong>
-                    <span>{step.title || 'Sem título'}</span>
-                    {images[idx] && <span className="thumb-badge-img">Tela</span>}
+                return (
+                  <div
+                    key={slide.id || `thumb-${idx}`}
+                    className={`thumb-card ${isCurrentActive ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveSlideIndex(idx);
+                      setSelectedIndicatorId(null);
+                    }}
+                  >
+                    <span className="thumb-num">{String(idx + 1).padStart(2, '0')}</span>
+                    <div className="thumb-preview">
+                      <strong style={{ fontSize: '0.78rem' }}>{slideTitle}</strong>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        {slide.slideType.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* Ações Rápidas da Miniatura: Mover Cima / Baixo e Deletar QUALQUER página */}
+                    <div className="thumb-actions-hover">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          movePage(idx, idx - 1);
+                        }}
+                        title="Mover para cima"
+                        style={{ opacity: idx === 0 ? 0.3 : 1 }}
+                      >
+                        <ArrowUp size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === slidesConfig.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          movePage(idx, idx + 1);
+                        }}
+                        title="Mover para baixo"
+                        style={{ opacity: idx === slidesConfig.length - 1 ? 0.3 : 1 }}
+                      >
+                        <ArrowDown size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={slidesConfig.length <= 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePage(idx);
+                        }}
+                        title="Excluir esta página"
+                        style={{ opacity: slidesConfig.length <= 1 ? 0.3 : 1 }}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="thumb-actions-hover">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveStep(idx, idx - 1);
-                      }}
-                      title="Mover para cima"
-                    >
-                      <ArrowUp size={11} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveStep(idx, idx + 1);
-                      }}
-                      title="Mover para baixo"
-                    >
-                      <ArrowDown size={11} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeStep(idx);
-                      }}
-                      title="Excluir etapa"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* Slide BPF */}
-              <div
-                className={`thumb-card ${activeSlideIndex === steps.length + 1 ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSlideIndex(steps.length + 1);
-                  setSelectedIndicatorId(null);
-                }}
-              >
-                <span className="thumb-num">{String(steps.length + 2).padStart(2, '0')}</span>
-                <div className="thumb-preview">
-                  <strong>Boas Práticas BPF</strong>
-                  <span>Alertas e Diretrizes</span>
-                </div>
-              </div>
-
-              {/* Slide Checklist */}
-              <div
-                className={`thumb-card ${activeSlideIndex === steps.length + 2 ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSlideIndex(steps.length + 2);
-                  setSelectedIndicatorId(null);
-                }}
-              >
-                <span className="thumb-num">{String(steps.length + 3).padStart(2, '0')}</span>
-                <div className="thumb-preview">
-                  <strong>Checklist</strong>
-                  <span>Auditoria Operacional</span>
-                </div>
-              </div>
-
-              {/* Slide Assinaturas */}
-              <div
-                className={`thumb-card ${activeSlideIndex === steps.length + 3 ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSlideIndex(steps.length + 3);
-                  setSelectedIndicatorId(null);
-                }}
-              >
-                <span className="thumb-num">{String(steps.length + 4).padStart(2, '0')}</span>
-                <div className="thumb-preview cover-preview">
-                  <strong>Homologação</strong>
-                  <span>Controle & Assinaturas</span>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </aside>
 
@@ -1912,22 +2303,61 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </div>
             </div>
 
-            {/* Dica de Colagem Rápida Ctrl+V */}
+            {/* Dica de Colagem Rápida Ctrl+V e Atalho Delete */}
             <div className="canva-paste-indicator">
               <ClipboardPaste size={15} color="var(--red)" />
               <span>
-                <strong>Dica Pro:</strong> Copie qualquer print com <kbd>Win + Shift + S</kbd> e pressione{' '}
-                <kbd>Ctrl + V</kbd> para colar direto nesta etapa! Arraste elementos livremente com o mouse.
+                <strong>Dica Pro:</strong> Copie prints com <kbd>Win + Shift + S</kbd> e pressione <kbd>Ctrl + V</kbd> para colar direto nesta etapa. Selecione qualquer elemento e aperte <kbd>Delete</kbd> para apagar.
               </span>
             </div>
 
-            {/* ── BARRA FLUTUANTE DE PROPRIEDADES DO ELEMENTO SELECIONADO (IN-SITE, ZERO POPUPS) ── */}
+            {/* ── BARRA FLUTUANTE DE PROPRIEDADES DO ELEMENTO SELECIONADO ── */}
             {selectedIndicator && (
               <div className="canva-element-property-bar no-print">
                 <div className="prop-bar-label">
                   <span>
                     Propriedades: <strong>{selectedIndicator.type.toUpperCase()}</strong>
                   </span>
+                </div>
+
+                {/* ESCALA LIVRE: AUMENTAR / DIMINUIR QUALQUER RECURSO */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Escala:</span>
+                  <div className="prop-btn-group">
+                    <button
+                      type="button"
+                      className="prop-btn-mini"
+                      onClick={() => {
+                        const cur = selectedIndicator.scale ?? 1.0;
+                        updateSelectedIndicator({ scale: Math.max(0.3, Number((cur - 0.15).toFixed(2))) });
+                      }}
+                      title="Diminuir tamanho (-15%)"
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '0 4px', minWidth: '38px', textAlign: 'center' }}>
+                      {Math.round((selectedIndicator.scale ?? 1.0) * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      className="prop-btn-mini"
+                      onClick={() => {
+                        const cur = selectedIndicator.scale ?? 1.0;
+                        updateSelectedIndicator({ scale: Math.min(3.0, Number((cur + 0.15).toFixed(2))) });
+                      }}
+                      title="Aumentar tamanho (+15%)"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      className="prop-btn-mini"
+                      onClick={() => updateSelectedIndicator({ scale: 1.0 })}
+                      title="Resetar escala para 100%"
+                    >
+                      100%
+                    </button>
+                  </div>
                 </div>
 
                 {/* Tipografia / Família de Fonte */}
@@ -2128,7 +2558,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   </div>
                 )}
 
-                {/* Estilo Vazado vs Preenchido (se rect ou circle) */}
+                {/* Estilo Vazado vs Preenchido */}
                 {(selectedIndicator.type === 'rect' || selectedIndicator.type === 'circle') && (
                   <div className="prop-bar-group">
                     <span className="prop-group-title">Preenchimento:</span>
@@ -2151,7 +2581,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   </div>
                 )}
 
-                {/* Edição de Texto In-Place (para badge, text, dropdown) */}
+                {/* Edição de Texto In-Place */}
                 {(selectedIndicator.type === 'badge' ||
                   selectedIndicator.type === 'text' ||
                   selectedIndicator.type === 'dropdown') && (
@@ -2166,13 +2596,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   </div>
                 )}
 
-                {/* Botão de Excluir Imediato (zero popups de navegador!) */}
+                {/* Botão de Excluir Imediato */}
                 <div className="prop-bar-actions">
                   <button
                     type="button"
                     className="prop-btn-delete"
                     onClick={() => removeIndicator(selectedIndicator.id)}
-                    title="Remover elemento da tela"
+                    title="Remover elemento da tela (ou tecle Delete)"
                   >
                     <Trash2 size={13} />
                     <span>Remover</span>
@@ -2187,7 +2617,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   </button>
                 </div>
 
-                {/* Gerenciador Completo de Opções do Menu Suspenso */}
+                {/* Gerenciador de Opções do Menu Suspenso */}
                 {selectedIndicator.type === 'dropdown' && (
                   <div className="prop-dropdown-manager">
                     <div className="prop-dropdown-manager-header">
@@ -2243,418 +2673,18 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
             {/* Visual Canvas do Slide Ativo */}
             <div className="canva-slide-viewport">
-              {/* Slide 0: Capa */}
-              {activeSlideIndex === 0 && (
-                <div
-                  className="slide deep canva-slide-canvas"
-                  ref={shotframeRef}
-                  onClick={handleShotframeClick}
-                  style={{ position: 'relative' }}
-                >
-                  <div className="inner">
-                    <div className="logo">
-                      <span className="a">Digi</span>
-                      <span className="b">farma</span>
-                    </div>
-
-                    <div className="v10-badge">
-                      {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
-                    </div>
-
-                    <input
-                      type="text"
-                      className="canva-inline-display-input"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Título Principal do Manual..."
-                    />
-
-                    <textarea
-                      className="canva-inline-lead-input"
-                      value={subtitle}
-                      onChange={(e) => setSubtitle(e.target.value)}
-                      placeholder="Subtítulo ou resumo operacional da rotina..."
-                      rows={2}
-                    />
-
-                    <div className="stats" style={{ marginTop: '36px' }}>
-                      <div className="stat">
-                        <div className="n">{steps.length || 1}<small>etapas</small></div>
-                        <div className="l">Roteiro operacional documentado</div>
-                      </div>
-                      <div className="stat">
-                        <div className="n">100<small>%</small></div>
-                        <div className="l">Conformidade BPF &amp; Qualidade</div>
-                      </div>
-                      <div className="stat">
-                        <div className="n" style={{ fontSize: '20px' }}>
-                          <select
-                            value={menuId}
-                            onChange={(e) => setMenuId(e.target.value)}
-                            className="canva-select-module"
-                          >
-                            {menus.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="l">Módulo integrado do sistema</div>
-                      </div>
-                      <div className="stat">
-                        <input
-                          type="text"
-                          value={author}
-                          onChange={(e) => setAuthor(e.target.value)}
-                          className="canva-inline-author-input"
-                          placeholder="Autor / Responsável"
-                        />
-                        <div className="l">Responsável técnico / elaboração</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Renderização de todos os indicadores no Canvas da Capa */}
-                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
-                </div>
-              )}
-
-              {/* Slides 1..N: Etapas Operacionais com Shotframe Interativo */}
-              {activeSlideIndex > 0 && activeSlideIndex <= steps.length && currentStep && (
-                <div
-                  className={`slide ${
-                    slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.bgTheme === 'deep'
-                      ? 'deep'
-                      : 'light'
-                  } canva-slide-canvas`}
-                >
-                  <div className="inner">
-                    <p className="eyebrow">
-                      <span>ETAPA {String(currentStepIndex + 1).padStart(2, '0')}</span> · Roteiro Passo a Passo
-                    </p>
-
-                    <input
-                      type="text"
-                      className="canva-inline-head-input"
-                      value={currentStep.title || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSteps((prev) =>
-                          prev.map((s, idx) => (idx === currentStepIndex ? { ...s, title: val } : s))
-                        );
-                      }}
-                      placeholder="Título da Etapa (ex: Acesso e Consulta de Lotes)..."
-                    />
-
-                    <textarea
-                      className="canva-inline-lead-input light"
-                      value={currentStep.instruction || currentStep.content}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSteps((prev) =>
-                          prev.map((s, idx) =>
-                            idx === currentStepIndex ? { ...s, instruction: val, content: val } : s
-                          )
-                        );
-                      }}
-                      placeholder="Instrução passo a passo detalhada para o operador..."
-                      rows={2}
-                    />
-
-                    <div className="feature-split">
-                      <div className="feature-left">
-                        {/* Resultado Esperado */}
-                        <div className="fitem">
-                          <div className="fico">✓</div>
-                          <div className="ftxt" style={{ flex: 1 }}>
-                            <h4>Resultado Esperado</h4>
-                            <input
-                              type="text"
-                              className="canva-inline-fitem-input"
-                              value={currentStep.expectedResult || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setSteps((prev) =>
-                                  prev.map((s, idx) =>
-                                    idx === currentStepIndex ? { ...s, expectedResult: val } : s
-                                  )
-                                );
-                              }}
-                              placeholder="O que deve acontecer após executar este passo..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Dica de Agilidade */}
-                        <div className="fitem">
-                          <div className="fico">💡</div>
-                          <div className="ftxt" style={{ flex: 1 }}>
-                            <h4>Dica de Agilidade</h4>
-                            <input
-                              type="text"
-                              className="canva-inline-fitem-input"
-                              value={currentStep.tips || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setSteps((prev) =>
-                                  prev.map((s, idx) =>
-                                    idx === currentStepIndex ? { ...s, tips: val } : s
-                                  )
-                                );
-                              }}
-                              placeholder="Atalhos do teclado ou recomendações práticas..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Alerta Ponto Crítico */}
-                        <div className="fitem warning">
-                          <div className="fico">⚠️</div>
-                          <div className="ftxt" style={{ flex: 1 }}>
-                            <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                            <input
-                              type="text"
-                              className="canva-inline-fitem-input"
-                              value={currentStep.warnings || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setSteps((prev) =>
-                                  prev.map((s, idx) =>
-                                    idx === currentStepIndex ? { ...s, warnings: val } : s
-                                  )
-                                );
-                              }}
-                              placeholder="Atenção especial para evitar erros fiscais ou de caixa..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Shotframe com Suporte a Colar Imagem, Drag & Drop e Indicadores */}
-                      <div className="shotframe">
-                        <div
-                          className="frame canva-interactive-frame"
-                          ref={shotframeRef}
-                          onClick={handleShotframeClick}
-                          title="Clique na imagem para posicionar ou desmarcar. Arraste qualquer forma com o mouse!"
-                        >
-                          {images[currentStepIndex] ? (
-                            <img
-                              src={images[currentStepIndex]}
-                              alt={currentStep.title}
-                              className="canva-step-img"
-                              draggable={false}
-                            />
-                          ) : (
-                            <div className="canva-placeholder-drop">
-                              <ImageIcon size={38} color="var(--red)" />
-                              <strong>Nenhuma imagem anexada</strong>
-                              <span>Cole um print com Ctrl+V ou clique no botão abaixo</span>
-                            </div>
-                          )}
-
-                          {/* Renderização de todos os indicadores no Canvas do Studio */}
-                          {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
-                        </div>
-
-                        {/* Barra de Ações Rápidas da Imagem */}
-                        <div className="shotframe-toolbar-bottom">
-                          <button
-                            type="button"
-                            className="btn-shot-action"
-                            onClick={() => handleManualUploadClick(currentStepIndex)}
-                          >
-                            <Upload size={13} />
-                            <span>Importar Arquivo</span>
-                          </button>
-
-                          {images[currentStepIndex] && (
-                            <button
-                              type="button"
-                              className="btn-shot-action danger"
-                              onClick={() => {
-                                setImages((prev) => {
-                                  const copy = { ...prev };
-                                  delete copy[currentStepIndex];
-                                  return copy;
-                                });
-                              }}
-                            >
-                              <Trash2 size={13} />
-                              <span>Remover Foto</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Slide BPF / Orientações */}
-              {activeSlideIndex === steps.length + 1 && (
-                <div
-                  className="slide light canva-slide-canvas"
-                  ref={shotframeRef}
-                  onClick={handleShotframeClick}
-                  style={{ position: 'relative' }}
-                >
-                  <div className="inner">
-                    <p className="eyebrow">
-                      <span>BPF</span> · Boas Práticas &amp; Diretrizes
-                    </p>
-                    <h2 className="head">Orientações de Segurança &amp; Auditoria</h2>
-                    <p className="lead">
-                      Recomendações técnicas homologadas para garantia da qualidade operacional.
-                    </p>
-
-                    <div className="canva-callouts-list" style={{ marginTop: '28px' }}>
-                      {callouts.map((c, i) => (
-                        <div key={c.id} className="fitem" style={{ marginBottom: '16px' }}>
-                          <div className="fico">
-                            <Info size={22} color="var(--red)" />
-                          </div>
-                          <div className="ftxt" style={{ flex: 1 }}>
-                            <input
-                              type="text"
-                              className="canva-inline-head-input"
-                              style={{ fontSize: '1.05rem', marginBottom: '4px' }}
-                              value={c.title || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCallouts((prev) =>
-                                  prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
-                                );
-                              }}
-                              placeholder="Título da Diretriz..."
-                            />
-                            <textarea
-                              className="canva-inline-lead-input light"
-                              value={c.content}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCallouts((prev) =>
-                                  prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
-                                );
-                              }}
-                              placeholder="Texto explicativo da norma sanitária ou de controle..."
-                              rows={2}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Renderização de todos os indicadores no Canvas do BPF */}
-                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
-                </div>
-              )}
-
-              {/* Slide Checklist */}
-              {activeSlideIndex === steps.length + 2 && (
-                <div
-                  className="slide light canva-slide-canvas"
-                  ref={shotframeRef}
-                  onClick={handleShotframeClick}
-                  style={{ position: 'relative' }}
-                >
-                  <div className="inner">
-                    <p className="eyebrow">
-                      <span>CHECKLIST</span> · Homologação
-                    </p>
-                    <h2 className="head">Checklist de Auditoria Operacional</h2>
-                    <p className="lead">
-                      Validação obrigatória de cada uma das {steps.length} etapas cadastradas.
-                    </p>
-
-                    <div className="canva-checklist-preview" style={{ marginTop: '24px' }}>
-                      {steps.map((s, i) => (
-                        <div key={s.id} className="canva-check-row">
-                          <div className="canva-check-circle">✓</div>
-                          <div>
-                            <strong>
-                              Etapa {(i + 1).toString().padStart(2, '0')}: {s.title}
-                            </strong>
-                            <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Renderização de todos os indicadores no Canvas do Checklist */}
-                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
-                </div>
-              )}
-
-              {/* Slide Assinaturas */}
-              {activeSlideIndex === steps.length + 3 && (
-                <div
-                  className="slide deep canva-slide-canvas"
-                  ref={shotframeRef}
-                  onClick={handleShotframeClick}
-                  style={{ position: 'relative' }}
-                >
-                  <div className="inner">
-                    <div className="logo">
-                      <span className="a">Digi</span>
-                      <span className="b">farma</span>
-                    </div>
-                    <div className="v10-badge">HOMOLOGAÇÃO OFICIAL</div>
-                    <h1 className="display" style={{ fontSize: '38px' }}>
-                      Controle da Qualidade &amp; BPF
-                    </h1>
-                    <p className="lead">
-                      Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.
-                    </p>
-
-                    <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
-                      <div className="print-sign-col">
-                        <span className="print-sign-title">ELABORADO POR</span>
-                        <div className="print-sign-line"></div>
-                        <input
-                          type="text"
-                          value={author}
-                          onChange={(e) => setAuthor(e.target.value)}
-                          className="canva-inline-sign-input"
-                          placeholder="Nome do Elaborador"
-                        />
-                        <span className="print-sign-role">Digifarma Sistemas</span>
-                      </div>
-
-                      <div className="print-sign-col">
-                        <span className="print-sign-title">REVISADO POR</span>
-                        <div className="print-sign-line"></div>
-                        <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
-                        <span className="print-sign-role">Controle de Procedimentos</span>
-                      </div>
-
-                      <div className="print-sign-col">
-                        <span className="print-sign-title">APROVADO POR</span>
-                        <div className="print-sign-line"></div>
-                        <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
-                        <span className="print-sign-role">Responsável Técnico / Gestor</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Renderização de todos os indicadores no Canvas de Assinaturas */}
-                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
-                </div>
-              )}
+              {currentSlide && renderSlideContent(currentSlide, safeActiveSlideIndex, true, true)}
             </div>
           </main>
         </div>
       )}
 
-      {/* ── MODO 2: EDITOR DE PDF EMBUTIDO (PÁGINAS A4 REAIS EM TEMPO REAL) ── */}
+      {/* ── MODO 2: EDITOR DE PDF EMBUTIDO (PÁGINAS EM TEMPO REAL) ── */}
       {editorMode === 'pdf-preview' && (
         <div className="canva-pdf-preview-container">
           <div className="pdf-preview-hint no-print">
             <span>
-              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão em folhas A4 reais. Todos os textos são editáveis diretamente nas páginas!
+              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão no padrão 16:9 Widescreen de slides. Todos os textos são editáveis diretamente nas páginas!
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="btn secondary sm" onClick={handleExportHtml}>
@@ -2670,7 +2700,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         </div>
       )}
 
-      {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM PARA IMPRIMIR DE QUALQUER MODO) ── */}
+      {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM) ── */}
       {editorMode === 'canva' && (
         <div className="canva-print-mount-offscreen">
           {renderPresentationManual(false)}

@@ -9,6 +9,7 @@ import { ImageLightbox } from './components/ImageLightbox';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
 import { VersionModulesView } from './components/VersionModulesView';
+import { ReviewView } from './components/ReviewView';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import type { Procedure, SystemMenu } from './types/procedure';
@@ -41,6 +42,37 @@ export function App() {
 
   // Visão Ativa do Sistema: 'dashboard' | 'v10' | 'r78' | 'procedure-detail' | 'config' | 'editor'
   const [currentView, setCurrentView] = useState<string>('dashboard');
+
+  const pendingReviewCount = procedures.filter((p) => p.status === 'pendente').length;
+
+  const handleApproveProcedure = async (procedureId: string, reviewerName: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const updated: Procedure = {
+      ...proc,
+      status: 'aprovado',
+      reviewedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
+
+  const handleRequestAdjustments = async (procedureId: string, reviewerName: string, reason: string) => {
+    const proc = procedures.find((p) => p.id === procedureId);
+    if (!proc) return;
+    const updated: Procedure = {
+      ...proc,
+      status: 'ajustes_solicitados',
+      rejectionReason: reason,
+      reviewedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await saveProcedure(updated);
+    setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+  };
 
   // Estado do Menu Lateral no Mobile
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -142,9 +174,10 @@ export function App() {
       systemVersion: isR78 ? 'classico' : 'v10',
       menuId: mId,
       submenuId: 'rotina',
-      systemPath: `${isR78 ? 'Digifarma R78' : 'Digifarma V10'} ➔ ${cat}`,
+      systemPath: `${isR78 ? 'Digifarma Clássico' : 'Digifarma V10'} ➔ ${cat}`,
+      status: 'pendente',
       author: 'Farmacêutico Responsável',
-      tags: ['BPF', isR78 ? 'R78' : 'V10'],
+      tags: ['BPF', isR78 ? 'Clássico' : 'V10'],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       blocks: [
@@ -269,6 +302,7 @@ export function App() {
         onToggleCollapse={handleToggleSidebarCollapse}
         currentUser={currentUser}
         onLogout={handleLogout}
+        pendingReviewCount={pendingReviewCount}
       />
 
       {/* Backdrop para fechar o menu lateral no celular ao tocar fora */}
@@ -287,6 +321,12 @@ export function App() {
           onLogout={handleLogout}
           onUpdateAvatar={handleUpdateAvatar}
           onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          pendingReviewCount={pendingReviewCount}
+          onOpenRevision={() => {
+            setCurrentView('revision');
+            setActiveId(null);
+            setIsEditing(false);
+          }}
         />
 
         <main className="main" id="main">
@@ -338,6 +378,20 @@ export function App() {
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
+            />
+          ) : currentView === 'revision' ? (
+            <ReviewView
+              procedures={procedures}
+              currentUser={currentUser}
+              onViewProcedure={(proc) => {
+                setActiveId(proc.id);
+                setCurrentView('procedure-detail');
+              }}
+              onEditProcedure={(proc) => {
+                handleEditProcedure(proc);
+              }}
+              onApproveProcedure={handleApproveProcedure}
+              onRequestAdjustments={handleRequestAdjustments}
             />
           ) : currentView === 'config' ? (
             <SettingsView

@@ -3225,10 +3225,7 @@ h2.head {
    IMPRESSÃO ISOLADA / EXPORTAÇÃO OFICIAL POP EM PDF (CTRL + P)
    ========================================================================== */
 
-@page {
-  size: A4 portrait;
-  margin: 12mm 14mm 15mm 14mm;
-}
+/* Legacy A4 portrait replaced by slide format */
 
 @media print {
   /* Ocultar elementos exclusivos da interface web */
@@ -5103,8 +5100,8 @@ h2.head {
 
 /* ── 5. REGRAS DE IMPRESSÃO OFICIAL EM ALTA DEFINIÇÃO FULL-BLEED (@PAGE & @MEDIA PRINT) ── */
 @page {
-  size: 297mm 210mm !important;
-  margin: 0mm !important; /* Remove cabeçalho, rodapé, data, título e URL gerados pelo navegador */
+  size: 297mm 167.0625mm !important; /* Formato Padrão de Slide 16:9 Widescreen */
+  margin: 0mm !important; /* Sem margens automáticas, cabeçalhos ou rodapés do navegador */
 }
 
 /* Oculta documento de montagem de impressão na tela */
@@ -5144,6 +5141,11 @@ h2.head {
   .canva-element-property-bar,
   .pdf-preview-hint,
   .canva-toast-banner,
+  .ba,
+  .step-interactive-check,
+  .review-alert-banner,
+  .review-dashboard-container,
+  .canva-page-manager-modal,
   .indicator-corner-delete-btn,
   .thumb-actions-hover,
   .shotframe-toolbar-bottom,
@@ -5211,11 +5213,11 @@ h2.head {
     width: 297mm !important;
     min-width: 297mm !important;
     max-width: 297mm !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    max-height: 210mm !important;
+    height: 167.0625mm !important;
+    min-height: 167.0625mm !important;
+    max-height: 167.0625mm !important;
     margin: 0 !important;
-    padding: 12mm 18mm !important;
+    padding: 8mm 14mm !important;
     box-sizing: border-box !important;
     border: none !important;
     border-radius: 0 !important;
@@ -9818,3 +9820,749 @@ input[type="checkbox"]:focus-visible,
 
 
 
+
+/* ==========================================================================
+   SISTEMA DE REVISÃO, HOMOLOGAÇÃO, NOTIFICAÇÕES E GESTÃO DINÂMICA DE PÁGINAS
+   ========================================================================== */
+
+/* ── BOTÃO DE NOTIFICAÇÃO NO CABEÇALHO ── */
+.header-btn-notification {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 4px;
+}
+
+.header-btn-notification:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--red);
+}
+
+.header-btn-notification.has-notifications {
+  color: var(--red);
+}
+
+.notification-badge-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: pulse-bell-badge 2s infinite;
+}
+
+@keyframes pulse-bell-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ── BADGE DE PENDENTES NO MENU LATERAL ── */
+.sidebar-pending-badge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.sidebar-pending-badge.dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ── STATUS PILLS NA LISTA DO DASHBOARD ── */
+.proc-status-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1.5px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.proc-status-pill.pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.proc-status-pill.adjustments {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.proc-status-pill.approved {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* ── BANNER DE ALERTA DE REVISÃO (EM PROCEDIMENTO E EDITOR) ── */
+.review-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.88rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.review-alert-banner.warning {
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.review-alert-banner.info {
+  background: rgba(59, 130, 246, 0.14);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+
+.btn-banner-edit {
+  margin-left: auto;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: #000000;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── TELA DE REVISÃO (REVIEW VIEW) ── */
+.review-dashboard-container {
+  padding: 1.5rem 2rem 3rem;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.review-hero-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.8rem;
+}
+
+.review-hero-left {
+  max-width: 580px;
+}
+
+.review-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--red);
+  background: rgba(231, 76, 60, 0.12);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.review-hero-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.review-hero-desc {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* KPI Cards de Revisão */
+.review-stats-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.review-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+.review-stat-card:hover,
+.review-stat-card.selected {
+  border-color: var(--red);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.review-stat-card.pending .review-stat-ico {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+
+.review-stat-card.adjustments .review-stat-ico {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+}
+
+.review-stat-card.approved .review-stat-ico {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+}
+
+.review-stat-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-stat-number {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.review-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Barra de Abas e Busca */
+.review-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-tabs-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-tab-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.review-tab-btn.active {
+  background: var(--red);
+  color: #ffffff;
+  border-color: var(--red);
+}
+
+.review-search-wrap {
+  position: relative;
+  width: 280px;
+}
+
+.review-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  color: var(--text-muted);
+}
+
+.review-search-input {
+  width: 100%;
+  height: 34px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  padding: 0 28px 0 32px;
+  outline: none;
+}
+
+.review-search-input:focus {
+  border-color: var(--red);
+}
+
+.review-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 7px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Cards de Revisão */
+.review-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+}
+
+.review-empty-state h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 14px 0 6px 0;
+}
+
+.review-empty-state p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  max-width: 440px;
+  margin: 0;
+}
+
+.review-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.review-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.review-card.status-pendente {
+  border-left: 4px solid #f59e0b;
+}
+
+.review-card.status-ajustes_solicitados {
+  border-left: 4px solid #ef4444;
+}
+
+.review-card.status-aprovado {
+  border-left: 4px solid #10b981;
+}
+
+.review-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-status-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.review-status-tag.pendente {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+
+.review-status-tag.ajustes_solicitados {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}
+
+.review-status-tag.aprovado {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+}
+
+.review-version-pill,
+.review-category-pill,
+.review-steps-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.review-card-author-info {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.review-card-author-info strong {
+  color: var(--text-primary);
+}
+
+.review-card-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.review-card-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.review-reason-box {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.review-reason-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+.review-reason-text {
+  font-size: 0.82rem;
+  color: #fde68a;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.review-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.review-actions-left,
+.review-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-review-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.btn-review-action.preview {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.btn-review-action.preview:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.btn-review-action.edit {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.btn-review-action.edit:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.btn-review-action.request-changes {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.btn-review-action.request-changes:hover {
+  background: #f59e0b;
+  color: #000000;
+}
+
+.btn-review-action.approve {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.btn-review-action.approve:hover {
+  background: #059669;
+}
+
+.approved-checked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* Modal de Solicitação de Ajustes */
+.review-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+}
+
+.review-modal-card {
+  width: 100%;
+  max-width: 520px;
+  background: #151821;
+  border: 1px solid #2d3345;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: modal-fade-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.review-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2d3345;
+}
+
+.review-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-modal-title-row h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+}
+
+.review-modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.review-modal-body {
+  padding: 18px 20px;
+}
+
+.review-modal-hint {
+  font-size: 0.85rem;
+  color: #f1f5f9;
+  margin: 0 0 6px 0;
+}
+
+.review-modal-subhint {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0 0 14px 0;
+}
+
+.review-textarea {
+  width: 100%;
+  background: #0c0e14;
+  border: 1px solid #3b435b;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  padding: 10px 12px;
+  outline: none;
+  line-height: 1.45;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.review-textarea:focus {
+  border-color: #f59e0b;
+}
+
+.review-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #2d3345;
+  background: #11141c;
+}
+
+.btn-modal-cancel {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #3b435b;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: #000000;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-modal-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── CONTROLES DE ESCALA (AUMENTAR / DIMINUIR) NA BARRA DE PROPRIEDADES ── */
+.prop-scale-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #0f1219;
+  border: 1px solid #3b435b;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.prop-scale-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.prop-scale-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.prop-scale-val {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 32px;
+  text-align: center;
+}

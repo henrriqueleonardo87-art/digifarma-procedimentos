@@ -109,7 +109,7 @@ import type { Procedure, StepBlock, ImageBlock, CalloutBlock, SlideIndicator } f
 
 export function generateProcedureHtml(procedure: Procedure): string {
   const isV10 = procedure.systemVersion === 'v10';
-  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA R78';
+  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
 
   const stepBlocks = procedure.blocks.filter((b): b is StepBlock => b.type === 'step');
   const imageBlocks = procedure.blocks.filter((b): b is ImageBlock => b.type === 'image');

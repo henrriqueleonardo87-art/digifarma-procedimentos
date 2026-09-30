@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Menu, LogOut, User as UserIcon, Camera } from 'lucide-react';
+import { Menu, LogOut, User as UserIcon, Camera, Bell } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface NavbarProps {
@@ -7,6 +7,8 @@ interface NavbarProps {
   currentUser?: AppUser | null;
   onLogout?: () => void;
   onUpdateAvatar?: (avatarUrl: string) => Promise<void> | void;
+  pendingReviewCount?: number;
+  onOpenRevision?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -14,6 +16,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onLogout,
   onUpdateAvatar,
+  pendingReviewCount = 0,
+  onOpenRevision,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const displayName = currentUser?.name || currentUser?.username || 'Visitante';
@@ -58,6 +62,23 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="global-header-right">
+        {/* Notificações de Revisões Pendentes */}
+        <button
+          type="button"
+          className={`header-btn-notification ${pendingReviewCount > 0 ? 'has-notifications' : ''}`}
+          onClick={onOpenRevision}
+          title={
+            pendingReviewCount > 0
+              ? `${pendingReviewCount} procedimento(s) pendente(s) de revisão e homologação`
+              : 'Nenhum procedimento pendente de revisão'
+          }
+        >
+          <Bell size={18} />
+          {pendingReviewCount > 0 && (
+            <span className="notification-badge-count">{pendingReviewCount}</span>
+          )}
+        </button>
+
         {currentUser && (
           <div className="header-user-pill">
             <input

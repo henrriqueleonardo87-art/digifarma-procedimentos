@@ -19,6 +19,7 @@ import {
   Ban,
   Lock,
   Check,
+  Clock,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -95,7 +96,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 
   const isV10 = procedure.systemVersion === 'v10';
-  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA R78';
+  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
 
   const handlePrint = () => {
     const originalTitle = document.title;
@@ -497,6 +498,34 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         onClose={() => setIsTimelineOpen(false)}
       />
 
+      {/* Banner de Revisão / Ajustes Solicitados pelo Revisor */}
+      {procedure.status === 'ajustes_solicitados' && procedure.rejectionReason && (
+        <div className="review-alert-banner warning no-print" style={{ margin: '16px auto', maxWidth: '1120px' }}>
+          <AlertTriangle size={24} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: '0.95rem' }}>
+              Ajustes Solicitados pelo Revisor ({procedure.reviewedBy || 'Controle de Qualidade'}):
+            </strong>
+            <p style={{ margin: '4px 0 0 0', lineHeight: 1.45 }}>{procedure.rejectionReason}</p>
+          </div>
+          <button type="button" className="btn-banner-edit" onClick={onEdit}>
+            Ajustar no Editor
+          </button>
+        </div>
+      )}
+
+      {procedure.status === 'pendente' && (
+        <div className="review-alert-banner info no-print" style={{ margin: '16px auto', maxWidth: '1120px' }}>
+          <Clock size={22} color="#3b82f6" style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Procedimento em Fila de Homologação:</strong>
+            <p style={{ margin: '4px 0 0 0' }}>
+              Este POP está aguardando revisão oficial técnica antes de ser considerado homologado no sistema.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
       <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
@@ -668,9 +697,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
               {/* Antes / Depois quando houver contexto histórico */}
               {isV10 && idx === 0 && (
-                <div className="ba">
+                <div className="ba no-print">
                   <div className="col old">
-                    <span className="tag">Versão Clássica 7.8</span>
+                    <span className="tag">Digifarma Clássico</span>
                     <ul>
                       <li>Menus fixos e múltiplos cliques manuais</li>
                       <li>Sem pré-validação automática em tempo real</li>

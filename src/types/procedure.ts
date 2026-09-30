@@ -131,6 +131,7 @@ export interface SlideIndicator {
   iconName?: IndicatorIconName;
   gifUrl?: string;
   hasShadow?: boolean;
+  scale?: number; // custom element scaling (e.g. 0.8, 1.0, 1.25, 1.5)
 }
 
 export interface SlideShape {
@@ -162,6 +163,15 @@ export interface SlideConfig {
   shapes?: SlideShape[];
 }
 
+export type ProcedureStatus = 'pendente' | 'aprovado' | 'ajustes_solicitados' | 'rascunho';
+
+export interface ReviewFeedback {
+  id: string;
+  reviewerName: string;
+  comment: string;
+  createdAt: string;
+}
+
 export interface Procedure {
   id: string;
   title: string;
@@ -178,6 +188,11 @@ export interface Procedure {
   tags: string[];
   blocks: ProcedureBlock[];
   slidesConfig?: SlideConfig[];
+  status?: ProcedureStatus;
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewFeedbacks?: ReviewFeedback[];
   is_favorite?: boolean;
   created_at?: string;
   updated_at?: string;

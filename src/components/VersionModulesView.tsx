@@ -105,7 +105,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma R78';
+  const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico';
 
   // Procedimentos da versão selecionada
   const versionProcedures = useMemo(() => {
@@ -279,10 +279,10 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
       <div className="version-modules-hero">
         <div className="version-hero-badge">
           <Sparkles size={13} />
-          <span>{version === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}</span>
+          <span>{version === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}</span>
         </div>
         <h1 className="version-hero-title">
-          {version === 'v10' ? 'Digifarma V10' : 'Digifarma R78'}
+          {version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'}
         </h1>
         <p className="version-hero-sub">
           Selecione o menu desejado para visualizar seus submenus e rotinas passo a passo

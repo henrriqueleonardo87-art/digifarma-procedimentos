@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
   currentUser?: AppUser | null;
   onLogout?: () => void;
+  pendingReviewCount?: number;
 }
 
 function navIcon(name: string) {
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   currentUser,
   onLogout,
+  pendingReviewCount = 0,
 }) => {
   const handleNavClick = (view: string) => {
     onChangeView(view);
@@ -139,10 +141,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'r78' ? 'active' : ''}`}
           onClick={() => handleNavClick('r78')}
-          title="Digifarma R78"
+          title="Digifarma Clássico"
         >
           <span className="ic">{navIcon('monitor')}</span>
-          {!isCollapsed && <span>Digifarma R78</span>}
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Digifarma Clássico</span>}
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'revision' ? 'active' : ''}`}
+          onClick={() => handleNavClick('revision')}
+          title="Central de Revisão e Homologação de POPs"
+        >
+          <span className="ic" style={{ position: 'relative' }}>
+            <ClipboardCheck size={18} />
+            {isCollapsed && pendingReviewCount && pendingReviewCount > 0 ? (
+              <span className="sidebar-pending-badge dot" title={`${pendingReviewCount} pendentes`} />
+            ) : null}
+          </span>
+          {!isCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
+              <span style={{ whiteSpace: 'nowrap' }}>Revisão de POPs</span>
+              {pendingReviewCount && pendingReviewCount > 0 ? (
+                <span className="sidebar-pending-badge">{pendingReviewCount}</span>
+              ) : null}
+            </div>
+          )}
         </button>
       </div>
 

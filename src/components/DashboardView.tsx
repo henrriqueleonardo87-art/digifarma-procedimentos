@@ -435,7 +435,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="proc-cell-title">
                         <span className="proc-cell-bullet" />
                         <div>
-                          <strong>{proc.title}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong>{proc.title}</strong>
+                            {proc.status === 'pendente' && (
+                              <span className="proc-status-pill pending">⏳ Em Revisão</span>
+                            )}
+                            {proc.status === 'ajustes_solicitados' && (
+                              <span className="proc-status-pill adjustments">⚠️ Ajustes Solicitados</span>
+                            )}
+                            {proc.status === 'aprovado' && (
+                              <span className="proc-status-pill approved">✓ Homologado</span>
+                            )}
+                          </div>
                           {proc.systemPath && (
                             <span className="proc-cell-route">{proc.systemPath}</span>
                           )}
@@ -447,7 +458,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </td>
                     <td>
                       <span className={`proc-cell-badge ver ${isV10 ? 'v10' : 'r78'}`}>
-                        {isV10 ? 'Digifarma V10' : 'Digifarma R78'}
+                        {isV10 ? 'Digifarma V10' : 'Digifarma Clássico'}
                       </span>
                     </td>
                     <td>
