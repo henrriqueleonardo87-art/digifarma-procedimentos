@@ -13,8 +13,8 @@ import {
   BookOpen,
   Printer,
   Sparkles,
-  Layers,
   Search,
+  Plus,
 } from 'lucide-react';
 import type { Procedure, SystemMenu } from '../types/procedure';
 
@@ -24,6 +24,7 @@ interface VersionModulesViewProps {
   menus: SystemMenu[];
   onSelectProcedure: (id: string, autoPrint?: boolean) => void;
   onBackToDashboard: () => void;
+  onNewProcedure: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
 }
 
 interface ModuleCardDef {
@@ -99,11 +100,12 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   procedures,
   onSelectProcedure,
   onBackToDashboard,
+  onNewProcedure,
 }) => {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const versionName = version === 'v10' ? 'Digifarma V10 Cloud' : 'Digifarma R78 Desktop';
+  const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma R78';
 
   // Procedimentos da versão selecionada
   const versionProcedures = useMemo(() => {
@@ -202,62 +204,67 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
 
         {/* Grade de Submenus em Cards Exatamente como a Imagem */}
         <div className="image-cards-grid">
-          {moduleProcedures.length > 0 ? (
-            moduleProcedures.map((proc) => {
-              return (
-                <div
-                  key={proc.id}
-                  className="image-card-item"
-                  onClick={() => onSelectProcedure(proc.id, false)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="image-card-icon-center">
-                    <ActiveIcon size={26} />
-                  </div>
-                  <h3 className="image-card-title">{proc.title}</h3>
-                  <p className="image-card-subtitle">
-                    {proc.subtitle || 'Clique para abrir o roteiro passo a passo'}
-                  </p>
-
-                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="btn-subcard-action"
-                      onClick={() => onSelectProcedure(proc.id, false)}
-                      title="Abrir passo a passo completo"
-                    >
-                      <BookOpen size={13} />
-                      <span>Abrir</span>
-                      <ChevronRight size={12} />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-subcard-print"
-                      onClick={() => onSelectProcedure(proc.id, true)}
-                      title="Imprimir ou gerar PDF deste procedimento"
-                    >
-                      <Printer size={13} />
-                      <span>PDF</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="empty-module-message">
-              <Layers size={36} color="var(--text-muted)" />
-              <p>Nenhum procedimento encontrado cadastrado neste módulo.</p>
-              <button
-                type="button"
-                className="btn secondary sm"
-                onClick={() => setSelectedModuleId(null)}
-              >
-                Voltar aos Módulos
-              </button>
+          {/* Card Novo para o Módulo Ativo */}
+          <div
+            className="image-card-item image-card-new-item"
+            onClick={() => onNewProcedure(activeModuleDef.title, activeModuleDef.id, version)}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="image-card-icon-center new-icon-center">
+              <Plus size={28} />
             </div>
-          )}
+            <h3 className="image-card-title">Novo</h3>
+            <p className="image-card-subtitle">
+              Cadastrar rotina em {activeModuleDef.title}
+            </p>
+            <span className="image-card-count-badge new-badge">
+              + Novo neste Módulo
+            </span>
+          </div>
+
+          {moduleProcedures.map((proc) => {
+            return (
+              <div
+                key={proc.id}
+                className="image-card-item"
+                onClick={() => onSelectProcedure(proc.id, false)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="image-card-icon-center">
+                  <ActiveIcon size={26} />
+                </div>
+                <h3 className="image-card-title">{proc.title}</h3>
+                <p className="image-card-subtitle">
+                  {proc.subtitle || 'Clique para abrir o roteiro passo a passo'}
+                </p>
+
+                <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="btn-subcard-action"
+                    onClick={() => onSelectProcedure(proc.id, false)}
+                    title="Abrir passo a passo completo"
+                  >
+                    <BookOpen size={13} />
+                    <span>Abrir</span>
+                    <ChevronRight size={12} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-subcard-print"
+                    onClick={() => onSelectProcedure(proc.id, true)}
+                    title="Imprimir ou gerar PDF deste procedimento"
+                  >
+                    <Printer size={13} />
+                    <span>PDF</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -275,7 +282,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           <span>{version === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}</span>
         </div>
         <h1 className="version-hero-title">
-          {version === 'v10' ? 'Digifarma V10 Cloud' : 'Digifarma R78 Desktop'}
+          {version === 'v10' ? 'Digifarma V10' : 'Digifarma R78'}
         </h1>
         <p className="version-hero-sub">
           Selecione o menu desejado para visualizar seus submenus e rotinas passo a passo
@@ -350,6 +357,23 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
       ) : (
         /* Grade de Menus em Cards Idêntica à Imagem de Referência */
         <div className="image-cards-grid">
+          {/* Card Novo */}
+          <div
+            className="image-card-item image-card-new-item"
+            onClick={() => onNewProcedure(undefined, undefined, version)}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="image-card-icon-center new-icon-center">
+              <Plus size={28} />
+            </div>
+            <h3 className="image-card-title">Novo</h3>
+            <p className="image-card-subtitle">Cadastrar novo manual ou POP</p>
+            <span className="image-card-count-badge new-badge">
+              + Criar Procedimento
+            </span>
+          </div>
+
           {MODULE_DEFS.map((mod) => {
             const ModIcon = mod.icon;
             const count = versionProcedures.filter((p) => {

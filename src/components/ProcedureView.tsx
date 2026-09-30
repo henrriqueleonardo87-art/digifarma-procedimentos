@@ -80,7 +80,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   }, [stepBlocks]);
 
   const isV10 = procedure.systemVersion === 'v10';
-  const versionTag = isV10 ? 'V10 CLOUD' : 'DESKTOP CLÁSSICO';
+  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA R78';
 
   const handlePrint = () => {
     window.print();

@@ -374,8 +374,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               value={systemVersion}
               onChange={(e) => setSystemVersion(e.target.value as SystemVersion | 'ambos')}
             >
-              <option value="classico">Digifarma Clássico (Desktop)</option>
-              <option value="v10">Digifarma V10 (Web/Cloud)</option>
+              <option value="classico">Digifarma R78</option>
+              <option value="v10">Digifarma V10</option>
               <option value="ambos">Ambas as Versões</option>
             </select>
           </div>

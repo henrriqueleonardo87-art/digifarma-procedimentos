@@ -116,17 +116,20 @@ export function App() {
     setAutoPrintActive(false);
   };
 
-  const handleNewProcedure = () => {
-    const isR78 = currentView === 'r78';
+  const handleNewProcedure = (defaultCategory?: string, defaultMenuId?: string, forceVersion?: 'v10' | 'r78') => {
+    const effectiveVersion = forceVersion || (currentView === 'r78' ? 'r78' : 'v10');
+    const isR78 = effectiveVersion === 'r78';
+    const cat = defaultCategory || 'Vendas';
+    const mId = defaultMenuId || 'vendas';
     const newProc: Procedure = {
       id: `proc-${Date.now()}`,
       title: 'Novo Procedimento Operacional Padrão',
       subtitle: 'Descrição sumária da rotina e diretrizes BPF',
-      category: 'Vendas',
+      category: cat,
       systemVersion: isR78 ? 'classico' : 'v10',
-      menuId: 'vendas',
-      submenuId: 'atendimento',
-      systemPath: `${isR78 ? 'Digifarma R78' : 'Digifarma V10'} ➔ Vendas ➔ Nova Venda`,
+      menuId: mId,
+      submenuId: 'rotina',
+      systemPath: `${isR78 ? 'Digifarma R78' : 'Digifarma V10'} ➔ ${cat}`,
       author: 'Farmacêutico Responsável',
       tags: ['BPF', isR78 ? 'R78' : 'V10'],
       created_at: new Date().toISOString(),
@@ -266,6 +269,7 @@ export function App() {
               menus={menus}
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
+              onNewProcedure={handleNewProcedure}
             />
           ) : currentView === 'r78' ? (
             <VersionModulesView
@@ -274,6 +278,7 @@ export function App() {
               menus={menus}
               onSelectProcedure={handleSelectProcedure}
               onBackToDashboard={() => setCurrentView('dashboard')}
+              onNewProcedure={handleNewProcedure}
             />
           ) : currentView === 'config' ? (
             <SettingsView

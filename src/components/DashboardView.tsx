@@ -447,7 +447,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </td>
                     <td>
                       <span className={`proc-cell-badge ver ${isV10 ? 'v10' : 'r78'}`}>
-                        {isV10 ? 'V10 Cloud' : 'R78 Desktop'}
+                        {isV10 ? 'Digifarma V10' : 'Digifarma R78'}
                       </span>
                     </td>
                     <td>

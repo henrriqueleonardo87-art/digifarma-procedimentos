@@ -70,7 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <span className="ic">{navIcon('rocket')}</span>
           <span>Digifarma V10</span>
-          <span className="sidebar-mini-badge v10">Cloud</span>
         </button>
 
         <button
@@ -80,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <span className="ic">{navIcon('monitor')}</span>
           <span>Digifarma R78</span>
-          <span className="sidebar-mini-badge">Desktop</span>
         </button>
       </div>
 
