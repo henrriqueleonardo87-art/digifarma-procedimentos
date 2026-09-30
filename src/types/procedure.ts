@@ -2,7 +2,7 @@ export type BlockType = 'heading' | 'text' | 'image' | 'callout' | 'step';
 
 export type CalloutVariant = 'info' | 'warning' | 'success' | 'danger';
 
-export type SystemVersion = 'classico' | 'v10';
+export type SystemVersion = 'classico' | 'v10' | 'r78';
 
 export interface BaseBlock {
   id: string;

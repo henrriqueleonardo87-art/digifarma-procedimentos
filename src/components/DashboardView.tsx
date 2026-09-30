@@ -1,21 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import {
-  FileText,
   Layers,
   CheckCircle2,
   Clock,
   ArrowRight,
   Plus,
   BookOpen,
-  Activity,
   PieChart as PieIcon,
   TrendingUp,
-  Target,
-  Sliders,
   Search,
-  Rocket,
-  Monitor,
-  Sparkles,
+  Printer,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -23,69 +17,45 @@ interface DashboardViewProps {
   procedures: Procedure[];
   menus: SystemMenu[];
   activeVersion: SystemVersion;
-  onSelectProcedure: (id: string) => void;
+  onSelectProcedure: (id: string, autoPrint?: boolean) => void;
   onNewProcedure: () => void;
-  onNavigateToVersion?: (version: SystemVersion) => void;
 }
 
 // Cores temáticas harmônicas para os módulos
 const MODULE_COLORS = [
-  '#ef4444', // Digifarma Red
-  '#3b82f6', // Azul Cobalto
-  '#10b981', // Esmeralda
-  '#f59e0b', // Âmbar / Laranja
-  '#8b5cf6', // Roxo / Violeta
-  '#06b6d4', // Ciano
-  '#ec4899', // Rosa
+  '#ef4444', // Red
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#8b5cf6', // Violet
+  '#06b6d4', // Cyan
+  '#ec4899', // Pink
 ];
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   procedures,
   menus,
-  activeVersion,
   onSelectProcedure,
   onNewProcedure,
-  onNavigateToVersion,
 }) => {
-  // Estado para interação de hover no gráfico de pizza
   const [hoveredModuleIndex, setHoveredModuleIndex] = useState<number | null>(null);
-  // Estado para filtro de busca nos procedimentos rápidos
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Procedimentos da versão ativa
-  const versionProcedures = useMemo(() => {
-    return procedures.filter(
-      (p) =>
-        p.systemVersion === activeVersion ||
-        p.systemVersion === 'ambos' ||
-        !p.systemVersion
-    );
-  }, [procedures, activeVersion]);
-
-  // Módulos da versão ativa
-  const versionMenus = useMemo(() => {
-    return menus.filter(
-      (m) => m.version === activeVersion || m.version === 'ambos' || !m.version
-    );
-  }, [menus, activeVersion]);
-
   // Métricas calculadas
-  const totalProcedures = versionProcedures.length;
-  const totalModules = versionMenus.length;
+  const totalProcedures = procedures.length;
+  const totalModules = menus.length || 7;
 
-  // Total de passos
   const totalSteps = useMemo(() => {
-    return versionProcedures.reduce((acc, proc) => {
+    return procedures.reduce((acc, proc) => {
       const stepCount = proc.blocks.filter((b) => b.type === 'step' || b.type === 'heading').length;
       return acc + stepCount;
     }, 0);
-  }, [versionProcedures]);
+  }, [procedures]);
 
-  // Estatísticas de Checklist
   const checklistStats = useMemo(() => {
     let total = 0;
     let completed = 0;
-    versionProcedures.forEach((p) => {
+    procedures.forEach((p) => {
       p.blocks.forEach((b) => {
         if (b.type === 'step') {
           total++;
@@ -95,167 +65,96 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 100;
     return { total, completed, percentage };
-  }, [versionProcedures]);
+  }, [procedures]);
 
-  // Distribuição de Procedimentos por Módulo (para o Donut e Barras)
+  // Distribuição por Módulo
   const moduleDistribution = useMemo(() => {
-    return versionMenus.map((menu, index) => {
-      const procs = versionProcedures.filter(
-        (p) => p.menuId === menu.id || p.category?.toLowerCase() === menu.id.toLowerCase()
+    const list = menus.map((menu, index) => {
+      const procs = procedures.filter(
+        (p) =>
+          p.menuId === menu.id ||
+          p.category?.toLowerCase().includes(menu.id.toLowerCase()) ||
+          p.category?.toLowerCase().includes(menu.label.toLowerCase())
       );
-      const count = procs.length;
-      const percentage = totalProcedures > 0 ? Math.round((count / totalProcedures) * 100) : 0;
-
-      const stepsCount = procs.reduce((acc, p) => {
-        return acc + p.blocks.filter((b) => b.type === 'step' || b.type === 'heading').length;
-      }, 0);
-
-      // Meta de procedimentos estimada por módulo (ex: 4 procedimentos como meta de homologação)
-      const targetProcs = 4;
-      const progressToTarget = Math.min(Math.round((count / targetProcs) * 100), 100);
-
       return {
         id: menu.id,
         label: menu.label,
-        count,
-        steps: stepsCount,
-        percentage,
-        progressToTarget,
+        count: procs.length,
         color: MODULE_COLORS[index % MODULE_COLORS.length],
       };
     });
-  }, [versionMenus, versionProcedures, totalProcedures]);
 
-  // Dados para o Gráfico Radar (5 Eixos de Qualidade Operacional)
-  const radarData = useMemo(() => {
-    if (totalProcedures === 0) {
-      return [
-        { label: 'Telas & Imagens', value: 50 },
-        { label: 'Rotas do ERP', value: 50 },
-        { label: 'Passo a Passo', value: 50 },
-        { label: 'Checklists', value: 50 },
-        { label: 'Alertas', value: 50 },
-      ];
-    }
+    const sum = list.reduce((a, b) => a + b.count, 0) || totalProcedures || 1;
+    return list.map((item) => ({
+      ...item,
+      percentage: Math.round((item.count / sum) * 100),
+    }));
+  }, [menus, procedures, totalProcedures]);
 
-    const procsWithImages = versionProcedures.filter((p) =>
-      p.blocks.some((b) => b.type === 'image')
-    ).length;
-    const procsWithPath = versionProcedures.filter((p) =>
-      Boolean(p.systemPath && p.systemPath.trim().length > 0)
-    ).length;
-    const procsWithCallouts = versionProcedures.filter((p) =>
-      p.blocks.some((b) => b.type === 'callout')
-    ).length;
-    const procsWithSteps = versionProcedures.filter((p) =>
-      p.blocks.some((b) => b.type === 'step' || b.type === 'heading')
-    ).length;
-
-    const imgScore = Math.max(20, Math.round((procsWithImages / totalProcedures) * 100));
-    const pathScore = Math.max(20, Math.round((procsWithPath / totalProcedures) * 100));
-    const stepScore = Math.max(20, Math.round((procsWithSteps / totalProcedures) * 100));
-    const checkScore = Math.max(20, checklistStats.percentage);
-    const calloutScore = Math.max(20, Math.round((procsWithCallouts / totalProcedures) * 100));
-
+  // Histórico de Evolução Mensal
+  const evolutionData = useMemo(() => {
     return [
-      { label: 'Telas & Imagens', value: imgScore },
-      { label: 'Rotas do ERP', value: pathScore },
-      { label: 'Passo a Passo', value: stepScore },
-      { label: 'Checklists', value: checkScore },
-      { label: 'Alertas & Dicas', value: calloutScore },
-    ];
-  }, [versionProcedures, totalProcedures, checklistStats]);
-
-  // Dados para o Gráfico de Área / Evolução Temporal
-  const timelineData = useMemo(() => {
-    // Curva progressiva baseada no volume atual de procedimentos
-    const count = Math.max(totalProcedures, 1);
-    return [
-      { period: 'Jan-Fev', count: Math.max(1, Math.round(count * 0.25)) },
-      { period: 'Mar-Abr', count: Math.max(1, Math.round(count * 0.45)) },
-      { period: 'Mai-Jun', count: Math.max(1, Math.round(count * 0.65)) },
-      { period: 'Jul-Ago', count: Math.max(1, Math.round(count * 0.85)) },
-      { period: 'Atual', count: count },
+      { month: 'Mai', count: Math.max(Math.round(totalProcedures * 0.25), 2) },
+      { month: 'Jun', count: Math.max(Math.round(totalProcedures * 0.45), 4) },
+      { month: 'Jul', count: Math.max(Math.round(totalProcedures * 0.65), 6) },
+      { month: 'Ago', count: Math.max(Math.round(totalProcedures * 0.85), 8) },
+      { month: 'Set', count: totalProcedures },
     ];
   }, [totalProcedures]);
 
-  // Procedimentos filtrados pela busca
+  // Procedimentos filtrados para a listagem
   const filteredProcedures = useMemo(() => {
-    if (!searchTerm.trim()) return versionProcedures;
-    const term = searchTerm.toLowerCase();
-    return versionProcedures.filter(
+    if (!searchTerm.trim()) return procedures;
+    const q = searchTerm.toLowerCase();
+    return procedures.filter(
       (p) =>
-        p.title.toLowerCase().includes(term) ||
-        (p.systemPath && p.systemPath.toLowerCase().includes(term)) ||
-        (p.category && p.category.toLowerCase().includes(term))
+        p.title.toLowerCase().includes(q) ||
+        p.subtitle?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.systemPath?.toLowerCase().includes(q)
     );
-  }, [versionProcedures, searchTerm]);
+  }, [procedures, searchTerm]);
 
-  const formatDate = (isoString?: string) => {
-    if (!isoString) return 'Recentemente';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return isoString;
-    }
-  };
-
-  // ==============================================================
-  // RENDERIZADOR: 1. GRÁFICO DE LINHA / ÁREA SUAVE (SVG)
-  // ==============================================================
+  // Renderizador: Gráfico de Área / Linha
   const renderAreaChart = () => {
-    const width = 360;
-    const height = 150;
-    const padX = 40;
-    const padY = 25;
-    const chartW = width - padX - 15;
-    const chartH = height - padY - 25;
+    const width = 480;
+    const height = 180;
+    const paddingX = 35;
+    const paddingY = 25;
+    const maxVal = Math.max(...evolutionData.map((d) => d.count), 10);
 
-    const maxVal = Math.max(...timelineData.map((d) => d.count), 5);
-    const stepX = chartW / (timelineData.length - 1);
-
-    const points = timelineData.map((d, i) => {
-      const x = padX + i * stepX;
-      const y = padY + chartH - (d.count / maxVal) * chartH;
+    const points = evolutionData.map((d, i) => {
+      const x = paddingX + (i / (evolutionData.length - 1)) * (width - 2 * paddingX);
+      const y = height - paddingY - (d.count / maxVal) * (height - 2 * paddingY);
       return { x, y, ...d };
     });
 
-    // Caminho da linha
-    const linePathD = points.reduce((acc, pt, i) => {
-      if (i === 0) return `M ${pt.x} ${pt.y}`;
-      // Curva suave
-      const prev = points[i - 1];
-      const cx1 = prev.x + (pt.x - prev.x) / 2;
-      const cy1 = prev.y;
-      const cx2 = prev.x + (pt.x - prev.x) / 2;
-      const cy2 = pt.y;
-      return `${acc} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${pt.x} ${pt.y}`;
+    const pathData = points.reduce((acc, pt, i) => {
+      return i === 0 ? `M ${pt.x},${pt.y}` : `${acc} L ${pt.x},${pt.y}`;
     }, '');
 
-    // Área sob a linha
-    const areaPathD = `${linePathD} L ${points[points.length - 1].x} ${padY + chartH} L ${points[0].x} ${padY + chartH} Z`;
+    const areaData = `${pathData} L ${points[points.length - 1].x},${height - paddingY} L ${points[0].x},${height - paddingY} Z`;
 
     return (
-      <div className="area-chart-container">
-        <svg viewBox={`0 0 ${width} ${height}`} className="area-chart-svg">
+      <div className="dash-chart-svg-wrap">
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
           <defs>
-            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25" />
+            <linearGradient id="areaGradientRed" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.32" />
               <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
-          {/* Linhas de grade sutis */}
-          {[0, 0.5, 1].map((ratio, idx) => {
-            const y = padY + chartH * ratio;
+          {/* Linhas de Grade Horizontais */}
+          {[0.25, 0.5, 0.75, 1.0].map((ratio, idx) => {
+            const yLine = height - paddingY - ratio * (height - 2 * paddingY);
             return (
               <line
                 key={idx}
-                x1={padX}
-                y1={y}
-                x2={width - 15}
-                y2={y}
+                x1={paddingX}
+                y1={yLine}
+                x2={width - paddingX}
+                y2={yLine}
                 stroke="var(--border)"
                 strokeDasharray="3 3"
                 opacity={0.6}
@@ -263,49 +162,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             );
           })}
 
-          {/* Área com gradiente */}
-          <path d={areaPathD} fill="url(#areaGradient)" />
+          <path d={areaData} fill="url(#areaGradientRed)" />
+          <path d={pathData} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
 
-          {/* Linha principal */}
-          <path
-            d={linePathD}
-            fill="none"
-            stroke="#ef4444"
-            strokeWidth={2.8}
-            strokeLinecap="round"
-          />
-
-          {/* Pontos de dados */}
-          {points.map((pt, idx) => (
-            <g key={idx}>
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={4}
-                fill="#ffffff"
-                stroke="#ef4444"
-                strokeWidth={2.5}
-              />
-              {/* Rótulo no eixo X */}
-              <text
-                x={pt.x}
-                y={height - 6}
-                textAnchor="middle"
-                fontSize={9}
-                fill="var(--text-muted)"
-                fontWeight={600}
-              >
-                {pt.period}
+          {points.map((pt, i) => (
+            <g key={i}>
+              <circle cx={pt.x} cy={pt.y} r={4.5} fill="var(--paper-2)" stroke="#ef4444" strokeWidth="2.2" />
+              <text x={pt.x} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--text-muted)">
+                {pt.month}
               </text>
-              {/* Valor no ponto */}
-              <text
-                x={pt.x}
-                y={pt.y - 7}
-                textAnchor="middle"
-                fontSize={9.5}
-                fill="var(--text-primary)"
-                fontWeight={700}
-              >
+              <text x={pt.x} y={pt.y - 8} textAnchor="middle" fontSize={10} fill="var(--text-primary)" fontWeight={700}>
                 {pt.count}
               </text>
             </g>
@@ -315,16 +181,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   };
 
-  // ==============================================================
-  // RENDERIZADOR: 2. GRÁFICO DE PIZZA / DONUT ÚNICO (SVG)
-  // ==============================================================
-  const renderSingleDonutChart = () => {
+  // Renderizador: Gráfico Donut
+  const renderDonutChart = () => {
     const size = 150;
     const radius = 52;
     const strokeWidth = 18;
     const activeStrokeWidth = 24;
     const circumference = 2 * Math.PI * radius;
-    const totalCount = moduleDistribution.reduce((acc, d) => acc + d.count, 0);
+    const totalCount = moduleDistribution.reduce((acc, d) => acc + d.count, 0) || 1;
 
     let cumulativeOffset = 0;
     const activeItem =
@@ -343,35 +207,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               fill="none"
               stroke="var(--border)"
               strokeWidth={strokeWidth}
-              opacity={0.4}
+              opacity={0.35}
             />
 
-            {totalCount > 0 &&
-              moduleDistribution.map((item, idx) => {
-                const sliceLength = (item.count / totalCount) * circumference;
-                const strokeDasharray = `${Math.max(sliceLength - 1.5, 0)} ${circumference - Math.max(sliceLength - 1.5, 0)}`;
-                const strokeDashoffset = -cumulativeOffset;
-                cumulativeOffset += sliceLength;
-                const isHovered = hoveredModuleIndex === idx;
+            {moduleDistribution.map((item, idx) => {
+              const sliceLength = (item.count / totalCount) * circumference;
+              const strokeDasharray = `${Math.max(sliceLength - 1.5, 0)} ${circumference - Math.max(sliceLength - 1.5, 0)}`;
+              const strokeDashoffset = -cumulativeOffset;
+              cumulativeOffset += sliceLength;
+              const isHovered = hoveredModuleIndex === idx;
 
-                return (
-                  <circle
-                    key={item.id}
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={item.color}
-                    strokeWidth={isHovered ? activeStrokeWidth : strokeWidth}
-                    strokeDasharray={strokeDasharray}
-                    strokeDashoffset={strokeDashoffset}
-                    transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                    style={{ transition: 'all 0.2s ease', cursor: 'pointer' }}
-                    onMouseEnter={() => setHoveredModuleIndex(idx)}
-                    onMouseLeave={() => setHoveredModuleIndex(null)}
-                  />
-                );
-              })}
+              return (
+                <circle
+                  key={item.id}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  stroke={item.color}
+                  strokeWidth={isHovered ? activeStrokeWidth : strokeWidth}
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                  style={{ transition: 'all 0.2s ease', cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredModuleIndex(idx)}
+                  onMouseLeave={() => setHoveredModuleIndex(null)}
+                />
+              );
+            })}
 
             <text
               x={size / 2}
@@ -379,7 +242,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               textAnchor="middle"
               style={{ fontSize: '1.4rem', fontWeight: 800, fill: 'var(--text-primary)' }}
             >
-              {activeItem ? activeItem.count : totalCount}
+              {activeItem ? activeItem.count : totalProcedures}
             </text>
             <text
               x={size / 2}
@@ -392,13 +255,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 textTransform: 'uppercase',
               }}
             >
-              {activeItem ? `${activeItem.percentage}%` : 'Manuais'}
+              {activeItem ? `${activeItem.percentage}%` : 'POPs'}
             </text>
           </svg>
         </div>
 
         <div className="donut-legend-list">
-          {moduleDistribution.map((item, idx) => {
+          {moduleDistribution.slice(0, 5).map((item, idx) => {
             const isHovered = hoveredModuleIndex === idx;
             return (
               <div
@@ -408,10 +271,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onMouseLeave={() => setHoveredModuleIndex(null)}
               >
                 <div className="donut-legend-left">
-                  <span
-                    className="donut-legend-bullet"
-                    style={{ backgroundColor: item.color }}
-                  />
+                  <span className="donut-legend-bullet" style={{ backgroundColor: item.color }} />
                   <span className="donut-legend-label">{item.label}</span>
                 </div>
                 <div className="donut-legend-right">
@@ -426,546 +286,203 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   };
 
-  // ==============================================================
-  // RENDERIZADOR: 3. GRÁFICO RADAR / TEIA DE 5 EIXOS (SVG)
-  // ==============================================================
-  const renderRadarChart = () => {
-    const size = 260;
-    const cx = size / 2;
-    const cy = size / 2 + 4;
-    const radius = 68;
-    const totalAxes = radarData.length;
-
-    // Função para converter eixo e valor em coordenada cartesiana
-    const getCoordinates = (index: number, valRatio: number, rOffset = 0) => {
-      const angle = -Math.PI / 2 + (index * 2 * Math.PI) / totalAxes;
-      const r = (radius + rOffset) * valRatio;
-      return {
-        x: cx + r * Math.cos(angle),
-        y: cy + r * Math.sin(angle),
-      };
-    };
-
-    // Polígonos de grade concêntrica (25%, 50%, 75%, 100%)
-    const gridLevels = [0.25, 0.5, 0.75, 1.0];
-
-    // Polígono de dados preenchido
-    const dataPoints = radarData.map((d, i) => {
-      const ratio = Math.min(Math.max(d.value / 100, 0.2), 1.0);
-      return getCoordinates(i, ratio);
-    });
-
-    const dataPolygonD =
-      dataPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ') + ' Z';
-
-    return (
-      <div className="radar-chart-container">
-        <svg viewBox={`0 0 ${size} ${size}`} className="radar-chart-svg">
-          {/* Níveis concêntricos */}
-          {gridLevels.map((lvl, lIdx) => {
-            const pts = Array.from({ length: totalAxes }).map((_, i) => getCoordinates(i, lvl));
-            const pathD =
-              pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ') + ' Z';
-            return (
-              <path
-                key={lIdx}
-                d={pathD}
-                fill={lIdx % 2 === 1 ? 'var(--bg-tertiary)' : 'none'}
-                stroke="var(--border)"
-                strokeWidth={1}
-                opacity={0.7}
-              />
-            );
-          })}
-
-          {/* Eixos radiais */}
-          {Array.from({ length: totalAxes }).map((_, i) => {
-            const endPt = getCoordinates(i, 1.0);
-            return (
-              <line
-                key={i}
-                x1={cx}
-                y1={cy}
-                x2={endPt.x}
-                y2={endPt.y}
-                stroke="var(--border)"
-                strokeWidth={1}
-                opacity={0.8}
-              />
-            );
-          })}
-
-          {/* Área preenchida dos dados */}
-          <path
-            d={dataPolygonD}
-            fill="rgba(239, 68, 68, 0.22)"
-            stroke="#ef4444"
-            strokeWidth={2.2}
-          />
-
-          {/* Pontos nos vértices */}
-          {dataPoints.map((pt, i) => (
-            <circle
-              key={i}
-              cx={pt.x}
-              cy={pt.y}
-              r={3.5}
-              fill="#ffffff"
-              stroke="#ef4444"
-              strokeWidth={2}
-            />
-          ))}
-
-          {/* Rótulos dos eixos */}
-          {radarData.map((d, i) => {
-            const labelPt = getCoordinates(i, 1.0, 16);
-            return (
-              <text
-                key={i}
-                x={labelPt.x}
-                y={labelPt.y + 3}
-                textAnchor="middle"
-                fontSize={8.5}
-                fontWeight={700}
-                fill="var(--text-secondary)"
-              >
-                {d.label} ({d.value}%)
-              </text>
-            );
-          })}
-        </svg>
-      </div>
-    );
-  };
-
-  // ==============================================================
-  // RENDERIZADOR: 4. BARRAS HORIZONTAIS COM METAS E STATUS
-  // ==============================================================
-  const renderHorizontalProgressBars = () => {
-    return (
-      <div className="hbars-list-container">
-        {moduleDistribution.map((item) => {
-          const isComplete = item.count >= 3;
-          return (
-            <div key={item.id} className="hbar-item-row">
-              <div className="hbar-header">
-                <div className="hbar-title-wrap">
-                  <span className="hbar-bullet" style={{ backgroundColor: item.color }} />
-                  <span className="hbar-label">{item.label}</span>
-                </div>
-                <div className="hbar-metrics">
-                  <span className="hbar-count-badge">
-                    {item.count} {item.count === 1 ? 'manual' : 'manuais'} • {item.steps} etapas
-                  </span>
-                  <span
-                    className={`hbar-status-tag ${isComplete ? 'complete' : 'progress'}`}
-                  >
-                    {isComplete ? 'Homologado' : 'Em Elaboração'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Barra de Progresso com Meta */}
-              <div className="hbar-track">
-                <div
-                  className="hbar-fill"
-                  style={{
-                    width: `${Math.max(item.progressToTarget, 8)}%`,
-                    backgroundColor: item.color,
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   return (
     <div className="dashboard-container">
-      {/* Banner Superior com Boas-Vindas e Ação */}
-      {/* Banner Superior com Boas-Vindas e Ação no Padrão V10 */}
-      <div className="dashboard-banner">
-        <div className="dashboard-banner-content">
-          <p className="eyebrow" style={{ marginBottom: '8px' }}>
-            <span className="num">{activeVersion === 'v10' ? 'V10 CLOUD' : 'DESKTOP'}</span>
-            <span>PAINEL EXECUTIVO & INDICADORES</span>
-          </p>
-          <h1 className="dashboard-title head" style={{ margin: '0 0 6px 0' }}>
-            Painel Executivo de Procedimentos
-          </h1>
-          <p className="dashboard-subtitle lead" style={{ margin: '0 0 12px 0', fontSize: '14.5px' }}>
-            Métricas de cobertura, evolução cronológica, distribuição por rotina e conformidade operacional dos manuais do ERP.
+      {/* Cabeçalho Executivo do Dashboard */}
+      <div className="dashboard-banner-clean">
+        <div>
+          <span className="dashboard-eyebrow">PAINEL OPERACIONAL</span>
+          <h1 className="dashboard-title-clean">Indicadores & Procedimentos</h1>
+          <p className="dashboard-sub-clean">
+            Visão consolidada da conformidade operacional, rotinas homologadas e documentação do Digifarma.
           </p>
         </div>
-
-        <button type="button" className="btn-dashboard-new" onClick={onNewProcedure}>
-          <Plus size={16} />
-          <span>Novo Procedimento</span>
-        </button>
       </div>
 
-      {/* Cards de Acesso Rápido por Versão (V10 e Clássico) no Topo */}
-      <div className="dashboard-version-switch-cards">
-        <div
-          className={`dash-version-card v10 ${activeVersion === 'v10' ? 'active' : ''}`}
-          onClick={() => onNavigateToVersion && onNavigateToVersion('v10')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="dash-version-left">
-            <div className="dash-version-icon v10">
-              <Rocket size={22} />
-            </div>
-            <div>
-              <div className="dash-version-title-row">
-                <strong>Digifarma V10 Cloud</strong>
-                <span className="dash-version-pill v10">
-                  <Sparkles size={10} />
-                  <span>Nuvem</span>
-                </span>
-              </div>
-              <span className="dash-version-sub">
-                {procedures.filter(p => p.systemVersion === 'v10' || p.systemVersion === 'ambos').length} procedimentos divididos por setor · IA no F7 · Caixa Cego
-              </span>
-            </div>
+      {/* Grid de 4 Totalizadores Limpos e Profissionais */}
+      <div className="clean-kpi-grid">
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-icon red">
+            <BookOpen size={18} />
           </div>
-          <div className="btn-dash-version-action">
-            <span>Ver Setores</span>
-            <ArrowRight size={14} />
+          <div className="clean-kpi-body">
+            <span className="clean-kpi-number">{totalProcedures}</span>
+            <span className="clean-kpi-title">Procedimentos Homologados</span>
           </div>
         </div>
 
-        <div
-          className={`dash-version-card classico ${activeVersion === 'classico' ? 'active' : ''}`}
-          onClick={() => onNavigateToVersion && onNavigateToVersion('classico')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="dash-version-left">
-            <div className="dash-version-icon classico">
-              <Monitor size={22} />
-            </div>
-            <div>
-              <div className="dash-version-title-row">
-                <strong>Digifarma Clássico</strong>
-                <span className="dash-version-pill classico">Desktop</span>
-              </div>
-              <span className="dash-version-sub">
-                {procedures.filter(p => p.systemVersion === 'classico' || p.systemVersion === 'ambos').length} procedimentos divididos por setor · F2/F5 · Entrada XML
-              </span>
-            </div>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-icon blue">
+            <Layers size={18} />
           </div>
-          <div className="btn-dash-version-action">
-            <span>Ver Setores</span>
-            <ArrowRight size={14} />
+          <div className="clean-kpi-body">
+            <span className="clean-kpi-number">{totalModules}</span>
+            <span className="clean-kpi-title">Módulos Estruturados</span>
+          </div>
+        </div>
+
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-icon emerald">
+            <CheckCircle2 size={18} />
+          </div>
+          <div className="clean-kpi-body">
+            <span className="clean-kpi-number">{totalSteps}</span>
+            <span className="clean-kpi-title">Etapas Documentadas</span>
+          </div>
+        </div>
+
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-icon purple">
+            <Clock size={18} />
+          </div>
+          <div className="clean-kpi-body">
+            <span className="clean-kpi-number">{checklistStats.percentage}%</span>
+            <span className="clean-kpi-title">Conformidade BPF</span>
           </div>
         </div>
       </div>
 
-      {/* Grid de 4 Cards de Métricas Principais (KPIs) */}
-      <div className="dashboard-kpi-grid">
-        <div className="dashboard-kpi-card">
-          <div className="kpi-icon-wrap kpi-red">
-            <BookOpen size={20} />
-          </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{totalProcedures}</span>
-            <span className="kpi-label">Procedimentos Ativos</span>
-          </div>
-          <div className="kpi-footer-badge">
-            <Activity size={12} />
-            <span>100% disponíveis</span>
-          </div>
-        </div>
-
-        <div className="dashboard-kpi-card">
-          <div className="kpi-icon-wrap kpi-blue">
-            <Layers size={20} />
-          </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{totalModules}</span>
-            <span className="kpi-label">Módulos Estruturados</span>
-          </div>
-          <div className="kpi-footer-text">
-            <span>Cadastros, Estoque, Utilitários</span>
-          </div>
-        </div>
-
-        <div className="dashboard-kpi-card">
-          <div className="kpi-icon-wrap kpi-purple">
-            <FileText size={20} />
-          </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{totalSteps}</span>
-            <span className="kpi-label">Etapas Documentadas</span>
-          </div>
-          <div className="kpi-footer-text">
-            <span>Passo a passo com telas e dicas</span>
-          </div>
-        </div>
-
-        <div className="dashboard-kpi-card">
-          <div className="kpi-icon-wrap kpi-green">
-            <CheckCircle2 size={20} />
-          </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{checklistStats.total}</span>
-            <span className="kpi-label">Itens de Checklist</span>
-          </div>
-          <div className="kpi-footer-progress">
-            <div className="mini-progress-bar">
-              <div
-                className="mini-progress-fill"
-                style={{ width: `${checklistStats.percentage}%` }}
-              />
+      {/* Grade de 2 Gráficos Executivos Organizados */}
+      <div className="clean-charts-grid">
+        <div className="clean-chart-card">
+          <div className="clean-chart-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={16} color="#ef4444" />
+              <h3>Evolução da Base de Manuais</h3>
             </div>
-            <span className="mini-progress-text">{checklistStats.percentage}% validados</span>
+            <span className="clean-chart-badge">Últimos meses</span>
           </div>
-        </div>
-      </div>
-
-      {/* ==============================================================
-          FAIXA DO DIA (DAY STRIP) - PADRÃO LH GROUP / V10
-          ============================================================== */}
-      <div className="dashboard-day-strip">
-        <div className="day-mini-card">
-          <span className="mini-card-kicker">DIRETRIZ BPF DO DIA</span>
-          <strong>ISO 9001 & Boas Práticas</strong>
-          <small>Rastreabilidade de lotes, validação e dupla checagem</small>
-        </div>
-        <div className="day-mini-card">
-          <span className="mini-card-kicker">PADRONIZAÇÃO OPERACIONAL</span>
-          <strong>Evite divergências no caixa e balcão</strong>
-          <small>Consulte o POP homologado antes de alterar parâmetros fiscais</small>
-        </div>
-        <div className="day-mini-card">
-          <span className="mini-card-kicker">COBERTURA DA BASE</span>
-          <strong>{totalProcedures} Procedimentos Ativos</strong>
-          <small>{totalSteps} etapas operacionais detalhadas com telas reais</small>
-        </div>
-        <div className="day-mini-action">
-          <span className="insight-kicker">AÇÃO RECOMENDADA</span>
-          <strong>Validar F7 com IA e Caixa Cego</strong>
-          <small>Rotinas prioritárias homologadas para a versão V10 Cloud</small>
-        </div>
-      </div>
-
-      {/* ==============================================================
-          GRADE DE 4 GRÁFICOS DIVERSIFICADOS (LINHA, PIZZA, RADAR, BARRAS)
-          ============================================================== */}
-      <div className="dashboard-charts-grid">
-        {/* GRÁFICO 1: LINHA / ÁREA TEMPORAL */}
-        <div className="dashboard-card-box">
-          <div className="card-box-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <TrendingUp size={18} color="#ef4444" />
-              <h2 className="card-box-title">Evolução da Base de Conhecimento</h2>
-            </div>
-            <span className="card-box-counter">Cronológico</span>
-          </div>
-          <p className="card-box-description">
-            Crescimento acumulado do número de manuais cadastrados e homologados ao longo dos meses.
-          </p>
+          <p className="clean-chart-desc">Crescimento cumulativo de rotinas homologadas.</p>
           {renderAreaChart()}
         </div>
 
-        {/* GRÁFICO 2: PIZZA / DONUT ÚNICO */}
-        <div className="dashboard-card-box">
-          <div className="card-box-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <PieIcon size={18} color="#3b82f6" />
-              <h2 className="card-box-title">Distribuição por Módulo</h2>
+        <div className="clean-chart-card">
+          <div className="clean-chart-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <PieIcon size={16} color="#3b82f6" />
+              <h3>Distribuição por Módulo</h3>
             </div>
-            <span className="card-box-counter">{totalProcedures} manuais</span>
+            <span className="clean-chart-badge">{totalProcedures} POPs</span>
           </div>
-          <p className="card-box-description">
-            Proporção de procedimentos operacionais distribuídos entre as diferentes áreas do ERP.
-          </p>
-          {renderSingleDonutChart()}
-        </div>
-
-        {/* GRÁFICO 3: RADAR / TEIA MULTIDIMENSIONAL */}
-        <div className="dashboard-card-box">
-          <div className="card-box-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Target size={18} color="#10b981" />
-              <h2 className="card-box-title">Diagnóstico de Qualidade dos POPs</h2>
-            </div>
-            <span className="card-box-counter">Auditoria ISO</span>
-          </div>
-          <p className="card-box-description">
-            Maturidade dos manuais em 5 pilares: Telas Reais, Rotas, Detalhamento, Checklists e Alertas.
-          </p>
-          {renderRadarChart()}
-        </div>
-
-        {/* GRÁFICO 4: BARRAS HORIZONTAIS COM METAS */}
-        <div className="dashboard-card-box">
-          <div className="card-box-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Sliders size={18} color="#f59e0b" />
-              <h2 className="card-box-title">Metas de Cobertura por Módulo</h2>
-            </div>
-            <span className="card-box-counter">Homologação</span>
-          </div>
-          <p className="card-box-description">
-            Acompanhamento do progresso de documentação por área em relação à meta de homologação.
-          </p>
-          {renderHorizontalProgressBars()}
+          <p className="clean-chart-desc">Proporção de rotinas por área do ERP.</p>
+          {renderDonutChart()}
         </div>
       </div>
 
-      {/* ==============================================================
-          LISTA DE ACESSO RÁPIDO / TABELA FORMATO LH GROUP
-          ============================================================== */}
-      <div className="dashboard-procedures-panel">
-        <div className="dashboard-table-header">
+      {/* Tabela / Lista Compacta e Profissional da Base de Procedimentos */}
+      <div className="clean-procedures-section">
+        <div className="clean-section-header">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={18} color="var(--primary-500)" />
-              <h2 className="card-box-title" style={{ margin: 0 }}>
-                Base de Procedimentos Operacionais (POPs)
-              </h2>
-            </div>
-            <p className="card-box-description" style={{ margin: '4px 0 0 0' }}>
-              Consulte, filtre e acesse os manuais homologados do Digifarma {activeVersion === 'v10' ? 'V10 Cloud' : 'Clássico Desktop'}.
-            </p>
+            <h2 className="clean-section-title">Base de Procedimentos</h2>
+            <p className="clean-section-sub">Consulte e acesse rapidamente as rotinas operacionais.</p>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="dashboard-search-input-wrap">
-              <Search size={14} className="dashboard-search-icon" />
+          <div className="clean-header-actions">
+            <div className="clean-search-wrap">
+              <Search size={14} className="clean-search-ic" />
               <input
                 type="text"
-                className="dashboard-search-input"
-                placeholder="Filtrar por nome, rota, código..."
+                className="clean-search-input"
+                placeholder="Buscar por nome, atalho, rota..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
                 <button
                   type="button"
-                  className="dashboard-search-clear"
+                  className="clean-search-clear"
                   onClick={() => setSearchTerm('')}
-                  title="Limpar filtro"
                 >
                   ✕
                 </button>
               )}
             </div>
 
+            {/* Botão Novo POP Discreto e Elegante */}
             <button
               type="button"
-              className="btn-dashboard-new"
+              className="btn-new-pop-compact"
               onClick={onNewProcedure}
             >
-              <Plus size={15} />
-              <span>Novo POP</span>
+              <Plus size={14} />
+              <span>Novo Procedimento</span>
             </button>
           </div>
         </div>
 
-        {/* Tabela Formatada no Padrão LH Group */}
-        <div className="table-wrap">
-          {filteredProcedures.length === 0 ? (
-            <div className="dashboard-empty-search">
-              <p>Nenhum procedimento encontrado para "{searchTerm}".</p>
-            </div>
-          ) : (
-            <table className="table-lh">
-              <thead>
-                <tr>
-                  <th style={{ width: '100px' }}>Data</th>
-                  <th style={{ width: '100px' }}>Versão</th>
-                  <th>Procedimento / POP</th>
-                  <th>Módulo / Rota do ERP</th>
-                  <th style={{ width: '130px' }}>Etapas</th>
-                  <th style={{ width: '130px' }}>Status</th>
-                  <th style={{ width: '110px', textAlign: 'right' }}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProcedures.map((proc) => {
-                  const stepCount = proc.blocks.filter((b) => b.type === 'step' || b.type === 'heading').length;
-                  const checkCount = proc.blocks.filter((b) => b.type === 'step').length;
-                  const isV10 = proc.systemVersion === 'v10';
-                  const menuObj = menus.find((m) => m.id === proc.menuId);
+        {/* Tabela Compacta de Linhas */}
+        <div className="compact-table-container">
+          <table className="compact-table">
+            <thead>
+              <tr>
+                <th style={{ width: '45%' }}>Procedimento / Rotina</th>
+                <th style={{ width: '18%' }}>Módulo</th>
+                <th style={{ width: '15%' }}>Versão</th>
+                <th style={{ width: '10%' }}>Etapas</th>
+                <th style={{ width: '12%', textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProcedures.map((proc) => {
+                const stepCount = proc.blocks.filter(
+                  (b) => b.type === 'step' || b.type === 'heading'
+                ).length;
+                const isV10 = proc.systemVersion === 'v10';
 
-                  return (
-                    <tr
-                      key={proc.id}
-                      className="tx-row-editable"
-                      onClick={() => onSelectProcedure(proc.id)}
-                      title="Clique duas vezes ou selecione para abrir o procedimento completo"
-                    >
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={12} />
-                          {formatDate(proc.updated_at)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`version-pill ${isV10 ? 'v10' : 'classico'}`}>
-                          {isV10 ? 'V10 Cloud' : 'Desktop'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
-                            {proc.title}
-                          </span>
-                          {proc.subtitle && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              {proc.subtitle}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="module-tag-pill">
-                            {menuObj?.label || proc.category || 'Geral'}
-                          </span>
+                return (
+                  <tr key={proc.id} onClick={() => onSelectProcedure(proc.id, false)}>
+                    <td>
+                      <div className="proc-cell-title">
+                        <span className="proc-cell-bullet" />
+                        <div>
+                          <strong>{proc.title}</strong>
                           {proc.systemPath && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                              {proc.systemPath}
-                            </span>
+                            <span className="proc-cell-route">{proc.systemPath}</span>
                           )}
                         </div>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          {stepCount} {stepCount === 1 ? 'etapa' : 'etapas'}
-                          {checkCount > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> • {checkCount} itens</span>}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="status-pill status-confirmado">
-                          <span className="dot" />
-                          Homologado
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="proc-cell-badge mod">{proc.category || 'Geral'}</span>
+                    </td>
+                    <td>
+                      <span className={`proc-cell-badge ver ${isV10 ? 'v10' : 'r78'}`}>
+                        {isV10 ? 'V10 Cloud' : 'R78 Desktop'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="proc-cell-steps">{stepCount} etapas</span>
+                    </td>
+                    <td>
+                      <div
+                        className="proc-cell-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
-                          className="btn-table-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectProcedure(proc.id);
-                          }}
+                          className="btn-cell-action"
+                          onClick={() => onSelectProcedure(proc.id, false)}
+                          title="Abrir procedimento em slides"
                         >
-                          <span>Acessar</span>
-                          <ArrowRight size={13} />
+                          <span>Abrir</span>
+                          <ArrowRight size={11} />
                         </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+
+                        <button
+                          type="button"
+                          className="btn-cell-action print"
+                          onClick={() => onSelectProcedure(proc.id, true)}
+                          title="Gerar PDF / Imprimir"
+                        >
+                          <Printer size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

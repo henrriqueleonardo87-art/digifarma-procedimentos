@@ -8,16 +8,14 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { ImageLightbox } from './components/ImageLightbox';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
-import { ProcedimentosListView } from './components/ProcedimentosListView';
-import type { Procedure, SystemMenu, SystemVersion } from './types/procedure';
+import { VersionModulesView } from './components/VersionModulesView';
+import type { Procedure, SystemMenu } from './types/procedure';
 import {
   fetchAllProcedures,
   saveProcedure,
   deleteProcedure,
   fetchSystemMenus,
   saveSystemMenus,
-  getSavedSystemVersion,
-  saveSystemVersion,
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { Loader2 } from 'lucide-react';
@@ -31,12 +29,7 @@ export function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<Procedure | null>(null);
 
-  // Versão Ativa do Sistema (Digifarma Clássico vs V10)
-  const [activeVersion, setActiveVersion] = useState<SystemVersion | null>(() => {
-    return getSavedSystemVersion() || 'v10';
-  });
-
-  // Visão Ativa do Sistema (Padrão LH Group)
+  // Visão Ativa do Sistema: 'dashboard' | 'v10' | 'r78' | 'procedure-detail' | 'config' | 'editor'
   const [currentView, setCurrentView] = useState<string>('dashboard');
 
   // Tema Escuro / Claro
@@ -45,7 +38,6 @@ export function App() {
   });
 
   // Supabase State
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   // Modal de Exclusão
@@ -84,8 +76,7 @@ export function App() {
   };
 
   const checkConnection = async () => {
-    const res = await testConnection();
-    setIsSupabaseConnected(res.success);
+    await testConnection();
   };
 
   useEffect(() => {
@@ -110,39 +101,41 @@ export function App() {
     setIsEditing(false);
   };
 
-  const handleSelectVersion = (version: SystemVersion) => {
-    setActiveVersion(version);
-    saveSystemVersion(version);
-    setCurrentView('procedimentos');
-    setActiveId(null);
-    setIsEditing(false);
-  };
-
   const handleBackFromProcedure = () => {
+    if (activeProcedure) {
+      const ver = activeProcedure.systemVersion;
+      if (ver === 'classico' || ver === 'r78') {
+        setCurrentView('r78');
+      } else {
+        setCurrentView('v10');
+      }
+    } else {
+      setCurrentView('dashboard');
+    }
     setActiveId(null);
     setAutoPrintActive(false);
-    setCurrentView('procedimentos');
   };
 
   const handleNewProcedure = () => {
+    const isR78 = currentView === 'r78';
     const newProc: Procedure = {
       id: `proc-${Date.now()}`,
       title: 'Novo Procedimento Operacional Padrão',
       subtitle: 'Descrição sumária da rotina e diretrizes BPF',
-      category: 'Cadastros',
-      systemVersion: activeVersion || 'v10',
-      menuId: 'cadastros',
-      submenuId: 'produtos',
-      systemPath: `${activeVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'} ➔ Cadastros ➔ Produtos`,
+      category: 'Vendas',
+      systemVersion: isR78 ? 'classico' : 'v10',
+      menuId: 'vendas',
+      submenuId: 'atendimento',
+      systemPath: `${isR78 ? 'Digifarma R78' : 'Digifarma V10'} ➔ Vendas ➔ Nova Venda`,
       author: 'Farmacêutico Responsável',
-      tags: ['BPF', activeVersion === 'v10' ? 'V10' : 'Clássico'],
+      tags: ['BPF', isR78 ? 'R78' : 'V10'],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       blocks: [
         {
           id: `step-${Date.now()}-1`,
           type: 'step',
-          content: 'Acessar o módulo correspondente e conferir os dados cadastrais antes de validar a operação.',
+          content: 'Acessar o módulo correspondente e conferir os dados antes de validar a operação.',
           completed: false,
         },
       ],
@@ -190,7 +183,7 @@ export function App() {
       setProcedures((prev) => prev.filter((p) => p.id !== idToDelete));
       setDeleteModalState({ isOpen: false, procedure: null });
       setActiveId(null);
-      setCurrentView('procedimentos');
+      setCurrentView('dashboard');
     }
   };
 
@@ -219,52 +212,21 @@ export function App() {
 
   return (
     <div className="app">
-      {/* ── SIDEBAR FIXO À ESQUERDA (PADRÃO LH GROUP) ── */}
+      {/* ── SIDEBAR FIXO: SOMENTE TELA INICIAL, DIGIFARMA V10 E DIGIFARMA R78 ── */}
       <Sidebar
-        menus={menus}
-        procedures={procedures}
-        activeVersion={activeVersion || 'v10'}
-        activeId={activeId}
         currentView={currentView}
         onChangeView={(view) => {
-          if (view === 'v10') {
-            setActiveVersion('v10');
-            saveSystemVersion('v10');
-            setCurrentView('procedimentos');
-          } else if (view === 'classico') {
-            setActiveVersion('classico');
-            saveSystemVersion('classico');
-            setCurrentView('procedimentos');
-          } else {
-            setCurrentView(view);
-          }
+          setCurrentView(view);
           setActiveId(null);
           setIsEditing(false);
         }}
-        onSelectProcedure={handleSelectProcedure}
-        onNewProcedure={handleNewProcedure}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
       />
 
-      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER ── */}
+      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "TREINAMENTO" ── */}
       <div className="app-content">
-        <Navbar
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode(!darkMode)}
-          isSupabaseConnected={isSupabaseConnected}
-          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-          onOpenSettings={() => setCurrentView('config')}
-          onNewProcedure={handleNewProcedure}
-          activeVersion={activeVersion}
-          onChangeVersion={handleSelectVersion}
-          onReturnToVersionSelect={() => {
-            setCurrentView('procedimentos');
-            setActiveId(null);
-          }}
-          procedures={procedures}
-          onSelectProcedure={handleSelectProcedure}
-        />
+        <Navbar onToggleSidebarMobile={() => {}} />
 
         <main className="main" id="main">
           {loading ? (
@@ -276,7 +238,7 @@ export function App() {
             <ProcedureEditor
               initialProcedure={editingProcedure}
               menus={menus}
-              activeVersion={activeVersion || 'v10'}
+              activeVersion={currentView === 'r78' ? 'classico' : 'v10'}
               onSave={handleSaveProcedure}
               onCancel={() => {
                 setIsEditing(false);
@@ -297,28 +259,27 @@ export function App() {
               onBack={handleBackFromProcedure}
               autoPrint={autoPrintActive}
             />
-          ) : currentView === 'procedimentos' ? (
-            <ProcedimentosListView
+          ) : currentView === 'v10' ? (
+            <VersionModulesView
+              version="v10"
               procedures={procedures}
               menus={menus}
-              activeVersion={activeVersion || 'v10'}
               onSelectProcedure={handleSelectProcedure}
-              onNewProcedure={handleNewProcedure}
-              onEditProcedure={(proc) => {
-                setEditingProcedure(proc);
-                setIsEditing(true);
-                setCurrentView('editor');
-              }}
-              onDeleteProcedure={(proc) => {
-                setDeleteModalState({ isOpen: true, procedure: proc });
-              }}
-              onChangeVersion={handleSelectVersion}
+              onBackToDashboard={() => setCurrentView('dashboard')}
+            />
+          ) : currentView === 'r78' ? (
+            <VersionModulesView
+              version="r78"
+              procedures={procedures}
+              menus={menus}
+              onSelectProcedure={handleSelectProcedure}
+              onBackToDashboard={() => setCurrentView('dashboard')}
             />
           ) : currentView === 'config' ? (
             <SettingsView
               menus={menus}
               procedures={procedures}
-              activeVersion={activeVersion || 'v10'}
+              activeVersion="v10"
               onSaveMenus={handleSaveMenus}
               onSaveProcedures={handleSaveProceduresList}
               onClose={() => setCurrentView('dashboard')}
@@ -331,10 +292,9 @@ export function App() {
             <DashboardView
               procedures={procedures}
               menus={menus}
-              activeVersion={activeVersion || 'v10'}
+              activeVersion="v10"
               onSelectProcedure={handleSelectProcedure}
               onNewProcedure={handleNewProcedure}
-              onNavigateToVersion={handleSelectVersion}
             />
           )}
         </main>
