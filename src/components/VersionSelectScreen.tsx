@@ -3,7 +3,6 @@ import {
   Monitor,
   Rocket,
   ArrowRight,
-  BookOpen,
 } from 'lucide-react';
 import type { SystemVersion, Procedure } from '../types/procedure';
 
@@ -27,18 +26,36 @@ export const VersionSelectScreen: React.FC<VersionSelectScreenProps> = ({
   return (
     <div className="version-portal-minimal">
       {/* Cabeçalho Minimalista */}
+      {/* Cabeçalho no Padrão V10 */}
       <header className="portal-header-minimal">
-        <div className="portal-brand-icon">
-          <BookOpen size={24} color="#dc2626" />
-        </div>
-        <h1 className="portal-title-minimal">
-          DIGI<span className="brand-dot">FARMA</span>
-        </h1>
-        <p className="portal-subtitle-minimal">
-          Repositório de Procedimentos Operacionais Padrão (POP)
+        <p className="eyebrow" style={{ justifyContent: 'center', marginBottom: '10px' }}>
+          <span className="num">DIGIFARMA V10</span>
+          <span>REPOSITÓRIO OFICIAL DE MANUAIS POP</span>
         </p>
-        <span className="portal-instruction">
-          Selecione a versão do sistema para acessar os manuais e rotinas operacionais:
+        <div className="logo" style={{ fontSize: 'clamp(36px, 6vw, 54px)', marginBottom: '8px', textAlign: 'center' }}>
+          <span className="a" style={{ color: 'var(--text-secondary)' }}>Digi</span>
+          <span className="b" style={{ color: 'var(--red)', fontWeight: 800 }}>farma</span>{' '}
+          <span
+            style={{
+              fontSize: '0.38em',
+              fontWeight: 800,
+              letterSpacing: '0.25em',
+              color: 'var(--red)',
+              verticalAlign: 'middle',
+              border: '1.5px solid var(--red)',
+              borderRadius: '999px',
+              padding: '3px 12px',
+              background: 'var(--red-soft)',
+            }}
+          >
+            V10
+          </span>
+        </div>
+        <p className="portal-subtitle-minimal lead" style={{ textAlign: 'center', maxWidth: '60ch', margin: '0 auto 12px' }}>
+          Uma nova experiência em gestão farmacêutica e procedimentos operacionais padrão.
+        </p>
+        <span className="portal-instruction" style={{ textAlign: 'center' }}>
+          Selecione a versão do sistema para acessar as rotinas e procedimentos homologados:
         </span>
       </header>
 

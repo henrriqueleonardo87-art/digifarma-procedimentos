@@ -44,10 +44,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onReturnToVersionSelect}
           title="Voltar para a seleção de versão"
         >
-          <span className="brand-logo-text">
-            DIGI<span className="brand-accent">FARMA</span>
-          </span>
-          <span className="brand-sub-badge">MANUAIS</span>
+          <div className="logo" style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="brand-logo-text" style={{ fontSize: '1.05rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>DIGI</span>
+              <span className="brand-accent" style={{ color: 'var(--red)', fontWeight: 800 }}>FARMA</span>
+            </span>
+            <span className="brand-sub-badge" style={{ textTransform: 'uppercase' }}>
+              {activeVersion === 'v10' ? 'V10' : 'POP'}
+            </span>
+          </div>
         </div>
 
         {/* Seletor Segmentado Minimalista (Clássico / V10) */}

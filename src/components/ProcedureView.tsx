@@ -261,26 +261,33 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
       </div>
 
       {/* ==============================================================
-          CABEÇALHO EDITORIAL DO PROCEDIMENTO (LIMPO E AREJADO)
+          CABEÇALHO EDITORIAL DO PROCEDIMENTO (PADRÃO V10)
           ============================================================== */}
       <header className="procedure-main-header">
+        <p className="eyebrow no-print">
+          <span className="num">
+            {procedure.systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
+          </span>
+          <span>{menuInfo.menuLabel} • PROCEDIMENTO OPERACIONAL PADRÃO</span>
+        </p>
+
         <h1 className="procedure-hero-title">{procedure.title || 'Passo a Passo Sem Título'}</h1>
 
         {procedure.subtitle && (
-          <p className="procedure-hero-subtitle">{procedure.subtitle}</p>
+          <p className="procedure-hero-subtitle lead">{procedure.subtitle}</p>
         )}
 
-        {/* Linha Sutil de Metadados */}
+        {/* Linha Sutil de Metadados e Badges V10 */}
         <div className="procedure-meta-minimal no-print">
           <span className="meta-inline-item">
             {procedure.systemVersion === 'v10' ? (
-              <span className="version-pill-minimal v10">
-                <Rocket size={11} />
+              <span className="pill" style={{ background: 'var(--red-soft)', color: 'var(--red)' }}>
+                <Rocket size={12} />
                 Digifarma V10
               </span>
             ) : (
-              <span className="version-pill-minimal classico">
-                <Monitor size={11} />
+              <span className="pill" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
+                <Monitor size={12} />
                 Digifarma Clássico
               </span>
             )}
@@ -306,7 +313,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <span className="meta-inline-item checklist-count">
                 <CheckSquare size={13} />
                 <span>
-                  {completedSteps} de {stepBlocks.length} itens checados
+                  {completedSteps} de {stepBlocks.length} itens checados ({stepBlocks.length > 0 ? Math.round((completedSteps / stepBlocks.length) * 100) : 0}%)
                 </span>
               </span>
             </>
@@ -315,7 +322,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
       </header>
 
       {/* ==============================================================
-          CORPO DO PASSO A PASSO (TIMELINE MINIMALISTA)
+          CORPO DO PASSO A PASSO (TIMELINE MINIMALISTA & PADRÃO V10)
           ============================================================== */}
       <div className="procedure-flow-timeline">
         {procedure.blocks.map((block) => {
@@ -325,6 +332,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           if (block.type === 'heading') {
             const hBlock = block as HeadingBlock;
             stepIndex++;
+            const stepNumStr = String(stepIndex).padStart(2, '0');
 
             return (
               <div key={block.id} className="timeline-step-node">
@@ -332,6 +340,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                   <span>{stepIndex}</span>
                 </div>
                 <div className="step-content-box">
+                  <p className="eyebrow no-print" style={{ marginBottom: '4px' }}>
+                    <span className="num">{stepNumStr}</span>
+                    <span>ETAPA OPERACIONAL</span>
+                  </p>
                   <h2 className="step-heading-title">{hBlock.content}</h2>
                 </div>
               </div>
@@ -354,7 +366,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           }
 
           // ==========================================
-          // 3. CAPTURA DE TELA / IMAGEM (IMAGE)
+          // 3. CAPTURA DE TELA / IMAGEM (SHOTFRAME V10)
           // ==========================================
           if (block.type === 'image') {
             const imgBlock = block as ImageBlock;
@@ -362,20 +374,26 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <div key={block.id} className="timeline-media-node">
                 <div className="timeline-connector-spacer" />
                 <figure className="step-figure-clean">
-                  <div
-                    className="step-image-wrap"
-                    onClick={() => onOpenImageLightbox(imgBlock.url, imgBlock.caption)}
-                    title="Clique para ampliar em tela cheia"
-                  >
-                    <img
-                      src={imgBlock.url}
-                      alt={imgBlock.altText || imgBlock.caption || 'Tela do sistema'}
-                      className="step-image-element"
-                      loading="lazy"
-                    />
-                    <div className="image-zoom-indicator no-print">
-                      <ZoomIn size={14} />
-                      <span>Ampliar Imagem</span>
+                  <div className="shotframe">
+                    <div className="glow no-print" />
+                    <span className="themetag no-print">
+                      {procedure.systemVersion === 'v10' ? 'Digifarma V10 Web' : 'Digifarma Clássico'}
+                    </span>
+                    <div
+                      className="frame step-image-wrap"
+                      onClick={() => onOpenImageLightbox(imgBlock.url, imgBlock.caption)}
+                      title="Clique para ampliar em tela cheia"
+                    >
+                      <img
+                        src={imgBlock.url}
+                        alt={imgBlock.altText || imgBlock.caption || 'Tela do sistema'}
+                        className="step-image-element"
+                        loading="lazy"
+                      />
+                      <div className="image-zoom-indicator no-print">
+                        <ZoomIn size={14} />
+                        <span>Ampliar Imagem</span>
+                      </div>
                     </div>
                   </div>
 
@@ -390,7 +408,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           }
 
           // ==========================================
-          // 4. ALERTA / DICA / AVISO (CALLOUT)
+          // 4. ALERTA / DICA / AVISO (CALLOUT V10)
           // ==========================================
           if (block.type === 'callout') {
             const cBlock = block as CalloutBlock;
@@ -398,13 +416,13 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             const getCalloutIcon = () => {
               switch (cBlock.calloutType) {
                 case 'warning':
-                  return <AlertTriangle size={17} color="#d97706" />;
+                  return <AlertTriangle size={18} color="var(--amber)" />;
                 case 'danger':
-                  return <AlertCircle size={17} color="#dc2626" />;
+                  return <AlertCircle size={18} color="var(--red)" />;
                 case 'success':
-                  return <CheckCircle2 size={17} color="#059669" />;
+                  return <CheckCircle2 size={18} color="var(--accent)" />;
                 default:
-                  return <Info size={17} color="#2563eb" />;
+                  return <Info size={18} color="#3b82f6" />;
               }
             };
 
@@ -423,7 +441,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           }
 
           // ==========================================
-          // 5. ITEM DE CONFERÊNCIA (CHECKLIST STEP)
+          // 5. ITEM DE CONFERÊNCIA (CHECKLIST STEP V10)
           // ==========================================
           if (block.type === 'step') {
             const sBlock = block as StepBlock;
@@ -431,12 +449,14 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <div key={block.id} className="timeline-checklist-node">
                 <div className="timeline-connector-spacer" />
                 <label className={`checklist-item-row ${sBlock.completed ? 'completed' : ''}`}>
-                  <input
-                    type="checkbox"
-                    className="checklist-checkbox no-print"
-                    checked={!!sBlock.completed}
-                    onChange={(e) => onUpdateStepCompletion(block.id, e.target.checked)}
-                  />
+                  <div className="no-print" style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      className="checklist-checkbox"
+                      checked={!!sBlock.completed}
+                      onChange={(e) => onUpdateStepCompletion(block.id, e.target.checked)}
+                    />
+                  </div>
                   {/* Caixa de marcação quadrada visível exclusivamente na impressão / PDF */}
                   <span className="print-only print-checkbox-indicator">
                     {sBlock.completed ? '☑' : '☐'}

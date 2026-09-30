@@ -1,54 +1,77 @@
 /* ==========================================================================
-   DIGIFARMA PROCEDURES DESIGN SYSTEM - MINIMALIST & MODERN
-   Clean lines, spacious typography, high legibility & focused UX
+   DIGIFARMA V10 DESIGN SYSTEM - NORMAS E PADRÃO VISUAL EXECUTIVO
+   Fundo profundo (ink), superfície pura (paper), vermelho marca vibrante (#e74c3c)
+   Tipografia Aptos / Inter, alto contraste e formatação editorial para POP / SOP
    ========================================================================== */
 
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Tokens Oficiais Digifarma V10 */
+  --ink: #131419;          /* Fundo escuro profundo */
+  --ink-2: #1b1d25;        /* Superfície escura de cards */
+  --ink-3: #232634;        /* Card escuro elevado */
+  --paper: #f5f6fa;        /* Fundo claro da aplicação */
+  --paper-2: #ffffff;      /* Superfície clara de leitura */
+  --red: #e74c3c;          /* Vermelho Digifarma — cor institucional */
+  --red-dark: #c0392b;     /* Tom escuro para gradientes */
+  --red-soft: rgba(231, 76, 60, 0.14); /* Tint para alertas e ícones */
+  --green: #2ecc71;        /* Destaque positivo / validação */
+  --green-ink: #27ae60;    /* Verde para texto em fundo claro */
+  --amber: #f39c12;        /* Atenção / alerta operacional */
 
-  /* Light Palette - Pure & Minimalist */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #f1f5f9;
+  --on-ink: #eef0f5;       /* Texto em fundo escuro */
+  --on-ink-mut: #9aa2b0;   /* Texto secundário em fundo escuro */
+  --on-ink-line: rgba(255, 255, 255, 0.10); /* Linhas em fundo escuro */
+  --on-paper: #20232b;     /* Texto em fundo claro */
+  --on-paper-mut: #6a7180; /* Texto secundário em fundo claro */
+  --on-paper-line: #e4e7ee;/* Linhas em fundo claro */
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --font-sans: 'Aptos', 'Aptos Display', 'Inter', Calibri, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Aptos Display', 'Aptos', 'Inter', -apple-system, sans-serif;
+  --maxw: 1120px;
 
-  --border: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --border-strong: #cbd5e1;
+  /* Mapeamento Semântico para Modo Claro (Padrão) */
+  --bg-primary: var(--paper-2);
+  --bg-secondary: var(--paper);
+  --bg-tertiary: #ebedf2;
+  --bg-hover: #e8ebf0;
 
-  /* Red Brand Accents */
-  --primary-50: #fef2f2;
-  --primary-100: #fee2e2;
-  --primary-500: #dc2626;
-  --primary-600: #b91c1c;
-  --primary-700: #991b1b;
-  --primary-tint: rgba(220, 38, 38, 0.06);
+  --text-primary: var(--on-paper);
+  --text-secondary: var(--on-paper-mut);
+  --text-muted: #8c94a4;
 
-  /* Status Colors */
-  --accent: #10b981;
+  --border: var(--on-paper-line);
+  --border-subtle: #edf0f5;
+  --border-strong: #d0d6e2;
+
+  /* Vermelho Marca */
+  --primary-50: var(--red-soft);
+  --primary-100: rgba(231, 76, 60, 0.22);
+  --primary-500: var(--red);
+  --primary-600: var(--red-dark);
+  --primary-700: #962d22;
+  --primary-tint: var(--red-soft);
+
+  /* Status */
+  --accent: var(--green-ink);
   --warning-bg: #fffbeb;
   --warning-border: #fde68a;
   --warning-text: #92400e;
-  --danger-bg: #fef2f2;
-  --danger-border: #fecaca;
-  --danger-text: #991b1b;
-  --info-bg: #f0f9ff;
-  --info-border: #bae6fd;
-  --info-text: #075985;
+  --danger-bg: var(--red-soft);
+  --danger-border: rgba(231, 76, 60, 0.35);
+  --danger-text: var(--red-dark);
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-text: #1d4ed8;
   --success-bg: #f0fdf4;
   --success-border: #bbf7d0;
-  --success-text: #166534;
+  --success-text: var(--green-ink);
 
-  /* Refined Shadows */
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
-  --shadow-float: 0 10px 30px -4px rgba(0, 0, 0, 0.1);
+  /* Sombras Elegantes */
+  --shadow-subtle: 0 1px 3px rgba(19, 20, 25, 0.05);
+  --shadow-card: 0 4px 18px -2px rgba(19, 20, 25, 0.06);
+  --shadow-float: 0 14px 38px -4px rgba(19, 20, 25, 0.12);
 
-  /* Dimensions */
+  /* Layout */
   --sidebar-width: 280px;
   --header-height: 56px;
   --radius-sm: 6px;
@@ -57,40 +80,41 @@
 }
 
 [data-theme='dark'] {
-  --bg-primary: #0b0f17;
-  --bg-secondary: #121824;
-  --bg-tertiary: #192233;
-  --bg-hover: #1f2a3d;
+  /* Mapeamento Semântico para Modo Escuro V10 */
+  --bg-primary: var(--ink);
+  --bg-secondary: var(--ink-2);
+  --bg-tertiary: var(--ink-3);
+  --bg-hover: #292d3e;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: var(--on-ink);
+  --text-secondary: var(--on-ink-mut);
+  --text-muted: #6b7588;
 
-  --border: #1e293b;
-  --border-subtle: #162030;
-  --border-strong: #334155;
+  --border: var(--on-ink-line);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  --primary-50: rgba(239, 68, 68, 0.12);
-  --primary-100: rgba(239, 68, 68, 0.22);
-  --primary-500: #ef4444;
-  --primary-600: #dc2626;
-  --primary-tint: rgba(239, 68, 68, 0.12);
+  --primary-50: var(--red-soft);
+  --primary-100: rgba(231, 76, 60, 0.28);
+  --primary-500: var(--red);
+  --primary-600: #ff5e4d;
+  --primary-tint: var(--red-soft);
 
-  --warning-bg: rgba(245, 158, 11, 0.1);
-  --warning-border: rgba(245, 158, 11, 0.25);
-  --warning-text: #fbbf24;
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --danger-border: rgba(239, 68, 68, 0.25);
-  --danger-text: #f87171;
-  --info-bg: rgba(14, 165, 233, 0.1);
-  --info-border: rgba(14, 165, 233, 0.25);
-  --info-text: #38bdf8;
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --success-border: rgba(16, 185, 129, 0.25);
-  --success-text: #34d399;
+  --warning-bg: rgba(243, 156, 18, 0.12);
+  --warning-border: rgba(243, 156, 18, 0.3);
+  --warning-text: var(--amber);
+  --danger-bg: var(--red-soft);
+  --danger-border: rgba(231, 76, 60, 0.4);
+  --danger-text: #ff7666;
+  --info-bg: rgba(59, 130, 246, 0.12);
+  --info-border: rgba(59, 130, 246, 0.3);
+  --info-text: #60a5fa;
+  --success-bg: rgba(46, 204, 113, 0.12);
+  --success-border: rgba(46, 204, 113, 0.3);
+  --success-text: var(--green);
 
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.55);
 }
 
 /* ==========================================================================
@@ -115,6 +139,546 @@ body {
 
 button, input, select, textarea {
   font-family: inherit;
+}
+
+/* ==========================================================================
+   DIGIFARMA V10 CORE COMPONENTS & DESIGN VOCABULARY
+   ========================================================================== */
+
+/* ── Tipografia Editorial ── */
+.eyebrow {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.eyebrow .num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 2.5px;
+  background: var(--red);
+  display: inline-block;
+  border-radius: 2px;
+}
+
+h1.display {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+}
+
+h2.head {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.5vw, 42px);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin: 0 0 14px;
+  color: var(--text-primary);
+}
+
+.lead {
+  font-size: clamp(15px, 1.4vw, 18px);
+  line-height: 1.6;
+  max-width: 65ch;
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+}
+
+.kicker {
+  font-size: clamp(16px, 1.8vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.accent {
+  color: var(--red) !important;
+}
+
+/* ── Logo Digifarma V10 Split ── */
+.brand-logo-text {
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.brand-logo-text .brand-accent {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.brand-sub-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--red);
+  background: var(--red-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  margin-left: 6px;
+}
+
+/* ── Faixas de Números e Métricas (Stats) ── */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 24px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.stat {
+  background: var(--bg-primary);
+  padding: 20px 18px;
+}
+
+.stat .n {
+  font-size: clamp(26px, 3.5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.stat .n small {
+  font-size: 0.55em;
+  font-weight: 700;
+  color: var(--red);
+  margin-left: 3px;
+}
+
+.stat .l {
+  font-size: 13px;
+  margin-top: 8px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 760px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Cards no Padrão V10 ── */
+.card-v10 {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 20px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.card-v10:hover {
+  transform: translateY(-3px);
+  border-color: var(--red);
+  box-shadow: var(--shadow-card);
+}
+
+.card-v10 .ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--red-soft);
+  color: var(--red);
+  margin-bottom: 14px;
+}
+
+.card-v10 h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.card-v10 p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.card-v10 .benefit {
+  display: block;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.card-v10 .benefit b {
+  color: var(--accent);
+}
+
+/* ── Antes / Depois (Clássico x V10) ── */
+.ba {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 760px) {
+  .ba {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ba .col {
+  border-radius: 14px;
+  padding: 22px 20px;
+  border: 1px solid var(--border);
+}
+
+.ba .old {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.ba .new {
+  background: var(--red-soft);
+  border-color: var(--red);
+}
+
+.ba .tag {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+
+.ba .old .tag {
+  color: var(--text-secondary);
+}
+
+.ba .new .tag {
+  color: var(--red);
+}
+
+.ba ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ba li {
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding-left: 24px;
+  position: relative;
+  color: var(--text-primary);
+}
+
+.ba .old li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.ba .new li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--green);
+  font-weight: 900;
+}
+
+/* ── Split de Recursos: Texto + Moldura Visual (Shotframe) ── */
+.feature-split {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 32px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .feature-split {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.fitem {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fitem:last-child {
+  border-bottom: 0;
+}
+
+.fitem .fico {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.fitem .ftxt h4 {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0 0 3px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.fitem .ftxt p {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.fitem .ftxt p b {
+  color: var(--accent);
+}
+
+/* ── Moldura de Tela Premium (Shotframe) ── */
+.shotframe {
+  position: relative;
+  padding: 12px 12px 20px;
+}
+
+.shotframe .glow {
+  position: absolute;
+  inset: 6% -2% 0 6%;
+  border-radius: 26px;
+  background: radial-gradient(58% 58% at 72% 22%, rgba(231, 76, 60, 0.35), transparent 70%);
+  filter: blur(44px);
+  z-index: 0;
+}
+
+.shotframe .frame {
+  position: relative;
+  z-index: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-float);
+  background: var(--bg-primary);
+}
+
+.shotframe .frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.shotframe .themetag {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  z-index: 3;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-subtle);
+}
+
+/* ── Checklist Estilizado V10 (.why) ── */
+.why {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 28px;
+  margin-top: 24px;
+}
+
+@media (max-width: 760px) {
+  .why {
+    grid-template-columns: 1fr;
+  }
+}
+
+.why .row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.why .row .ck {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.why .row div b {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+}
+
+.why .row div span {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* ── Pílulas de Recursos (.pill / .pillrow) ── */
+.pillrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.pill {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.pill:hover {
+  background: rgba(231, 76, 60, 0.22);
+}
+
+/* ── Tabela Comparativa (.tablewrap) ── */
+.tablewrap {
+  margin-top: 20px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-primary);
+}
+
+.tablewrap table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 680px;
+  font-size: 13.5px;
+}
+
+.tablewrap thead th {
+  text-align: left;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border);
+}
+
+.tablewrap thead th.v10 {
+  color: var(--red);
+}
+
+.tablewrap tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.tablewrap tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tablewrap tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.tablewrap td.rec {
+  font-weight: 700;
+}
+
+.tablewrap td.old {
+  color: var(--text-secondary);
+}
+
+.tablewrap td.new {
+  font-weight: 700;
+}
+
+.tablewrap td.new::before {
+  content: "✓ ";
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.tablewrap td.ben {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.tablenote {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 10px;
 }
 
 .app-container {

@@ -7,8 +7,6 @@ import {
   ArrowRight,
   Plus,
   BookOpen,
-  Monitor,
-  Rocket,
   Activity,
   PieChart as PieIcon,
   TrendingUp,
@@ -582,23 +580,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="dashboard-container">
       {/* Banner Superior com Boas-Vindas e Ação */}
+      {/* Banner Superior com Boas-Vindas e Ação no Padrão V10 */}
       <div className="dashboard-banner">
         <div className="dashboard-banner-content">
-          <div className="dashboard-version-tag">
-            {activeVersion === 'v10' ? (
-              <>
-                <Rocket size={14} color="#10b981" />
-                <span>Ambiente Digifarma V10 Web</span>
-              </>
-            ) : (
-              <>
-                <Monitor size={14} color="var(--primary-500)" />
-                <span>Ambiente Digifarma Clássico Desktop</span>
-              </>
-            )}
-          </div>
-          <h1 className="dashboard-title">Painel Executivo de Procedimentos</h1>
-          <p className="dashboard-subtitle">
+          <p className="eyebrow" style={{ marginBottom: '8px' }}>
+            <span className="num">{activeVersion === 'v10' ? 'V10 CLOUD' : 'DESKTOP'}</span>
+            <span>PAINEL EXECUTIVO & INDICADORES</span>
+          </p>
+          <h1 className="dashboard-title head" style={{ margin: '0 0 6px 0' }}>
+            Painel Executivo de Procedimentos
+          </h1>
+          <p className="dashboard-subtitle lead" style={{ margin: '0 0 12px 0', fontSize: '14.5px' }}>
             Métricas de cobertura, evolução cronológica, distribuição por rotina e conformidade operacional dos manuais do ERP.
           </p>
         </div>

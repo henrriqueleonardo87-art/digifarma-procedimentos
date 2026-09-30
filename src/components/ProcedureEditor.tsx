@@ -154,6 +154,86 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     setBlocks(updated);
   };
 
+  // Carregar Modelos Prontos no Padrão Digifarma V10
+  const loadTemplate = (templateKey: 'f7' | 'cliente360' | 'caixaCego' | 'recebimento' | 'controlados') => {
+    if (blocks.length > 2) {
+      const confirmReplace = window.confirm(
+        'Deseja carregar este modelo pronto? O conteúdo atual dos passos será substituído pela estrutura do modelo.'
+      );
+      if (!confirmReplace) return;
+    }
+
+    if (templateKey === 'f7') {
+      setTitle('Consulta F7 Inteligente, Pesquisa por Sintoma (IA) e Bula Completa');
+      setSubtitle('Procedimento de atendimento no balcão usando o F7 inteligente: pesquisa por necessidade com IA (Ctrl+Enter), equivalente genérico com máxima economia e conferência de bula');
+      setSystemPath('Digifarma V10 ➔ Balcão / PDV ➔ Tabela de Preços (F7) ➔ Pesquisa IA (Ctrl+Enter)');
+      setSystemVersion('v10');
+      setAuthor('Farmacêutico RT / Coordenação de Atendimento');
+      setTagsInput('V10, F7, Tabela de Preços, Inteligência Artificial, Genéricos, Bula');
+      setBlocks([
+        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Abertura da Tabela de Preços F7 no Balcão', level: 2 },
+        { id: `t-${Date.now()}-2`, type: 'text', content: 'No balcão ou caixa, pressione F7. O sistema exibe simultaneamente a foto do medicamento, valor da última compra, PMC e a coluna tabloide de ofertas.' },
+        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'info', title: 'Pesquisa por Sintoma com IA (Ctrl + Enter)', content: 'Quando o cliente não souber o nome do medicamento, tecle Ctrl + Enter e descreva o sintoma. A IA sugere as substâncias e medicamentos ideais.' },
+        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Tabela F7 com foto do produto e equivalentes genéricos de máxima economia' },
+        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Apresentação do Genérico com Máxima Economia', level: 2 },
+        { id: `t-${Date.now()}-6`, type: 'text', content: 'Verifique a indicação de porcentagem de economia (ex: "Até 65% de economia") e apresente a alternativa mais econômica para o cliente.' },
+        { id: `c-${Date.now()}-7`, type: 'callout', calloutType: 'success', title: 'Bula Completa Integrada (Ctrl + B)', content: 'Pressione Ctrl + B para exibir na hora a posologia, modo de usar e contraindicações sem sair do balcão.' },
+        { id: `s-${Date.now()}-8`, type: 'step', content: 'Validar com o cliente a dosagem e apresentação recomendada (gotas, comprimidos ou xarope).' },
+        { id: `s-${Date.now()}-9`, type: 'step', content: 'Pressionar Enter para carregar o produto selecionado diretamente na pré-venda do caixa.' },
+      ]);
+    } else if (templateKey === 'cliente360') {
+      setTitle('Painel 360º do Cliente, Histórico de Compras e Programa de Fidelidade');
+      setSubtitle('Como utilizar a visão unificada 360º do cliente: consulta de pontos, saldo de cashback, ticket médio e perfil por estrelas');
+      setSystemPath('Digifarma V10 ➔ Cadastros ➔ Clientes ➔ Painel 360º (Ctrl + Espaço)');
+      setSystemVersion('v10');
+      setAuthor('Gestão de Relacionamento & Fidelidade');
+      setTagsInput('V10, Clientes, Fidelidade, Cashback, CRM, 360º');
+      setBlocks([
+        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Localização Instantânea via Busca Global (Ctrl + Espaço)', level: 2 },
+        { id: `t-${Date.now()}-2`, type: 'text', content: 'Pressione o atalho global Ctrl + Espaço em qualquer tela do Digifarma V10 e digite o nome, CPF ou celular do cliente para abrir o Painel 360º.' },
+        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'success', title: 'Fidelidade Ativa no Balcão', content: 'O saldo acumulado de pontos e o cashback em reais aparecem logo abaixo da foto do cliente, permitindo resgate imediato de prêmios ou desconto.' },
+        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1556742049-0a67e5574f73?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Visão 360º com histórico de compras, frequência e estrelas do cliente' },
+        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Histórico de Compras e Alerta de Clientes em Risco', level: 2 },
+        { id: `t-${Date.now()}-6`, type: 'text', content: 'Analise a frequência de compras e os produtos habituais do cliente. Clientes 4 ou 5 estrelas devem receber tratamento preferencial.' },
+        { id: `s-${Date.now()}-7`, type: 'step', content: 'Conferir se o cliente possui compras a prazo em aberto ou convênio empresarial ativo.' },
+        { id: `s-${Date.now()}-8`, type: 'step', content: 'Oferecer o resgate do cashback acumulado para abater no pagamento da compra.' },
+      ]);
+    } else if (templateKey === 'caixaCego') {
+      setTitle('Fechamento de Caixa Cego e Alçadas de Segurança do Gestor');
+      setSubtitle('Procedimento de segurança para conferência cega do operador de caixa e ocultação de custos e estoques no balcão');
+      setSystemPath('Digifarma V10 ➔ Caixa & Financeiro ➔ Fechamento Cego de Turno');
+      setSystemVersion('v10');
+      setAuthor('Gestão Financeira & Prevenção de Perdas');
+      setTagsInput('V10, Caixa Cego, Segurança, Auditoria, Prevenção de Perdas');
+      setBlocks([
+        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Execução do Fechamento Cego pelo Operador', level: 2 },
+        { id: `t-${Date.now()}-2`, type: 'text', content: 'Ao encerrar o turno, o operador realiza a contagem física das cédulas, moedas, cartões e PIX. Digita no sistema apenas os valores apurados, sem ver o saldo esperado pelo sistema.' },
+        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'warning', title: 'Conferência Honesta e Prevenção de Fraudes', content: 'O fechamento cego impede que o operador ajuste valores ou oculte sobras/faltas de caixa durante o encerramento do turno.' },
+        { id: `h-${Date.now()}-4`, type: 'heading', content: '2. Conferência e Aprovação Exclusiva do Gestor', level: 2 },
+        { id: `t-${Date.now()}-5`, type: 'text', content: 'O gestor acessa o Painel de Caixas com sua senha master, visualiza a conciliação completa entre o saldo do sistema e a contagem física do operador, e valida as divergências.' },
+        { id: `s-${Date.now()}-6`, type: 'step', content: 'Verificar se todas as sangrias e suprimentos do dia foram homologados com comprovante assinado.' },
+        { id: `s-${Date.now()}-7`, type: 'step', content: 'Emitir o Termo de Encerramento do Caixa e arquivar junto ao envelope numerado do malote.' },
+      ]);
+    } else if (templateKey === 'recebimento') {
+      setTitle('Entrada de Nota Fiscal por Importação de XML e Conferência de Lotes');
+      setSubtitle('Importação do arquivo XML da distribuidora, amarração de produtos, conferência cega de validade e armazenamento PVPS');
+      setSystemPath('Digifarma ➔ Estoque ➔ Entrada de Notas ➔ Importar XML');
+      setSystemVersion('ambos');
+      setAuthor('Equipe de Logística & Estoque');
+      setTagsInput('Estoque, Conferência, Boas Práticas, XML, PVPS');
+      setBlocks([
+        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Recepção da Carga e Importação do XML', level: 2 },
+        { id: `t-${Date.now()}-2`, type: 'text', content: 'Importe o arquivo XML ou informe a chave de acesso de 44 dígitos da DANFE para carregar os produtos, quantidades e preços de custo.' },
+        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'warning', title: 'Conferência Cega Obrigatória', content: 'Abra as caixas físicas na área de triagem limpa. Valide número de lote e validade (mínimo de 12 meses exigido).' },
+        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Triagem de volumes físicos e conferência dos lotes das caixas recebidas' },
+        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Armazenamento e Norma PVPS', level: 2 },
+        { id: `t-${Date.now()}-6`, type: 'text', content: 'Guarde os produtos nas prateleiras organizados pelo método PVPS (Primeiro que Vence, Primeiro que Sai).' },
+        { id: `s-${Date.now()}-7`, type: 'step', content: 'Checar se as margens de lucro foram recalculadas com base no novo custo da nota.' },
+        { id: `s-${Date.now()}-8`, type: 'step', content: 'Finalizar a conciliação do estoque e alimentar o contas a pagar.' },
+      ]);
+    }
+  };
+
   // Upload de Imagem
   const handleImageFileChange = async (blockId: string, file: File) => {
     try {
@@ -397,6 +477,51 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               onChange={(e) => setTagsInput(e.target.value)}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Modelos Prontos V10 */}
+      <div className="card-v10" style={{ marginBottom: '1.5rem', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+        <p className="eyebrow" style={{ marginBottom: '8px' }}>
+          <span className="num">MODELOS V10</span>
+          <span>ESTRUTURAS PRONTAS NO PADRÃO OFICIAL DIGIFARMA</span>
+        </p>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
+          Carregue com 1 clique a estrutura completa com subtítulos, fotos, bulas e alertas operacionais:
+        </p>
+        <div className="pillrow" style={{ marginTop: '10px' }}>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => loadTemplate('f7')}
+            title="Carregar roteiro de F7 com IA e Bula"
+          >
+            <span>💊 F7 Tabela de Preços (IA + Bula)</span>
+          </button>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => loadTemplate('cliente360')}
+            title="Carregar roteiro do Painel 360º do Cliente"
+          >
+            <span>⭐ Painel 360º (Fidelidade + Cashback)</span>
+          </button>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => loadTemplate('caixaCego')}
+            title="Carregar roteiro de Fechamento Cego de Caixa"
+          >
+            <span>🔒 Caixa Cego & Controle do Gestor</span>
+          </button>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => loadTemplate('recebimento')}
+            title="Carregar roteiro de Entrada de Nota e Lotes PVPS"
+          >
+            <span>📦 Recebimento & Conferência DANFE</span>
+          </button>
         </div>
       </div>
 
