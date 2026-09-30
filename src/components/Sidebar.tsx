@@ -1,33 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import {
-  Search,
-  ChevronDown,
-  ChevronRight,
-  FolderPlus,
-  Package,
-  Boxes,
-  Users,
-  Truck,
-  Wrench,
-  Settings,
-  ShieldCheck,
-  CreditCard,
-  Database,
-  Sliders,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  FileText,
-  FileSpreadsheet,
-  X,
-  Monitor,
-  Rocket,
-  BarChart3,
-  CheckCircle2,
-  Lock,
-  Star,
-  Pill,
-} from 'lucide-react';
+import React from 'react';
+import { Plus } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
 interface SidebarProps {
@@ -35,404 +7,210 @@ interface SidebarProps {
   procedures: Procedure[];
   activeVersion: SystemVersion;
   activeId: string | null;
-  isDashboardActive: boolean;
-  onOpenDashboard: () => void;
+  currentView: string;
+  onChangeView: (view: string) => void;
   onSelectProcedure: (id: string) => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-  onOpenSettings: () => void;
   onNewProcedure: () => void;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
+}
+
+function navIcon(name: string) {
+  const paths: Record<string, string> = {
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+    chart: '<path d="M4 19V9M10 19V5M16 19v-8M22 19V3"/>',
+    spark: '<path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/>',
+    tools: '<path d="M14.7 6.3a4 4 0 0 0-5.1 5.1L4 17a2.1 2.1 0 0 0 3 3l5.6-5.6a4 4 0 0 0 5.1-5.1l-2.3 2.3-2.8-2.8z"/>',
+    report: '<path d="M5 20V10M12 20V4M19 20v-7"/><path d="M3 20h18"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-2.6V20a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H6v-2.6h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V5h2.6v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v2.6h-.2a1.7 1.7 0 0 0-1.6 1z"/>',
+    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15zM6 6h10M6 10h10"/>',
+  };
+  return (
+    <svg
+      className="nav-svg"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      dangerouslySetInnerHTML={{ __html: paths[name] || paths.grid }}
+    />
+  );
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  menus,
   procedures,
-  activeVersion,
   activeId,
-  isDashboardActive,
-  onOpenDashboard,
+  currentView,
+  onChangeView,
   onSelectProcedure,
-  searchQuery,
-  onSearchChange,
-  isCollapsed,
-  onToggleCollapse,
-  onOpenSettings,
   onNewProcedure,
+  darkMode,
+  onToggleDarkMode,
 }) => {
-  // Módulos abertos
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    cadastros: true,
-    estoque: true,
-    utilitarios: true,
-  });
-
-  const toggleMenuExpand = (menuId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setExpandedMenus((prev) => ({
-      ...prev,
-      [menuId]: !prev[menuId],
-    }));
-  };
-
-  // Mapeamento de ícones limpos
-  const getIcon = (iconName?: string, size = 15) => {
-    switch (iconName) {
-      case 'FolderPlus':
-        return <FolderPlus size={size} />;
-      case 'Boxes':
-        return <Boxes size={size} />;
-      case 'Wrench':
-        return <Wrench size={size} />;
-      case 'Package':
-        return <Package size={size} />;
-      case 'Users':
-        return <Users size={size} />;
-      case 'Truck':
-        return <Truck size={size} />;
-      case 'ShieldCheck':
-        return <ShieldCheck size={size} />;
-      case 'Settings':
-        return <Settings size={size} />;
-      case 'CreditCard':
-        return <CreditCard size={size} />;
-      case 'Database':
-        return <Database size={size} />;
-      case 'Sliders':
-        return <Sliders size={size} />;
-      case 'FileSpreadsheet':
-        return <FileSpreadsheet size={size} />;
-      default:
-        return <FileText size={size} />;
-    }
-  };
-
-  // Menus filtrados pela versão ativa
-  const versionMenus = useMemo(() => {
-    return menus.filter(
-      (m) => m.version === activeVersion || m.version === 'ambos' || !m.version
-    );
-  }, [menus, activeVersion]);
-
-  // Procedimentos filtrados pela versão ativa
-  const versionProcedures = useMemo(() => {
-    return procedures.filter(
-      (p) =>
-        p.systemVersion === activeVersion ||
-        p.systemVersion === 'ambos' ||
-        !p.systemVersion
-    );
-  }, [procedures, activeVersion]);
-
-  // Busca textual em tempo real
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const q = searchQuery.toLowerCase();
-
-    return versionProcedures.filter((p) => {
-      const inTitle = p.title.toLowerCase().includes(q);
-      const inSub = p.subtitle?.toLowerCase().includes(q);
-      const inPath = p.systemPath?.toLowerCase().includes(q);
-      const inCategory = p.category?.toLowerCase().includes(q);
-      return inTitle || inSub || inPath || inCategory;
-    });
-  }, [versionProcedures, searchQuery]);
-
-  // Encontra o procedimento associado a um item do menu
-  const findProcedureForMenuItem = (menuId: string, itemSubId: string) => {
-    return versionProcedures.find(
-      (p) =>
-        (p.menuId === menuId || p.category?.toLowerCase() === menuId.toLowerCase()) &&
-        (p.submenuId === itemSubId || p.id.toLowerCase().includes(itemSubId.toLowerCase()))
-    );
-  };
-
-  // ==============================================================
-  // MODO COLAPSADO (MINI-RAIL / ÍCONES NO CANTO)
-  // ==============================================================
-  if (isCollapsed) {
-    return (
-      <aside className="app-sidebar collapsed no-print">
-        <div className="sidebar-collapse-bar">
-          <button
-            className="btn-icon-minimal"
-            onClick={onToggleCollapse}
-            title="Expandir menu lateral"
-          >
-            <PanelLeftOpen size={18} color="var(--primary-500)" />
-          </button>
-        </div>
-
-        <div className="mini-rail-items">
-          <button
-            className={`mini-rail-btn ${isDashboardActive ? 'active' : ''}`}
-            onClick={onOpenDashboard}
-            title="Painel e Métricas"
-          >
-            <BarChart3 size={18} />
-          </button>
-
-          <div style={{ width: '24px', height: '1px', background: 'var(--border)', margin: '4px 0' }} />
-
-          {versionMenus.map((menu) => (
-            <button
-              key={menu.id}
-              className="mini-rail-btn"
-              onClick={() => {
-                onToggleCollapse();
-                toggleMenuExpand(menu.id);
-              }}
-              title={menu.label}
-            >
-              {getIcon(menu.icon, 18)}
-            </button>
-          ))}
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="app-sidebar no-print">
-      {/* Header do Menu com Logo e Versão */}
-      <div className="sidebar-header-minimal">
-        <div className="sidebar-version-badge">
-          {activeVersion === 'v10' ? (
-            <>
-              <Rocket size={13} color="#10b981" />
-              <span>Digifarma V10</span>
-            </>
-          ) : (
-            <>
-              <Monitor size={13} color="var(--primary-500)" />
-              <span>Digifarma Clássico</span>
-            </>
-          )}
+    <aside className="sidebar no-print" id="sidebar">
+      {/* Brand Header estilo LH Group */}
+      <div
+        className="brand"
+        onClick={() => onChangeView('dashboard')}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="brand-logo-icon">
+          <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
         </div>
-
-        <button
-          className="btn-icon-minimal"
-          onClick={onToggleCollapse}
-          title="Recolher menu lateral"
-        >
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
-
-      {/* Busca Global Instantânea (Ctrl + Espaço) */}
-      <div className="sidebar-search-container">
-        <div className="search-input-wrapper">
-          <Search size={14} className="search-icon" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Buscar procedimento... (Ctrl+Espaço)"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              className="btn-clear-search"
-              onClick={() => onSearchChange('')}
-              title="Limpar busca"
-            >
-              <X size={12} />
-            </button>
-          )}
+        <div>
+          <div className="name">Digifarma</div>
+          <div className="sub brand-product">Procedimentos & POPs</div>
         </div>
       </div>
 
-      {/* Árvore de Procedimentos e Atalhos */}
-      <div className="sidebar-tree-scroll">
-        {/* Navegação Principal em Cards Estilo LH Group */}
-        <div className="sidebar-nav-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-          <button
-            type="button"
-            className={`nav-item-lh ${isDashboardActive ? 'active' : ''}`}
-            onClick={onOpenDashboard}
-          >
-            <span className="ic">
-              <BarChart3 size={15} />
-            </span>
-            <span className="label">Painel Executivo</span>
-            <span className="sidebar-count-tag">{versionProcedures.length}</span>
-          </button>
-
-          {/* Atalho Rápido para Procedimentos Destaques */}
-          {versionProcedures.some((p) => p.id === 'proc-v10-tabela-f7-ia') && (
-            <button
-              type="button"
-              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-tabela-f7-ia' ? 'active' : ''}`}
-              onClick={() => onSelectProcedure('proc-v10-tabela-f7-ia')}
-            >
-              <span className="ic" style={{ color: 'var(--red)' }}>
-                <Pill size={15} />
-              </span>
-              <span className="label">F7 Tabela com IA</span>
-              <span className="sidebar-mini-badge v10">V10</span>
-            </button>
-          )}
-
-          {versionProcedures.some((p) => p.id === 'proc-v10-painel-360-cliente') && (
-            <button
-              type="button"
-              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-painel-360-cliente' ? 'active' : ''}`}
-              onClick={() => onSelectProcedure('proc-v10-painel-360-cliente')}
-            >
-              <span className="ic" style={{ color: '#f59e0b' }}>
-                <Star size={15} />
-              </span>
-              <span className="label">Painel 360º Cliente</span>
-              <span className="sidebar-mini-badge v10">CRM</span>
-            </button>
-          )}
-
-          {versionProcedures.some((p) => p.id === 'proc-v10-caixa-cego-gestor') && (
-            <button
-              type="button"
-              className={`nav-item-lh ${!isDashboardActive && activeId === 'proc-v10-caixa-cego-gestor' ? 'active' : ''}`}
-              onClick={() => onSelectProcedure('proc-v10-caixa-cego-gestor')}
-            >
-              <span className="ic" style={{ color: '#10b981' }}>
-                <Lock size={15} />
-              </span>
-              <span className="label">Caixa Cego Gestor</span>
-              <span className="sidebar-mini-badge">Segurança</span>
-            </button>
-          )}
-        </div>
-
-        <div style={{ height: '1px', background: 'var(--border)', margin: '6px 4px 8px' }} />
-
-        {searchResults !== null ? (
-          /* RESULTADOS DA BUSCA */
-          <div className="search-results-list">
-            <div className="sidebar-section-title">
-              Resultados da Busca ({searchResults.length})
-            </div>
-            {searchResults.length === 0 ? (
-              <div className="search-empty-state">
-                <span>Nenhum procedimento encontrado para "{searchQuery}".</span>
-              </div>
-            ) : (
-              searchResults.map((proc) => {
-                const isActive = !isDashboardActive && proc.id === activeId;
-                return (
-                  <button
-                    key={proc.id}
-                    className={`tree-leaf-item ${isActive ? 'active' : ''}`}
-                    onClick={() => onSelectProcedure(proc.id)}
-                  >
-                    <FileText size={13} className="tree-leaf-icon" />
-                    <div className="tree-leaf-text">
-                      <span className="tree-leaf-title">{proc.title}</span>
-                      {proc.systemPath && (
-                        <span className="tree-leaf-path">{proc.systemPath}</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        ) : (
-          /* NAVEGAÇÃO DIRETA: MÓDULOS ➔ ITENS / PROCEDIMENTOS */
-          <div className="modules-accordion-tree">
-            <div className="sidebar-section-title">
-              Módulos e Procedimentos
-            </div>
-
-            {versionMenus.map((menu) => {
-              const isExpanded = !!expandedMenus[menu.id];
-
-              return (
-                <div key={menu.id} className="module-group">
-                  {/* Cabeçalho do Módulo */}
-                  <div
-                    className="module-header-row"
-                    onClick={() => toggleMenuExpand(menu.id)}
-                  >
-                    <div className="module-header-left">
-                      <span className="module-icon">{getIcon(menu.icon, 15)}</span>
-                      <span className="module-title">{menu.label}</span>
-                    </div>
-
-                    <div className="module-header-right">
-                      <span className="module-chevron">
-                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Itens do Módulo */}
-                  {isExpanded && (
-                    <div className="module-children">
-                      {menu.submenus.map((item) => {
-                        const matchingProc = findProcedureForMenuItem(menu.id, item.id);
-                        const isItemActive = !isDashboardActive && matchingProc && matchingProc.id === activeId;
-
-                        return (
-                          <button
-                            key={item.id}
-                            className={`procedure-direct-btn ${isItemActive ? 'active' : ''}`}
-                            onClick={() => {
-                              if (matchingProc) {
-                                onSelectProcedure(matchingProc.id);
-                              } else {
-                                onNewProcedure();
-                              }
-                            }}
-                            title={matchingProc?.title || `Abrir manual de ${item.label}`}
-                          >
-                            <span className="procedure-direct-icon">
-                              {matchingProc ? (
-                                <FileText size={13} />
-                              ) : (
-                                <span className="item-empty-dot" />
-                              )}
-                            </span>
-                            <span className="procedure-direct-title">{item.label}</span>
-                            {matchingProc && (
-                              <CheckCircle2 size={12} className="procedure-ready-check" />
-                            )}
-                          </button>
-                        );
-                      })}
-
-                      {menu.submenus.length === 0 && (
-                        <div className="module-empty-hint">
-                          <span>Nenhum procedimento cadastrado.</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Rodapé Minimalista do Sidebar */}
-      <div className="sidebar-footer-minimal">
+      {/* Lista de Navegação Principal */}
+      <div className="nav-items-scroll">
         <button
           type="button"
-          className="btn-new-proc-minimal"
+          className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+          onClick={() => onChangeView('dashboard')}
+        >
+          <span className="ic">{navIcon('grid')}</span>
+          <span>Tela inicial</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'procedimentos' ? 'active' : ''}`}
+          onClick={() => onChangeView('procedimentos')}
+        >
+          <span className="ic">{navIcon('list')}</span>
+          <span>Procedimentos (POPs)</span>
+          <span className="sidebar-count-tag">{procedures.length}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'v10' ? 'active' : ''}`}
+          onClick={() => onChangeView('v10')}
+        >
+          <span className="ic">{navIcon('rocket')}</span>
+          <span>Digifarma V10 Cloud</span>
+          <span className="sidebar-mini-badge v10">V10</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'classico' ? 'active' : ''}`}
+          onClick={() => onChangeView('classico')}
+        >
+          <span className="ic">{navIcon('tools')}</span>
+          <span>Digifarma Clássico</span>
+          <span className="sidebar-mini-badge">Desktop</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'ia' ? 'active' : ''}`}
+          onClick={() => onChangeView('ia')}
+        >
+          <span className="ic">{navIcon('spark')}</span>
+          <span>Consultor Leo • IA</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'agenda' ? 'active' : ''}`}
+          onClick={() => onChangeView('agenda')}
+        >
+          <span className="ic">{navIcon('calendar')}</span>
+          <span>Agenda & Rotinas</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'relatorios' ? 'active' : ''}`}
+          onClick={() => onChangeView('relatorios')}
+        >
+          <span className="ic">{navIcon('report')}</span>
+          <span>Relatórios & Qualidade</span>
+        </button>
+
+        {/* Divisão: Roteiros Homologados */}
+        <div className="sidebar-section-divider">
+          <span>POP em Destaque</span>
+        </div>
+
+        {procedures.slice(0, 4).map((proc) => {
+          const isSelected = activeId === proc.id && currentView === 'procedure-detail';
+          return (
+            <button
+              type="button"
+              key={proc.id}
+              className={`nav-item featured-proc-item ${isSelected ? 'active' : ''}`}
+              onClick={() => onSelectProcedure(proc.id)}
+            >
+              <span className="ic">{navIcon('book')}</span>
+              <span className="featured-proc-label" title={proc.title}>
+                {proc.title}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Rodapé do Menu Lateral */}
+      <div className="sidebar-foot">
+        <button
+          type="button"
+          className="btn-new-pop-sidebar"
           onClick={onNewProcedure}
         >
           <Plus size={14} />
-          <span>Novo Manual</span>
+          <span>Novo Procedimento</span>
         </button>
+
+        <div className="theme-toggle">
+          <button
+            type="button"
+            data-theme="light"
+            className={!darkMode ? 'active' : ''}
+            onClick={() => {
+              if (darkMode) onToggleDarkMode();
+            }}
+          >
+            ☀ Claro
+          </button>
+          <button
+            type="button"
+            data-theme="dark"
+            className={darkMode ? 'active' : ''}
+            onClick={() => {
+              if (!darkMode) onToggleDarkMode();
+            }}
+          >
+            ☾ Escuro
+          </button>
+        </div>
 
         <button
           type="button"
-          className="btn-settings-minimal"
-          onClick={onOpenSettings}
-          title="Configurações de menus e módulos"
+          className={`nav-item sidebar-config-item ${currentView === 'config' ? 'active' : ''}`}
+          onClick={() => onChangeView('config')}
         >
-          <Settings size={15} />
+          <span className="ic">{navIcon('settings')}</span>
+          <span>Configurações</span>
         </button>
+
+        <div className="sidebar-user">
+          <div className="sidebar-avatar">LT</div>
+          <div className="sidebar-user-info">
+            <strong>Leonardo Trevas</strong>
+            <span>Farmacêutico RT</span>
+          </div>
+        </div>
       </div>
     </aside>
   );

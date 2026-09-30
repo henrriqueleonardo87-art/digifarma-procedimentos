@@ -32,12 +32,18 @@ export interface CalloutBlock extends BaseBlock {
   calloutType: CalloutVariant;
   content: string;
   title?: string;
+  text?: string;
 }
 
 export interface StepBlock extends BaseBlock {
   type: 'step';
   stepNumber?: number;
   content: string;
+  title?: string;
+  instruction?: string;
+  expectedResult?: string;
+  tips?: string;
+  warnings?: string;
   completed?: boolean;
 }
 

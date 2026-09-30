@@ -88,23 +88,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Marca / Logo no Estilo V10 */}
-          <div
-            className="navbar-brand-minimal"
-            onClick={onReturnToVersionSelect}
-            title="Voltar para a seleção de versão"
-          >
-            <div className="logo" style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="brand-logo-text" style={{ fontSize: '1.05rem', fontWeight: 600 }}>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>DIGI</span>
-                <span className="brand-accent" style={{ color: 'var(--red)', fontWeight: 800 }}>FARMA</span>
-              </span>
-              <span className="brand-sub-badge" style={{ textTransform: 'uppercase' }}>
-                {activeVersion === 'v10' ? 'V10' : 'POP'}
-              </span>
-            </div>
-          </div>
-
           {/* Saudação e Contexto da Farmácia */}
           <div className="global-brand-desc">
             <div className="global-greeting">

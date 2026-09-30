@@ -6,11 +6,14 @@ import { ProcedureEditor } from './components/ProcedureEditor';
 import { SupabaseModal } from './components/SupabaseModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { ImageLightbox } from './components/ImageLightbox';
-import { VersionSelectScreen } from './components/VersionSelectScreen';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
+import { ProcedimentosListView } from './components/ProcedimentosListView';
+import { AgendaView } from './components/AgendaView';
+import { RelatoriosView } from './components/RelatoriosView';
+import { IaConsultorView } from './components/IaConsultorView';
 import { AiChatWidget } from './components/AiChatWidget';
-import type { Procedure, StepBlock, SystemMenu, SystemVersion } from './types/procedure';
+import type { Procedure, SystemMenu, SystemVersion } from './types/procedure';
 import {
   fetchAllProcedures,
   saveProcedure,
@@ -33,23 +36,15 @@ export function App() {
 
   // Versão Ativa do Sistema (Digifarma Clássico vs V10)
   const [activeVersion, setActiveVersion] = useState<SystemVersion | null>(() => {
-    return getSavedSystemVersion();
+    return getSavedSystemVersion() || 'v10';
   });
 
-  // Visualização do Dashboard Principal com Métricas
-  const [isDashboard, setIsDashboard] = useState<boolean>(true);
-
-  // Tela de Configurações Aberta
-  const [isConfiguring, setIsConfiguring] = useState(false);
+  // Visão Ativa do Sistema (Padrão LH Group)
+  const [currentView, setCurrentView] = useState<string>('dashboard');
 
   // Tema Escuro / Claro
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('digifarma_theme') === 'dark';
-  });
-
-  // Estado do Sidebar Colapsado (Mini Rail com Ícones)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('digifarma_sidebar_collapsed') === 'true';
   });
 
   // Supabase State
@@ -75,10 +70,7 @@ export function App() {
     url: '',
   });
 
-  // Filtros
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Inicialização
+  // Inicialização dos Dados
   const loadData = async () => {
     try {
       const [procsData, menusData] = await Promise.all([
@@ -87,10 +79,6 @@ export function App() {
       ]);
       setProcedures(procsData);
       setMenus(menusData);
-
-      if (procsData.length > 0 && !activeId) {
-        setActiveId(procsData[0].id);
-      }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -123,24 +111,9 @@ export function App() {
   const handleSelectVersion = (version: SystemVersion) => {
     setActiveVersion(version);
     saveSystemVersion(version);
-    setIsDashboard(true);
+    setCurrentView('dashboard');
     setActiveId(null);
     setIsEditing(false);
-    setIsConfiguring(false);
-  };
-
-  const handleOpenDashboard = () => {
-    setIsDashboard(true);
-    setActiveId(null);
-    setIsEditing(false);
-    setIsConfiguring(false);
-  };
-
-  // Efeito de Collapse do Sidebar
-  const handleToggleSidebarCollapse = () => {
-    const next = !isSidebarCollapsed;
-    setIsSidebarCollapsed(next);
-    localStorage.setItem('digifarma_sidebar_collapsed', String(next));
   };
 
   const activeProcedure = procedures.find((p) => p.id === activeId) || null;
@@ -148,23 +121,27 @@ export function App() {
   // Ações de Navegação
   const handleSelectProcedure = (id: string) => {
     setActiveId(id);
-    setIsDashboard(false);
+    setCurrentView('procedure-detail');
     setIsEditing(false);
     setEditingProcedure(null);
-    setIsConfiguring(false);
+  };
+
+  const handleBackFromProcedure = () => {
+    setActiveId(null);
+    setCurrentView('dashboard');
   };
 
   const handleNewProcedure = () => {
     setEditingProcedure(null);
     setIsEditing(true);
-    setIsConfiguring(false);
+    setCurrentView('editor');
   };
 
   const handleEditProcedure = () => {
     if (activeProcedure) {
       setEditingProcedure(activeProcedure);
       setIsEditing(true);
-      setIsConfiguring(false);
+      setCurrentView('editor');
     }
   };
 
@@ -179,9 +156,11 @@ export function App() {
       }
       return [saved, ...prev];
     });
+
     setActiveId(saved.id);
     setIsEditing(false);
     setEditingProcedure(null);
+    setCurrentView('procedure-detail');
   };
 
   const handleDeleteClick = () => {
@@ -197,175 +176,84 @@ export function App() {
     if (deleteModalState.procedure) {
       const idToDelete = deleteModalState.procedure.id;
       await deleteProcedure(idToDelete);
-      const remaining = procedures.filter((p) => p.id !== idToDelete);
-      setProcedures(remaining);
-      setActiveId(remaining.length > 0 ? remaining[0].id : null);
+      setProcedures((prev) => prev.filter((p) => p.id !== idToDelete));
       setDeleteModalState({ isOpen: false, procedure: null });
-      setIsEditing(false);
+      setActiveId(null);
+      setCurrentView('procedimentos');
     }
+  };
+
+  const handleSaveMenus = async (updatedMenus: SystemMenu[]) => {
+    await saveSystemMenus(updatedMenus);
+    setMenus(updatedMenus);
+  };
+
+  const handleSaveProceduresList = async (updatedProcedures: Procedure[]) => {
+    setProcedures(updatedProcedures);
   };
 
   const handleStepCompletionToggle = async (blockId: string, completed: boolean) => {
     if (!activeProcedure) return;
 
-    const updatedBlocks = activeProcedure.blocks.map((block) => {
-      if (block.id === blockId && block.type === 'step') {
-        return { ...(block as StepBlock), completed };
+    const updatedBlocks = activeProcedure.blocks.map((b) => {
+      if (b.id === blockId && b.type === 'step') {
+        return { ...b, completed };
       }
-      return block;
+      return b;
     });
 
-    const updatedProc: Procedure = {
-      ...activeProcedure,
-      blocks: updatedBlocks,
-    };
-
-    setProcedures((prev) =>
-      prev.map((p) => (p.id === updatedProc.id ? updatedProc : p))
-    );
-    await saveProcedure(updatedProc);
+    const updatedProc = { ...activeProcedure, blocks: updatedBlocks };
+    await handleSaveProcedure(updatedProc);
   };
 
-  const handleSaveMenus = async (newMenus: SystemMenu[]) => {
-    setMenus(newMenus);
-    await saveSystemMenus(newMenus);
-  };
+  return (
+    <div className="app">
+      {/* ── SIDEBAR FIXO À ESQUERDA (PADRÃO LH GROUP) ── */}
+      <Sidebar
+        menus={menus}
+        procedures={procedures}
+        activeVersion={activeVersion || 'v10'}
+        activeId={activeId}
+        currentView={currentView}
+        onChangeView={(view) => {
+          if (view === 'v10') {
+            setActiveVersion('v10');
+            saveSystemVersion('v10');
+            setCurrentView('procedimentos');
+          } else if (view === 'classico') {
+            setActiveVersion('classico');
+            saveSystemVersion('classico');
+            setCurrentView('procedimentos');
+          } else {
+            setCurrentView(view);
+          }
+          setActiveId(null);
+          setIsEditing(false);
+        }}
+        onSelectProcedure={handleSelectProcedure}
+        onNewProcedure={handleNewProcedure}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+      />
 
-  const handleSaveProceduresList = async (newList: Procedure[]) => {
-    setProcedures(newList);
-    localStorage.setItem('digifarma_local_procedures', JSON.stringify(newList));
-  };
-
-  // ==============================================================
-  // RENDERIZAÇÃO: SE NENHUMA VERSÃO ESTIVER SELECIONADA
-  // EXIBE OS 2 CARDS INICIAIS (Digifarma Clássico vs V10)
-  // ==============================================================
-  if (!activeVersion) {
-    if (isConfiguring) {
-      return (
-        <div className="app-container">
-          <Navbar
-            darkMode={darkMode}
-            onToggleDarkMode={() => setDarkMode(!darkMode)}
-            isSupabaseConnected={isSupabaseConnected}
-            onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-            onOpenSettings={() => setIsConfiguring(true)}
-            onNewProcedure={handleNewProcedure}
-            activeVersion={null}
-            onChangeVersion={handleSelectVersion}
-            onReturnToVersionSelect={() => setActiveVersion(null)}
-          />
-          <main className="content-area expanded-view" style={{ padding: '1.5rem', overflowY: 'auto' }}>
-            <SettingsView
-              menus={menus}
-              procedures={procedures}
-              activeVersion={null}
-              onSaveMenus={handleSaveMenus}
-              onSaveProcedures={handleSaveProceduresList}
-              onClose={() => setIsConfiguring(false)}
-              onSupabaseConnected={() => {
-                checkConnection();
-                loadData();
-              }}
-            />
-          </main>
-          <SupabaseModal
-            isOpen={isSupabaseModalOpen}
-            onClose={() => setIsSupabaseModalOpen(false)}
-            onConnected={() => {
-              checkConnection();
-              loadData();
-            }}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className="app-container">
+      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER ── */}
+      <div className="app-content">
         <Navbar
           darkMode={darkMode}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
           isSupabaseConnected={isSupabaseConnected}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-          onOpenSettings={() => setIsConfiguring(true)}
+          onOpenSettings={() => setCurrentView('config')}
           onNewProcedure={handleNewProcedure}
-          activeVersion={null}
-          onChangeVersion={handleSelectVersion}
-          onReturnToVersionSelect={() => setActiveVersion(null)}
-        />
-        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <VersionSelectScreen
-            procedures={procedures}
-            onSelectVersion={handleSelectVersion}
-          />
-        </main>
-        <SupabaseModal
-          isOpen={isSupabaseModalOpen}
-          onClose={() => setIsSupabaseModalOpen(false)}
-          onConnected={() => {
-            checkConnection();
-            loadData();
-          }}
-        />
-      </div>
-    );
-  }
-
-  // ==============================================================
-  // RENDERIZAÇÃO PRINCIPAL DO SITE (VERSÃO ESPECÍFICA ATIVA)
-  // ==============================================================
-  return (
-    <div className="app-container">
-      {/* Top Navigation */}
-      <Navbar
-        darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode(!darkMode)}
-        isSupabaseConnected={isSupabaseConnected}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-        onOpenSettings={() => setIsConfiguring(true)}
-        onNewProcedure={handleNewProcedure}
-        activeVersion={activeVersion}
-        onChangeVersion={handleSelectVersion}
-        onReturnToVersionSelect={() => setActiveVersion(null)}
-        procedures={procedures}
-        onSelectProcedure={handleSelectProcedure}
-      />
-
-      <div className="app-main">
-        {/* Painel Lateral Filtrado pela Versão */}
-        <Sidebar
-          menus={menus}
-          procedures={procedures}
           activeVersion={activeVersion}
-          activeId={activeId}
-          isDashboardActive={isDashboard}
-          onOpenDashboard={handleOpenDashboard}
+          onChangeVersion={handleSelectVersion}
+          onReturnToVersionSelect={() => setCurrentView('dashboard')}
+          procedures={procedures}
           onSelectProcedure={handleSelectProcedure}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={handleToggleSidebarCollapse}
-          onOpenSettings={() => setIsConfiguring(true)}
-          onNewProcedure={handleNewProcedure}
         />
 
-        {/* Área Central / Conteúdo, Editor, Dashboard ou Configurações */}
-        <main className={`content-area ${isSidebarCollapsed ? 'expanded-view' : ''}`}>
-          {isConfiguring ? (
-            <SettingsView
-              menus={menus}
-              procedures={procedures}
-              activeVersion={activeVersion}
-              onSaveMenus={handleSaveMenus}
-              onSaveProcedures={handleSaveProceduresList}
-              onClose={() => setIsConfiguring(false)}
-              onSupabaseConnected={() => {
-                checkConnection();
-                loadData();
-              }}
-            />
-          ) : loading ? (
+        <main className="main" id="main">
+          {loading ? (
             <div className="empty-state">
               <Loader2 size={36} className="animate-spin" color="var(--primary-500)" />
               <p>Carregando procedimentos do Digifarma...</p>
@@ -374,22 +262,15 @@ export function App() {
             <ProcedureEditor
               initialProcedure={editingProcedure}
               menus={menus}
-              activeVersion={activeVersion}
+              activeVersion={activeVersion || 'v10'}
               onSave={handleSaveProcedure}
               onCancel={() => {
                 setIsEditing(false);
                 setEditingProcedure(null);
+                setCurrentView(activeId ? 'procedure-detail' : 'dashboard');
               }}
             />
-          ) : isDashboard || !activeProcedure ? (
-            <DashboardView
-              procedures={procedures}
-              menus={menus}
-              activeVersion={activeVersion}
-              onSelectProcedure={handleSelectProcedure}
-              onNewProcedure={handleNewProcedure}
-            />
-          ) : (
+          ) : currentView === 'procedure-detail' && activeProcedure ? (
             <ProcedureView
               procedure={activeProcedure}
               menus={menus}
@@ -399,6 +280,54 @@ export function App() {
                 setLightboxState({ isOpen: true, url, caption })
               }
               onUpdateStepCompletion={handleStepCompletionToggle}
+              onBack={handleBackFromProcedure}
+            />
+          ) : currentView === 'procedimentos' ? (
+            <ProcedimentosListView
+              procedures={procedures}
+              menus={menus}
+              activeVersion={activeVersion || 'v10'}
+              onSelectProcedure={handleSelectProcedure}
+              onNewProcedure={handleNewProcedure}
+              onEditProcedure={(proc) => {
+                setEditingProcedure(proc);
+                setIsEditing(true);
+                setCurrentView('editor');
+              }}
+              onDeleteProcedure={(proc) => {
+                setDeleteModalState({ isOpen: true, procedure: proc });
+              }}
+            />
+          ) : currentView === 'ia' ? (
+            <IaConsultorView
+              procedures={procedures}
+              activeVersion={activeVersion || 'v10'}
+              onSelectProcedure={handleSelectProcedure}
+            />
+          ) : currentView === 'agenda' ? (
+            <AgendaView />
+          ) : currentView === 'relatorios' ? (
+            <RelatoriosView procedures={procedures} menus={menus} />
+          ) : currentView === 'config' ? (
+            <SettingsView
+              menus={menus}
+              procedures={procedures}
+              activeVersion={activeVersion || 'v10'}
+              onSaveMenus={handleSaveMenus}
+              onSaveProcedures={handleSaveProceduresList}
+              onClose={() => setCurrentView('dashboard')}
+              onSupabaseConnected={() => {
+                checkConnection();
+                loadData();
+              }}
+            />
+          ) : (
+            <DashboardView
+              procedures={procedures}
+              menus={menus}
+              activeVersion={activeVersion || 'v10'}
+              onSelectProcedure={handleSelectProcedure}
+              onNewProcedure={handleNewProcedure}
             />
           )}
         </main>
