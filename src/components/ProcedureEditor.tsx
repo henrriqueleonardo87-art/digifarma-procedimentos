@@ -17,6 +17,17 @@ import {
   ClipboardPaste,
   Circle,
   Square,
+  Type,
+  MousePointer,
+  Star,
+  Target,
+  AlertTriangle,
+  Zap,
+  Ban,
+  Lock,
+  ChevronDown,
+  Check,
+  ArrowRight,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -29,6 +40,11 @@ import type {
   ProcedureHistoryItem,
   SlideIndicator,
   SlideConfig,
+  IndicatorDirection,
+  IndicatorFillMode,
+  IndicatorGlow,
+  IndicatorSize,
+  IndicatorIconName,
 } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
@@ -38,20 +54,176 @@ interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
   menus: SystemMenu[];
   activeVersion: SystemVersion;
-  currentUser?: AppUser | null;
-  onSave: (procedure: Procedure) => Promise<void>;
+  onSave: (procedure: Procedure) => Promise<void> | void;
   onCancel: () => void;
+  currentUser?: AppUser | null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENTES VETORIAIS DE DESIGN (MÃOZINHA, SETA, ÍCONES)
+// ─────────────────────────────────────────────────────────────
+
+function hexToRgba(hex: string, alpha: number = 0.25): string {
+  if (!hex || !hex.startsWith('#')) return `rgba(231, 76, 60, ${alpha})`;
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 231;
+  const g = parseInt(clean.substring(2, 4), 16) || 76;
+  const b = parseInt(clean.substring(4, 6), 16) || 60;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+const SvgHand: React.FC<{
+  color?: string;
+  direction?: IndicatorDirection;
+  size?: IndicatorSize;
+  glow?: IndicatorGlow;
+}> = ({ color = '#ef4444', direction = 'up', size = 'md', glow = 'none' }) => {
+  const rotation =
+    direction === 'right'
+      ? 90
+      : direction === 'down'
+      ? 180
+      : direction === 'left'
+      ? 270
+      : direction === 'down-right'
+      ? 135
+      : direction === 'up-right'
+      ? 45
+      : 0;
+
+  const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+  const glowFilter =
+    glow === 'neon'
+      ? `drop-shadow(0 0 10px ${color}) drop-shadow(0 0 4px #ffffff)`
+      : glow === 'soft'
+      ? `drop-shadow(0 0 6px ${color})`
+      : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))';
+
+  return (
+    <svg
+      width={40 * scale}
+      height={40 * scale}
+      viewBox="0 0 24 24"
+      fill={color}
+      stroke="#ffffff"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        transform: `rotate(${rotation}deg)`,
+        filter: glowFilter,
+        transition: 'transform 0.15s ease',
+        display: 'block',
+      }}
+    >
+      <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3" />
+      <path d="M14 9V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7" />
+      <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
+      <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+    </svg>
+  );
+};
+
+const SvgArrow: React.FC<{
+  color?: string;
+  direction?: IndicatorDirection;
+  size?: IndicatorSize;
+  glow?: IndicatorGlow;
+}> = ({ color = '#ef4444', direction = 'right', size = 'md', glow = 'none' }) => {
+  const rotation =
+    direction === 'down'
+      ? 90
+      : direction === 'left'
+      ? 180
+      : direction === 'up'
+      ? 270
+      : direction === 'down-right'
+      ? 45
+      : direction === 'up-right'
+      ? -45
+      : 0;
+
+  const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+  const glowFilter =
+    glow === 'neon'
+      ? `drop-shadow(0 0 10px ${color}) drop-shadow(0 0 3px #ffffff)`
+      : glow === 'soft'
+      ? `drop-shadow(0 0 6px ${color})`
+      : 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))';
+
+  const markerId = `ah-${color.replace('#', '')}-${size}`;
+
+  return (
+    <svg
+      width={54 * scale}
+      height={28 * scale}
+      viewBox="0 0 54 28"
+      style={{
+        transform: `rotate(${rotation}deg)`,
+        filter: glowFilter,
+        display: 'block',
+      }}
+    >
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="7"
+          markerHeight="7"
+          refX="6"
+          refY="3.5"
+          orient="auto"
+        >
+          <polygon points="0 0, 7 3.5, 0 7" fill={color} />
+        </marker>
+      </defs>
+      <line
+        x1="4"
+        y1="14"
+        x2="46"
+        y2="14"
+        stroke={color}
+        strokeWidth={size === 'lg' || size === 'xl' ? 5 : size === 'sm' ? 3 : 4}
+        strokeLinecap="round"
+        markerEnd={`url(#${markerId})`}
+      />
+    </svg>
+  );
+};
+
+const renderIconSymbol = (iconName: IndicatorIconName = 'alert', color = '#ef4444', size = 'md') => {
+  const sz = size === 'sm' ? 20 : size === 'lg' ? 36 : size === 'xl' ? 48 : 28;
+  switch (iconName) {
+    case 'target':
+      return <Target size={sz} color={color} />;
+    case 'cursor':
+      return <MousePointer size={sz} color={color} />;
+    case 'star':
+      return <Star size={sz} color={color} fill={color} />;
+    case 'check':
+      return <Check size={sz} color={color} strokeWidth={3} />;
+    case 'info':
+      return <Info size={sz} color={color} />;
+    case 'bolt':
+      return <Zap size={sz} color={color} fill={color} />;
+    case 'forbidden':
+      return <Ban size={sz} color={color} />;
+    case 'lock':
+      return <Lock size={sz} color={color} />;
+    case 'alert':
+    default:
+      return <AlertTriangle size={sz} color={color} fill="rgba(245, 158, 11, 0.25)" />;
+  }
+};
 
 export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   initialProcedure,
   menus,
   activeVersion,
-  currentUser,
   onSave,
   onCancel,
+  currentUser,
 }) => {
-  // Modo de Exibição do Editor: 'canva' (Studio Visual) ou 'pdf-preview' (Páginas A4 Interativas)
+  // Modo de visualização: 'canva' (Studio Visual com Design) ou 'pdf-preview' (Editor de Folhas A4 Reais)
   const [editorMode, setEditorMode] = useState<'canva' | 'pdf-preview'>('canva');
 
   // Metadados Gerais
@@ -116,7 +288,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         ]
   );
 
-  // Configurações de Slides & Indicadores (Mãozinhas, Spotlights, Cores)
+  // Configurações de Slides & Indicadores (Mãozinhas, Spotlights, Setas, Formas, Cores)
   const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(
     initialProcedure?.slidesConfig || [
       { id: 'slide-cover', slideType: 'cover', bgTheme: 'deep' },
@@ -130,9 +302,11 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             id: `ind-${Date.now()}-1`,
             type: 'hand',
             direction: 'up',
+            color: '#ef4444',
             x: 52,
             y: 58,
             label: 'Campo Código',
+            glow: 'soft',
           },
         ],
       },
@@ -145,6 +319,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   // Slide Ativo no Modo Canva (0 = Capa, 1..N = Etapas, N+1 = BPF, N+2 = Checklist, N+3 = Assinaturas)
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
+  // Indicador selecionado para edição de propriedades e arraste
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
+
   // Feedback de Toast e Status de Salvamento
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -152,6 +329,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRootRef = useRef<HTMLDivElement>(null);
+  const shotframeRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -167,14 +345,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       if (!items) return;
 
       for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.indexOf('image') !== -1) {
-          e.preventDefault();
-          const file = item.getAsFile();
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
           if (file) {
+            e.preventDefault();
             processPastedImageFile(file);
+            break;
           }
-          break;
         }
       }
     };
@@ -185,14 +362,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
   const processPastedImageFile = async (file: File) => {
     setUploading(true);
-    showToast('Processando imagem colada...');
+    showToast('Processando print screen / imagem...');
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
       if (!dataUrl) return;
 
-      // Se o slide ativo for uma etapa, associa a essa etapa
       const stepIdx = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
       setImages((prev) => ({ ...prev, [stepIdx]: dataUrl }));
 
@@ -206,7 +382,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           setImages((prev) => ({ ...prev, [stepIdx]: publicUrl }));
         }
       } catch {
-        // mantém DataURL
+        // Fallback em Base64 mantido com segurança
       }
     };
     reader.readAsDataURL(file);
@@ -226,29 +402,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 2. GESTÃO DE SLIDES, INDICADORES & FORMAS
+  // 2. GESTÃO DE INDICADORES, FORMAS, ARRASTE & PROPRIEDADES (ZERO POPUPS NATIVOS!)
   // ─────────────────────────────────────────────────────────────
   const currentStepIndex = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
   const currentStep = steps[currentStepIndex];
 
-  // Adicionar Mãozinha Indicadora na Imagem da Etapa Ativa
-  const addPointingHand = (direction: 'up' | 'down' | 'left' | 'right' = 'up') => {
+  // Adicionar Indicador com auto-seleção e zero popups
+  const pushIndicator = (indicator: SlideIndicator, toastMsg?: string) => {
     const stepIdx = currentStepIndex;
-    const newIndicator: SlideIndicator = {
-      id: `ind-${Date.now()}`,
-      type: 'hand',
-      direction,
-      x: 50,
-      y: 50,
-      label: 'Campo de Ação',
-    };
-
     setSlidesConfig((prev) => {
       const exists = prev.find((s) => s.stepIndex === stepIdx);
       if (exists) {
         return prev.map((s) =>
           s.stepIndex === stepIdx
-            ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+            ? { ...s, indicators: [...(s.indicators || []), indicator] }
             : s
         );
       }
@@ -259,132 +426,216 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           slideType: 'step',
           stepIndex: stepIdx,
           bgTheme: 'light',
-          indicators: [newIndicator],
+          indicators: [indicator],
         },
       ];
     });
 
-    showToast(`Mãozinha indicadora (${direction}) adicionada à tela!`);
+    setSelectedIndicatorId(indicator.id);
+    if (toastMsg) showToast(toastMsg);
   };
 
-  // Adicionar Anel Pulsante (Spotlight Radar)
-  const addSpotlightBeacon = () => {
-    const stepIdx = currentStepIndex;
-    const newIndicator: SlideIndicator = {
-      id: `spot-${Date.now()}`,
-      type: 'spotlight',
-      x: 50,
-      y: 50,
-    };
-
-    setSlidesConfig((prev) => {
-      return prev.map((s) =>
-        s.stepIndex === stepIdx
-          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
-          : s
-      );
-    });
-
-    showToast('Anel pulsante adicionado sobre a interface!');
-  };
-
-  // Adicionar Badge / Tag Flutuante
-  const addFloatingBadge = () => {
-    const label = prompt('Digite o texto da tag ou alerta:', 'Campo Obrigatório');
-    if (!label) return;
-
-    const stepIdx = currentStepIndex;
-    const newIndicator: SlideIndicator = {
-      id: `badge-${Date.now()}`,
-      type: 'badge',
-      x: 40,
-      y: 40,
-      label: label.trim(),
-    };
-
-    setSlidesConfig((prev) => {
-      return prev.map((s) =>
-        s.stepIndex === stepIdx
-          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
-          : s
-      );
-    });
-  };
-
-  // Adicionar GIF Animado
-  const addAnimatedGif = () => {
-    const url = prompt(
-      'Insira o link direto de um GIF demonstrativo (ex: clique, digitação, animação):',
-      'https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif'
-    );
-    if (!url) return;
-
-    const stepIdx = currentStepIndex;
-    const newIndicator: SlideIndicator = {
-      id: `gif-${Date.now()}`,
-      type: 'gif',
-      x: 60,
-      y: 40,
-      gifUrl: url.trim(),
-    };
-
-    setSlidesConfig((prev) => {
-      return prev.map((s) =>
-        s.stepIndex === stepIdx
-          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
-          : s
-      );
-    });
-
-    showToast('GIF animado anexado ao passo a passo!');
-  };
-
-  // Mover / Reposicionar Indicador ao clicar na tela
-  const handleShotframeClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-
-    const stepIdx = currentStepIndex;
-    const currentCfg = slidesConfig.find((s) => s.stepIndex === stepIdx);
-    const indicators = currentCfg?.indicators || [];
-
-    if (indicators.length > 0) {
-      // Reposiciona o último indicador adicionado
-      const lastIndId = indicators[indicators.length - 1].id;
-      setSlidesConfig((prev) =>
-        prev.map((s) =>
-          s.stepIndex === stepIdx
-            ? {
-                ...s,
-                indicators: (s.indicators || []).map((ind) =>
-                  ind.id === lastIndId ? { ...ind, x, y } : ind
-                ),
-              }
-            : s
-        )
-      );
-    } else {
-      // Se não houver, adiciona uma mãozinha onde clicou
-      const newIndicator: SlideIndicator = {
-        id: `ind-${Date.now()}`,
+  // Mãozinhas
+  const addPointingHand = (direction: IndicatorDirection = 'up', color: string = '#ef4444') => {
+    const newId = `hand-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
         type: 'hand',
-        direction: 'up',
-        x,
-        y,
-        label: 'Ação Aqui',
-      };
-      setSlidesConfig((prev) =>
-        prev.map((s) =>
-          s.stepIndex === stepIdx
-            ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
-            : s
-        )
-      );
-    }
+        direction,
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+        glow: 'soft',
+      },
+      `Mãozinha indicadora (${direction}) adicionada!`
+    );
   };
 
-  // Remover Indicador
+  // Setas
+  const addArrow = (direction: IndicatorDirection = 'right', color: string = '#ef4444') => {
+    const newId = `arrow-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'arrow',
+        direction,
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+        glow: 'soft',
+      },
+      `Seta indicadora (${direction}) adicionada!`
+    );
+  };
+
+  // Retângulos e Molduras
+  const addRectangle = (fillMode: IndicatorFillMode = 'outline', color: string = '#ef4444') => {
+    const newId = `rect-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'rect',
+        fillMode,
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+        opacity: fillMode === 'filled' ? 0.65 : 1.0,
+        glow: 'soft',
+        label: fillMode === 'filled' ? 'Destaque' : '',
+      },
+      fillMode === 'outline' ? 'Moldura vazada adicionada!' : 'Caixa destacada adicionada!'
+    );
+  };
+
+  // Círculos e Bolinhas
+  const addCircle = (fillMode: IndicatorFillMode = 'outline', color: string = '#ef4444') => {
+    const newId = `circle-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'circle',
+        fillMode,
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+        opacity: fillMode === 'filled' ? 0.75 : 1.0,
+        glow: 'soft',
+      },
+      fillMode === 'outline' ? 'Círculo vazado adicionado!' : 'Bolinha destacada adicionada!'
+    );
+  };
+
+  // Badges (Zero prompts: cria e abre na barra de propriedades)
+  const addBadge = (label = 'Campo Obrigatório', color = '#ef4444') => {
+    const newId = `badge-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'badge',
+        label,
+        color,
+        x: 45,
+        y: 45,
+        size: 'md',
+        glow: 'soft',
+      },
+      'Badge criada! Edite o texto na barra acima.'
+    );
+  };
+
+  // Caixa de Texto Livre
+  const addTextBox = (label = 'Instrução do Campo...', color = '#ffffff') => {
+    const newId = `text-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'text',
+        label,
+        color,
+        bgColor: 'rgba(15, 23, 42, 0.85)',
+        x: 50,
+        y: 45,
+        size: 'md',
+        glow: 'soft',
+      },
+      'Caixa de texto criada! Edite o conteúdo na barra acima.'
+    );
+  };
+
+  // Ícones Especiais
+  const addIcon = (iconName: IndicatorIconName = 'alert', color = '#ef4444') => {
+    const newId = `icon-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'icon',
+        iconName,
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+        glow: 'soft',
+      },
+      `Ícone (${iconName}) adicionado!`
+    );
+  };
+
+  // Menu Suspenso Interativo (Dropdown / Accordion para HTML)
+  const addDropdown = (label = 'Ver Detalhes do Campo', content = 'Informações adicionais e regras de negócio.') => {
+    const newId = `drop-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'dropdown',
+        label,
+        content,
+        color: '#ef4444',
+        x: 50,
+        y: 50,
+        size: 'md',
+        glow: 'soft',
+      },
+      'Menu suspenso interativo adicionado!'
+    );
+  };
+
+  // Anel Radar Sonar
+  const addSpotlightBeacon = (color = '#ef4444') => {
+    const newId = `spot-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'spotlight',
+        color,
+        x: 50,
+        y: 50,
+        size: 'md',
+      },
+      'Radar sonar pulsante adicionado!'
+    );
+  };
+
+  // GIF Animado (com preset instantâneo ou link)
+  const addAnimatedGif = (gifUrl = 'https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif') => {
+    const newId = `gif-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'gif',
+        gifUrl,
+        x: 60,
+        y: 45,
+        size: 'md',
+      },
+      'GIF animado anexado ao passo a passo!'
+    );
+  };
+
+  // Atualizar indicador selecionado
+  const updateSelectedIndicator = (updates: Partial<SlideIndicator>) => {
+    if (!selectedIndicatorId) return;
+    const stepIdx = currentStepIndex;
+
+    setSlidesConfig((prev) =>
+      prev.map((s) =>
+        s.stepIndex === stepIdx
+          ? {
+              ...s,
+              indicators: (s.indicators || []).map((ind) =>
+                ind.id === selectedIndicatorId ? { ...ind, ...updates } : ind
+              ),
+            }
+          : s
+      )
+    );
+  };
+
+  // Remover indicador (Zero confirm nativo de navegador)
   const removeIndicator = (indId: string) => {
     const stepIdx = currentStepIndex;
     setSlidesConfig((prev) =>
@@ -394,6 +645,65 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           : s
       )
     );
+    if (selectedIndicatorId === indId) {
+      setSelectedIndicatorId(null);
+    }
+    showToast('Elemento removido.');
+  };
+
+  // Arraste Suave de Indicadores pelo Mouse (Drag & Drop na Tela)
+  const handleIndicatorMouseDown = (e: React.MouseEvent, indId: string) => {
+    e.stopPropagation();
+    setSelectedIndicatorId(indId);
+
+    const frame = shotframeRef.current;
+    if (!frame) return;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const rect = frame.getBoundingClientRect();
+      const x = Math.max(2, Math.min(98, Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100)));
+      const y = Math.max(2, Math.min(98, Math.round(((moveEvent.clientY - rect.top) / rect.height) * 100)));
+
+      setSlidesConfig((prev) =>
+        prev.map((s) =>
+          s.stepIndex === currentStepIndex
+            ? {
+                ...s,
+                indicators: (s.indicators || []).map((ind) =>
+                  ind.id === indId ? { ...ind, x, y } : ind
+                ),
+              }
+            : s
+        )
+      );
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  // Clique no Shotframe para Desmarcar ou Reposicionar
+  const handleShotframeClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+    if (selectedIndicatorId) {
+      // Reposiciona o elemento selecionado no ponto clicado
+      updateSelectedIndicator({ x, y });
+    } else {
+      // Se não havia nada selecionado e não há elementos, adiciona uma mãozinha no local
+      const currentCfg = slidesConfig.find((s) => s.stepIndex === currentStepIndex);
+      const indicators = currentCfg?.indicators || [];
+      if (indicators.length === 0) {
+        addPointingHand('up');
+      }
+    }
   };
 
   // Alternar Cor / Tema do Slide Ativo (Deep Escuro vs Claro)
@@ -443,102 +753,114 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
   const removeStep = (indexToRemove: number) => {
     if (steps.length <= 1) {
-      alert('O procedimento deve conter pelo menos uma etapa operacional.');
+      showToast('O procedimento deve conter pelo menos uma etapa operacional.');
       return;
     }
     const updated = steps.filter((_, idx) => idx !== indexToRemove);
     setSteps(updated);
-    setActiveSlideIndex(Math.max(1, activeSlideIndex - 1));
-    showToast('Etapa removida.');
+
+    const updatedImgs: Record<number, string> = {};
+    Object.entries(images).forEach(([k, v]) => {
+      const idx = Number(k);
+      if (idx < indexToRemove) updatedImgs[idx] = v;
+      else if (idx > indexToRemove) updatedImgs[idx - 1] = v;
+    });
+    setImages(updatedImgs);
+
+    if (activeSlideIndex > updated.length) {
+      setActiveSlideIndex(updated.length);
+    }
+    showToast('Etapa excluída.');
   };
 
-  const moveStep = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= steps.length) return;
+  const moveStep = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= steps.length) return;
     const updated = [...steps];
-    const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, moved);
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
     setSteps(updated);
-    setActiveSlideIndex(toIndex + 1);
+
+    const remappedImgs: Record<number, string> = {};
+    if (images[fromIdx]) remappedImgs[toIdx] = images[fromIdx];
+    if (images[toIdx]) remappedImgs[fromIdx] = images[toIdx];
+    Object.entries(images).forEach(([k, v]) => {
+      const n = Number(k);
+      if (n !== fromIdx && n !== toIdx) remappedImgs[n] = v;
+    });
+    setImages(remappedImgs);
+
+    setActiveSlideIndex(toIdx + 1);
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 4. SALVAMENTO E EXPORTAÇÕES (PDF E HTML)
+  // 4. PERSISTÊNCIA, EXPORTAÇÃO DUPLA & IMPRESSÃO
   // ─────────────────────────────────────────────────────────────
   const constructProcedureToSave = (): Procedure => {
-    const nowIso = new Date().toISOString();
-    const isNew = !initialProcedure?.id;
-    const authorName = currentUser?.name || currentUser?.username || author.trim() || 'Leonardo Trevas';
-
-    const selectedMenu = menus.find((m) => m.id === menuId);
-    const categoryName = selectedMenu?.label || 'Geral';
-
-    // Montar blocos compatíveis com o motor legado
     const blocks: ProcedureBlock[] = [];
 
-    // Etapas e Imagens associadas
+    // Etapas e Imagens
     steps.forEach((step, idx) => {
-      blocks.push(step);
+      blocks.push({
+        ...step,
+        stepNumber: idx + 1,
+      });
+
       if (images[idx]) {
         blocks.push({
           id: `img-${step.id}`,
           type: 'image',
           url: images[idx],
-          caption: `Figura ${idx + 1}: Interface do Digifarma para ${step.title}`,
+          caption: `Interface Operacional - Etapa ${(idx + 1).toString().padStart(2, '0')}`,
         });
       }
     });
 
-    // Alertas
+    // Callouts / BPF
     callouts.forEach((c) => blocks.push(c));
 
-    const currentHistory: ProcedureHistoryItem[] = Array.isArray(initialProcedure?.history)
-      ? [...initialProcedure.history]
-      : [];
+    const selectedMenu = menus.find((m) => m.id === menuId);
+    const systemCategory = selectedMenu?.label || 'Geral';
 
-    const newHistoryItem: ProcedureHistoryItem = {
-      action: isNew ? 'create' : 'update',
+    const nowIso = new Date().toISOString();
+    const historyItem: ProcedureHistoryItem = {
+      id: `hist-${Date.now()}`,
+      action: initialProcedure ? 'update' : 'create',
       timestamp: nowIso,
-      user: authorName,
-      description: isNew ? 'Criação do procedimento no Studio Canva' : 'Edição visual de slides e indicadores',
-      details: isNew ? 'Criação do procedimento' : 'Atualização de conteúdo e passos',
+      user: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
+      description: initialProcedure
+        ? `Atualização completa via Studio Canva por ${currentUser?.name || 'Gestor'}`
+        : `Elaboração e homologação via Studio Canva por ${currentUser?.name || 'Gestor'}`,
     };
 
     return {
-      id: initialProcedure?.id || `proc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      title: title.trim(),
-      subtitle: subtitle.trim(),
-      category: categoryName,
+      id: initialProcedure?.id || `proc-${Date.now()}`,
+      title,
+      subtitle,
+      category: systemCategory,
       systemVersion,
       menuId,
-      submenuId: submenuId || undefined,
-      systemPath: systemPath.trim() || undefined,
-      author: author.trim() || authorName,
-      tags: [categoryName, systemVersion === 'v10' ? 'V10' : 'R78', 'BPF'],
+      submenuId,
+      systemPath,
+      author,
+      updatedBy: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
+      history: [historyItem, ...(initialProcedure?.history || [])],
+      tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma R78', systemCategory, 'BPF'],
       blocks,
       slidesConfig,
-      is_favorite: initialProcedure?.is_favorite || false,
       created_at: initialProcedure?.created_at || nowIso,
       updated_at: nowIso,
-      createdBy: initialProcedure?.createdBy || authorName,
-      updatedBy: authorName,
-      history: [newHistoryItem, ...currentHistory],
     };
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      alert('Informe o título do procedimento.');
-      return;
-    }
-
-    setSaving(true);
     try {
+      setSaving(true);
       const proc = constructProcedureToSave();
       await onSave(proc);
       showToast('Procedimento salvo com sucesso!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      alert(`Erro ao salvar: ${msg}`);
+      showToast(`Erro ao salvar: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -560,6 +882,490 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   };
 
   const totalSlidesCount = 1 + steps.length + 3;
+
+  // Elemento atualmente selecionado para a barra flutuante de propriedades
+  const activeSlideIndicators = slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.indicators || [];
+  const selectedIndicator = activeSlideIndicators.find((i) => i.id === selectedIndicatorId);
+
+  // ─────────────────────────────────────────────────────────────
+  // 5. RENDERIZADOR UNIVERSAL DE INDICADORES (STAGE & PRINT)
+  // ─────────────────────────────────────────────────────────────
+  const renderIndicatorItem = (
+    ind: SlideIndicator,
+    isInteractive: boolean = false
+  ) => {
+    const isSelected = selectedIndicatorId === ind.id;
+    const color = ind.color || '#ef4444';
+    const opacity = ind.opacity ?? 1.0;
+    const glow = ind.glow ?? 'none';
+    const size = ind.size ?? 'md';
+
+    const glowStyle =
+      glow === 'neon'
+        ? `0 0 12px ${color}, 0 0 4px #ffffff`
+        : glow === 'soft'
+        ? `0 0 8px ${color}`
+        : undefined;
+
+    let content: React.ReactNode = null;
+
+    if (ind.type === 'hand') {
+      content = <SvgHand color={color} direction={ind.direction} size={size} glow={glow} />;
+    } else if (ind.type === 'arrow') {
+      content = <SvgArrow color={color} direction={ind.direction} size={size} glow={glow} />;
+    } else if (ind.type === 'rect') {
+      const isFilled = ind.fillMode === 'filled';
+      const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
+      const h = size === 'sm' ? 36 : size === 'lg' ? 75 : size === 'xl' ? 100 : 54;
+      content = (
+        <div
+          style={{
+            width: `${w}px`,
+            height: `${h}px`,
+            border: `3px solid ${color}`,
+            backgroundColor: isFilled ? color : 'transparent',
+            opacity,
+            borderRadius: '8px',
+            boxShadow: glowStyle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isFilled ? '#ffffff' : color,
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            padding: '2px 4px',
+            textAlign: 'center',
+          }}
+        >
+          {ind.label || ''}
+        </div>
+      );
+    } else if (ind.type === 'circle') {
+      const isFilled = ind.fillMode === 'filled';
+      const d = size === 'sm' ? 36 : size === 'lg' ? 72 : size === 'xl' ? 96 : 52;
+      content = (
+        <div
+          style={{
+            width: `${d}px`,
+            height: `${d}px`,
+            borderRadius: '50%',
+            border: `3px solid ${color}`,
+            backgroundColor: isFilled ? color : 'transparent',
+            opacity,
+            boxShadow: glowStyle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isFilled ? '#ffffff' : color,
+            fontSize: size === 'sm' ? '0.75rem' : '0.9rem',
+            fontWeight: 900,
+          }}
+        >
+          {ind.label || ''}
+        </div>
+      );
+    } else if (ind.type === 'text') {
+      content = (
+        <div
+          style={{
+            backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.85)',
+            color,
+            border: `1.5px solid ${color}`,
+            borderRadius: '6px',
+            padding: '4px 10px',
+            fontSize: size === 'sm' ? '0.75rem' : size === 'lg' ? '1.05rem' : size === 'xl' ? '1.25rem' : '0.86rem',
+            fontWeight: 700,
+            opacity,
+            boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
+            maxWidth: '260px',
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.3,
+          }}
+        >
+          {ind.label || 'Texto Informativo'}
+        </div>
+      );
+    } else if (ind.type === 'badge') {
+      content = (
+        <div
+          style={{
+            backgroundColor: color,
+            color: '#ffffff',
+            padding: size === 'sm' ? '2px 8px' : size === 'lg' ? '5px 14px' : '3px 10px',
+            borderRadius: '999px',
+            fontSize: size === 'sm' ? '0.7rem' : size === 'lg' ? '0.9rem' : '0.78rem',
+            fontWeight: 800,
+            opacity,
+            boxShadow: glowStyle || '0 4px 10px rgba(0,0,0,0.4)',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {ind.label || 'Atenção'}
+        </div>
+      );
+    } else if (ind.type === 'icon') {
+      content = (
+        <div
+          style={{
+            opacity,
+            filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {renderIconSymbol(ind.iconName || 'alert', color, size)}
+        </div>
+      );
+    } else if (ind.type === 'dropdown') {
+      content = (
+        <details
+          className="canva-interactive-dropdown"
+          style={{
+            borderColor: color,
+            boxShadow: glowStyle,
+            opacity,
+          }}
+        >
+          <summary style={{ backgroundColor: color }}>
+            <span>{ind.label || 'Opções & Instruções Fiscais'}</span>
+            <ChevronDown size={14} className="dropdown-chevron-icon" />
+          </summary>
+          <div className="dropdown-body-content">
+            <p>{ind.content || 'Instrução operacional detalhada e atalhos de rotina.'}</p>
+          </div>
+        </details>
+      );
+    } else if (ind.type === 'spotlight') {
+      content = (
+        <div
+          className="spotlight-beacon"
+          style={{
+            borderColor: color,
+            backgroundColor: hexToRgba(color, 0.25),
+            boxShadow: glowStyle,
+            width: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
+            height: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
+          }}
+        />
+      );
+    } else if (ind.type === 'gif' && ind.gifUrl) {
+      content = (
+        <img
+          src={ind.gifUrl}
+          alt="GIF"
+          style={{
+            maxWidth: size === 'sm' ? '60px' : size === 'lg' ? '120px' : '88px',
+            borderRadius: '8px',
+            opacity,
+            boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
+          }}
+        />
+      );
+    }
+
+    return (
+      <div
+        key={ind.id}
+        className={`canva-canvas-indicator ${isSelected && isInteractive ? 'selected-indicator' : ''}`}
+        style={{
+          position: 'absolute',
+          left: `${ind.x}%`,
+          top: `${ind.y}%`,
+          transform: 'translate(-50%, -50%)',
+          cursor: isInteractive ? 'grab' : 'default',
+          zIndex: isSelected ? 35 : 20,
+          userSelect: 'none',
+        }}
+        onMouseDown={isInteractive ? (e) => handleIndicatorMouseDown(e, ind.id) : undefined}
+        onClick={isInteractive ? (e) => {
+          e.stopPropagation();
+          setSelectedIndicatorId(ind.id);
+        } : undefined}
+      >
+        {content}
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // 6. RENDERIZADOR DO DOCUMENTO OFICIAL A4 (PREVIEW & PRINT)
+  // ─────────────────────────────────────────────────────────────
+  const renderPresentationManual = (isEditable: boolean) => {
+    return (
+      <div className="presentation-manual-root" id="printable-procedure">
+        {/* Página 1: Capa Editorial */}
+        <section className="slide deep cover">
+          <div className="inner">
+            <div className="logo">
+              <span className="a">Digi</span>
+              <span className="b">farma</span>
+            </div>
+            <div className="v10-badge">
+              {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+            </div>
+            <h1
+              className="display"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
+            >
+              {title}
+            </h1>
+            <p
+              className="lead"
+              contentEditable={isEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
+            >
+              {subtitle}
+            </p>
+
+            <div className="stats">
+              <div className="stat">
+                <div className="n">{steps.length}<small>etapas</small></div>
+                <div className="l">Roteiro operacional documentado</div>
+              </div>
+              <div className="stat">
+                <div className="n">100<small>%</small></div>
+                <div className="l">Conformidade com Boas Práticas (BPF)</div>
+              </div>
+              <div className="stat">
+                <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
+                <div className="l">Módulo integrado do sistema</div>
+              </div>
+              <div className="stat">
+                <div className="n">{author}</div>
+                <div className="l">Responsável técnico / elaboração</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Páginas 2..N: Etapas Operacionais com Shotframes e Formas */}
+        {steps.map((step, idx) => {
+          const stepNum = String(idx + 1).padStart(2, '0');
+          const imgUrl = images[idx];
+          const slideCfg = slidesConfig.find((s) => s.stepIndex === idx);
+          const indicators = slideCfg?.indicators || [];
+          const isDark = slideCfg?.bgTheme === 'deep' || slideCfg?.bgTheme === 'dark';
+
+          return (
+            <section key={step.id} className={`slide ${isDark ? 'deep' : 'light'} step-slide`}>
+              <div className="inner">
+                <p className="eyebrow">
+                  <span>ETAPA {stepNum}</span> · Digifarma Treinamento
+                </p>
+
+                <h2
+                  className="head"
+                  contentEditable={isEditable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const val = e.currentTarget.textContent || step.title;
+                    setSteps((prev) =>
+                      prev.map((s, sIdx) => (sIdx === idx ? { ...s, title: val } : s))
+                    );
+                  }}
+                >
+                  {step.title}
+                </h2>
+
+                <p
+                  className="lead"
+                  contentEditable={isEditable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const val = e.currentTarget.textContent || step.instruction || step.content || '';
+                    setSteps((prev) =>
+                      prev.map((s, sIdx) =>
+                        sIdx === idx ? { ...s, instruction: val, content: val } : s
+                      )
+                    );
+                  }}
+                >
+                  {step.instruction || step.content}
+                </p>
+
+                <div className="feature-split">
+                  <div className="feature-left">
+                    {step.expectedResult && (
+                      <div className="fitem">
+                        <div className="fico">✓</div>
+                        <div className="ftxt">
+                          <h4>Resultado Esperado</h4>
+                          <p>{step.expectedResult}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {step.tips && (
+                      <div className="fitem">
+                        <div className="fico">💡</div>
+                        <div className="ftxt">
+                          <h4>Dica de Agilidade</h4>
+                          <p>{step.tips}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {step.warnings && (
+                      <div className="fitem warning">
+                        <div className="fico">⚠️</div>
+                        <div className="ftxt">
+                          <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
+                          <p>{step.warnings}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="shotframe">
+                    <div className="frame">
+                      {imgUrl ? (
+                        <img src={imgUrl} alt={step.title} />
+                      ) : (
+                        <div style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
+                          Captura de Tela do Digifarma
+                        </div>
+                      )}
+
+                      {/* Renderização de todos os indicadores na folha oficial */}
+                      {indicators.map((ind) => renderIndicatorItem(ind, false))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })}
+
+        {/* Página BPF / Diretrizes */}
+        <section className="slide light">
+          <div className="inner">
+            <p className="eyebrow">
+              <span>BPF</span> · Boas Práticas &amp; Diretrizes
+            </p>
+            <h2 className="head">Orientações de Segurança &amp; Auditoria</h2>
+            <p className="lead">
+              Recomendações técnicas homologadas para garantia da qualidade operacional.
+            </p>
+
+            <div style={{ marginTop: '28px' }}>
+              {callouts.map((c, cIdx) => (
+                <div key={c.id} className="fitem" style={{ marginBottom: '16px' }}>
+                  <div className="fico">
+                    <Info size={22} color="var(--red)" />
+                  </div>
+                  <div className="ftxt">
+                    <h4
+                      contentEditable={isEditable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const val = e.currentTarget.textContent || c.title || '';
+                        setCallouts((prev) =>
+                          prev.map((item, idx) => (idx === cIdx ? { ...item, title: val } : item))
+                        );
+                      }}
+                    >
+                      {c.title}
+                    </h4>
+                    <p
+                      contentEditable={isEditable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const val = e.currentTarget.textContent || c.content;
+                        setCallouts((prev) =>
+                          prev.map((item, idx) => (idx === cIdx ? { ...item, content: val } : item))
+                        );
+                      }}
+                    >
+                      {c.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Página Checklist */}
+        <section className="slide light">
+          <div className="inner">
+            <p className="eyebrow">
+              <span>CHECKLIST</span> · Homologação
+            </p>
+            <h2 className="head">Checklist de Auditoria Operacional</h2>
+            <p className="lead">
+              Validação obrigatória de cada uma das {steps.length} etapas cadastradas.
+            </p>
+
+            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {steps.map((s, i) => (
+                <div key={s.id} className="canva-check-row">
+                  <div className="canva-check-circle">✓</div>
+                  <div>
+                    <strong>
+                      Etapa {(i + 1).toString().padStart(2, '0')}: {s.title}
+                    </strong>
+                    <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Página Final: Homologação & Assinaturas */}
+        <section className="slide deep">
+          <div className="inner">
+            <div className="logo">
+              <span className="a">Digi</span>
+              <span className="b">farma</span>
+            </div>
+            <div className="v10-badge">HOMOLOGAÇÃO OFICIAL</div>
+            <h1 className="display" style={{ fontSize: '38px' }}>
+              Controle da Qualidade &amp; BPF
+            </h1>
+            <p className="lead">
+              Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.
+            </p>
+
+            <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
+              <div className="print-sign-col">
+                <span className="print-sign-title">ELABORADO POR</span>
+                <div className="print-sign-line"></div>
+                <span
+                  className="print-sign-name"
+                  contentEditable={isEditable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => setAuthor(e.currentTarget.textContent || author)}
+                >
+                  {author}
+                </span>
+                <span className="print-sign-role">Digifarma Sistemas</span>
+              </div>
+
+              <div className="print-sign-col">
+                <span className="print-sign-title">REVISADO POR</span>
+                <div className="print-sign-line"></div>
+                <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
+                <span className="print-sign-role">Controle de Procedimentos</span>
+              </div>
+
+              <div className="print-sign-col">
+                <span className="print-sign-title">APROVADO POR</span>
+                <div className="print-sign-line"></div>
+                <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
+                <span className="print-sign-role">Responsável Técnico / Gestor</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
 
   return (
     <div className="canva-studio-root" ref={editorRootRef}>
@@ -629,7 +1435,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             type="button"
             className="canva-action-btn"
             onClick={handleExportHtml}
-            title="Baixar arquivo HTML com animações da mãozinha e GIFs"
+            title="Baixar arquivo HTML com animações da mãozinha, menus suspensos e GIFs"
           >
             <FileDown size={15} />
             <span>Exportar HTML</span>
@@ -687,7 +1493,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {/* Slide 0: Capa */}
               <div
                 className={`thumb-card ${activeSlideIndex === 0 ? 'active' : ''}`}
-                onClick={() => setActiveSlideIndex(0)}
+                onClick={() => {
+                  setActiveSlideIndex(0);
+                  setSelectedIndicatorId(null);
+                }}
               >
                 <span className="thumb-num">01</span>
                 <div className="thumb-preview cover-preview">
@@ -701,7 +1510,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <div
                   key={step.id}
                   className={`thumb-card ${activeSlideIndex === idx + 1 ? 'active' : ''}`}
-                  onClick={() => setActiveSlideIndex(idx + 1)}
+                  onClick={() => {
+                    setActiveSlideIndex(idx + 1);
+                    setSelectedIndicatorId(null);
+                  }}
                 >
                   <span className="thumb-num">{String(idx + 2).padStart(2, '0')}</span>
                   <div className="thumb-preview">
@@ -747,7 +1559,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {/* Slide BPF */}
               <div
                 className={`thumb-card ${activeSlideIndex === steps.length + 1 ? 'active' : ''}`}
-                onClick={() => setActiveSlideIndex(steps.length + 1)}
+                onClick={() => {
+                  setActiveSlideIndex(steps.length + 1);
+                  setSelectedIndicatorId(null);
+                }}
               >
                 <span className="thumb-num">{String(steps.length + 2).padStart(2, '0')}</span>
                 <div className="thumb-preview">
@@ -759,7 +1574,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {/* Slide Checklist */}
               <div
                 className={`thumb-card ${activeSlideIndex === steps.length + 2 ? 'active' : ''}`}
-                onClick={() => setActiveSlideIndex(steps.length + 2)}
+                onClick={() => {
+                  setActiveSlideIndex(steps.length + 2);
+                  setSelectedIndicatorId(null);
+                }}
               >
                 <span className="thumb-num">{String(steps.length + 3).padStart(2, '0')}</span>
                 <div className="thumb-preview">
@@ -771,7 +1589,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {/* Slide Assinaturas */}
               <div
                 className={`thumb-card ${activeSlideIndex === steps.length + 3 ? 'active' : ''}`}
-                onClick={() => setActiveSlideIndex(steps.length + 3)}
+                onClick={() => {
+                  setActiveSlideIndex(steps.length + 3);
+                  setSelectedIndicatorId(null);
+                }}
               >
                 <span className="thumb-num">{String(steps.length + 4).padStart(2, '0')}</span>
                 <div className="thumb-preview cover-preview">
@@ -784,66 +1605,205 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
           {/* Área Central: Visual Stage / Canvas do Slide Ativo */}
           <main className="canva-center-stage">
-            {/* Barra de Ferramentas de Design do Canva (Formas, Mãozinha, Cores, Sombra) */}
+            {/* Barra de Ferramentas de Design do Canva (Mãozinhas, Setas, Formas, Textos, Ícones, Dropdown) */}
             <div className="canva-design-tools">
+              {/* Mãozinhas */}
               <div className="tool-group">
-                <span className="tool-label">Indicadores & Dinamismo:</span>
+                <span className="tool-label">Mãozinhas:</span>
                 <button
                   type="button"
                   className="canva-tool-btn"
                   onClick={() => addPointingHand('up')}
-                  title="Adicionar mãozinha apontando para cima (👆)"
+                  title="Mãozinha Acima"
                 >
                   <span className="emoji-tool">👆</span>
-                  <span>Mãozinha Acima</span>
+                  <span>Acima</span>
                 </button>
                 <button
                   type="button"
                   className="canva-tool-btn"
                   onClick={() => addPointingHand('right')}
-                  title="Adicionar mãozinha apontando para a direita (👉)"
+                  title="Mãozinha Direita"
                 >
                   <span className="emoji-tool">👉</span>
-                  <span>Mãozinha Direita</span>
+                  <span>Direita</span>
                 </button>
                 <button
                   type="button"
                   className="canva-tool-btn"
-                  onClick={addSpotlightBeacon}
-                  title="Adicionar anel radar pulsante no campo da tela"
+                  onClick={() => addPointingHand('down')}
+                  title="Mãozinha Abaixo"
                 >
-                  <Circle size={14} color="var(--red)" />
-                  <span>Anel Radar</span>
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={addFloatingBadge}
-                  title="Adicionar badge de aviso sobre a imagem"
-                >
-                  <Square size={14} />
-                  <span>Badge Alerta</span>
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={addAnimatedGif}
-                  title="Adicionar GIF animado"
-                >
-                  <Sparkles size={14} color="#f59e0b" />
-                  <span>GIF Animado</span>
+                  <span className="emoji-tool">👇</span>
+                  <span>Abaixo</span>
                 </button>
               </div>
 
+              {/* Setas */}
+              <div className="tool-group">
+                <span className="tool-label">Setas:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addArrow('right')}
+                  title="Seta Direita"
+                >
+                  <ArrowRight size={13} color="var(--red)" />
+                  <span>Direita</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addArrow('down')}
+                  title="Seta Abaixo"
+                >
+                  <ArrowDown size={13} color="var(--red)" />
+                  <span>Abaixo</span>
+                </button>
+              </div>
+
+              {/* Formas Geométricas */}
+              <div className="tool-group">
+                <span className="tool-label">Formas:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addRectangle('outline')}
+                  title="Moldura Vazada Neon"
+                >
+                  <Square size={13} color="var(--red)" />
+                  <span>Moldura</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addRectangle('filled')}
+                  title="Caixa Preenchida"
+                >
+                  <Square size={13} fill="var(--red)" color="var(--red)" />
+                  <span>Caixa</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addCircle('outline')}
+                  title="Círculo Vazado"
+                >
+                  <Circle size={13} color="var(--red)" />
+                  <span>Círculo</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addCircle('filled')}
+                  title="Bolinha Preenchida"
+                >
+                  <Circle size={13} fill="var(--red)" color="var(--red)" />
+                  <span>Bolinha</span>
+                </button>
+              </div>
+
+              {/* Textos & Badges */}
+              <div className="tool-group">
+                <span className="tool-label">Textos:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addBadge()}
+                  title="Badge de Alerta"
+                >
+                  <span className="badge-sample-tag">TAG</span>
+                  <span>Badge</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addTextBox()}
+                  title="Caixa de Texto Livre"
+                >
+                  <Type size={13} />
+                  <span>Texto</span>
+                </button>
+              </div>
+
+              {/* Ícones */}
+              <div className="tool-group">
+                <span className="tool-label">Ícones:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addIcon('target')}
+                  title="Ícone Alvo"
+                >
+                  <Target size={13} color="#f59e0b" />
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addIcon('cursor')}
+                  title="Ícone Cursor"
+                >
+                  <MousePointer size={13} color="#3b82f6" />
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addIcon('alert')}
+                  title="Ícone Alerta"
+                >
+                  <AlertTriangle size={13} color="#ef4444" />
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addIcon('star')}
+                  title="Ícone Estrela"
+                >
+                  <Star size={13} color="#eab308" fill="#eab308" />
+                </button>
+              </div>
+
+              {/* Recursos Interativos (Dropdown, Radar, GIF) */}
+              <div className="tool-group">
+                <span className="tool-label">Dinâmico:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addDropdown()}
+                  title="Menu Suspenso (Dropdown Interativo no HTML)"
+                >
+                  <ChevronDown size={13} />
+                  <span>Menu Suspenso</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addSpotlightBeacon()}
+                  title="Anel Radar Pulsante"
+                >
+                  <Circle size={13} color="var(--red)" />
+                  <span>Radar</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addAnimatedGif()}
+                  title="Adicionar GIF animado"
+                >
+                  <Sparkles size={13} color="#f59e0b" />
+                  <span>GIF</span>
+                </button>
+              </div>
+
+              {/* Alternar Fundo do Slide */}
               <div className="tool-group" style={{ marginLeft: 'auto' }}>
-                <span className="tool-label">Tema da Página:</span>
                 <button
                   type="button"
                   className="canva-tool-btn"
                   onClick={toggleSlideTheme}
                   title="Alternar entre fundo Escuro e Claro"
                 >
-                  <Palette size={14} />
+                  <Palette size={13} />
                   <span>Alternar Fundo</span>
                 </button>
               </div>
@@ -853,10 +1813,185 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             <div className="canva-paste-indicator">
               <ClipboardPaste size={15} color="var(--red)" />
               <span>
-                <strong>Dica Pro:</strong> Copie qualquer print screen ou imagem no computador e pressione{' '}
-                <kbd>Ctrl + V</kbd> para colar direto nesta etapa!
+                <strong>Dica Pro:</strong> Copie qualquer print com <kbd>Win + Shift + S</kbd> e pressione{' '}
+                <kbd>Ctrl + V</kbd> para colar direto nesta etapa! Arraste elementos livremente com o mouse.
               </span>
             </div>
+
+            {/* ── BARRA FLUTUANTE DE PROPRIEDADES DO ELEMENTO SELECIONADO (IN-SITE, ZERO POPUPS) ── */}
+            {selectedIndicator && (
+              <div className="canva-element-property-bar no-print">
+                <div className="prop-bar-label">
+                  <span>
+                    Propriedades: <strong>{selectedIndicator.type.toUpperCase()}</strong>
+                  </span>
+                </div>
+
+                {/* Paleta de Cores */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Cor:</span>
+                  <div className="prop-color-swatches">
+                    {[
+                      { label: 'Vermelho', hex: '#ef4444' },
+                      { label: 'Amarelo', hex: '#f59e0b' },
+                      { label: 'Verde', hex: '#10b981' },
+                      { label: 'Azul', hex: '#3b82f6' },
+                      { label: 'Ciano', hex: '#06b6d4' },
+                      { label: 'Roxo', hex: '#a855f7' },
+                      { label: 'Branco', hex: '#ffffff' },
+                      { label: 'Preto', hex: '#000000' },
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        className={`prop-color-dot ${selectedIndicator.color === c.hex ? 'active' : ''}`}
+                        style={{ backgroundColor: c.hex }}
+                        onClick={() => updateSelectedIndicator({ color: c.hex })}
+                        title={c.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Opacidade / Transparência */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Opacidade:</span>
+                  <div className="prop-btn-group">
+                    {[1.0, 0.75, 0.5, 0.25].map((op) => (
+                      <button
+                        key={op}
+                        type="button"
+                        className={`prop-btn-mini ${(selectedIndicator.opacity ?? 1.0) === op ? 'active' : ''}`}
+                        onClick={() => updateSelectedIndicator({ opacity: op })}
+                      >
+                        {Math.round(op * 100)}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Brilho / Glow */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Brilho:</span>
+                  <div className="prop-btn-group">
+                    {[
+                      { id: 'none', label: 'Sem' },
+                      { id: 'soft', label: 'Suave' },
+                      { id: 'neon', label: 'Neon' },
+                    ].map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className={`prop-btn-mini ${(selectedIndicator.glow ?? 'none') === g.id ? 'active' : ''}`}
+                        onClick={() => updateSelectedIndicator({ glow: g.id as any })}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tamanho */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Tam:</span>
+                  <div className="prop-btn-group">
+                    {(['sm', 'md', 'lg', 'xl'] as IndicatorSize[]).map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        className={`prop-btn-mini ${(selectedIndicator.size ?? 'md') === sz ? 'active' : ''}`}
+                        onClick={() => updateSelectedIndicator({ size: sz })}
+                      >
+                        {sz.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Direção (se mãozinha ou seta) */}
+                {(selectedIndicator.type === 'hand' || selectedIndicator.type === 'arrow') && (
+                  <div className="prop-bar-group">
+                    <span className="prop-group-title">Direção:</span>
+                    <div className="prop-btn-group">
+                      {[
+                        { dir: 'up', icon: '⬆️' },
+                        { dir: 'right', icon: '➡️' },
+                        { dir: 'down', icon: '⬇️' },
+                        { dir: 'left', icon: '⬅️' },
+                      ].map((d) => (
+                        <button
+                          key={d.dir}
+                          type="button"
+                          className={`prop-btn-mini ${selectedIndicator.direction === d.dir ? 'active' : ''}`}
+                          onClick={() => updateSelectedIndicator({ direction: d.dir as any })}
+                        >
+                          {d.icon}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Estilo Vazado vs Preenchido (se rect ou circle) */}
+                {(selectedIndicator.type === 'rect' || selectedIndicator.type === 'circle') && (
+                  <div className="prop-bar-group">
+                    <span className="prop-group-title">Preenchimento:</span>
+                    <div className="prop-btn-group">
+                      <button
+                        type="button"
+                        className={`prop-btn-mini ${(selectedIndicator.fillMode ?? 'outline') === 'outline' ? 'active' : ''}`}
+                        onClick={() => updateSelectedIndicator({ fillMode: 'outline' })}
+                      >
+                        Vazado
+                      </button>
+                      <button
+                        type="button"
+                        className={`prop-btn-mini ${selectedIndicator.fillMode === 'filled' ? 'active' : ''}`}
+                        onClick={() => updateSelectedIndicator({ fillMode: 'filled' })}
+                      >
+                        Preenchido
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Edição de Texto In-Place (para badge, text, dropdown) */}
+                {(selectedIndicator.type === 'badge' ||
+                  selectedIndicator.type === 'text' ||
+                  selectedIndicator.type === 'dropdown') && (
+                  <div className="prop-bar-group" style={{ flex: 1, minWidth: '160px' }}>
+                    <input
+                      type="text"
+                      className="prop-text-input"
+                      value={selectedIndicator.label || ''}
+                      onChange={(e) => updateSelectedIndicator({ label: e.target.value })}
+                      placeholder="Texto do elemento..."
+                    />
+                  </div>
+                )}
+
+                {/* Botão de Excluir Imediato (zero popups de navegador!) */}
+                <div className="prop-bar-actions">
+                  <button
+                    type="button"
+                    className="prop-btn-delete"
+                    onClick={() => removeIndicator(selectedIndicator.id)}
+                    title="Remover elemento da tela"
+                  >
+                    <Trash2 size={13} />
+                    <span>Remover</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="prop-btn-close"
+                    onClick={() => setSelectedIndicatorId(null)}
+                    title="Fechar propriedades"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Visual Canvas do Slide Ativo */}
             <div className="canva-slide-viewport">
@@ -931,7 +2066,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               {/* Slides 1..N: Etapas Operacionais com Shotframe Interativo */}
               {activeSlideIndex > 0 && activeSlideIndex <= steps.length && currentStep && (
-                <div className="slide light canva-slide-canvas">
+                <div
+                  className={`slide ${
+                    slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.bgTheme === 'deep'
+                      ? 'deep'
+                      : 'light'
+                  } canva-slide-canvas`}
+                >
                   <div className="inner">
                     <p className="eyebrow">
                       <span>ETAPA {String(currentStepIndex + 1).padStart(2, '0')}</span> · Roteiro Passo a Passo
@@ -1034,18 +2175,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                         </div>
                       </div>
 
-                      {/* Shotframe com Suporte a Colar Imagem e Indicadores */}
+                      {/* Shotframe com Suporte a Colar Imagem, Drag & Drop e Indicadores */}
                       <div className="shotframe">
                         <div
                           className="frame canva-interactive-frame"
+                          ref={shotframeRef}
                           onClick={handleShotframeClick}
-                          title="Clique na imagem para mover ou posicionar o indicador / mãozinha!"
+                          title="Clique na imagem para posicionar ou desmarcar. Arraste qualquer forma com o mouse!"
                         >
                           {images[currentStepIndex] ? (
                             <img
                               src={images[currentStepIndex]}
                               alt={currentStep.title}
                               className="canva-step-img"
+                              draggable={false}
                             />
                           ) : (
                             <div className="canva-placeholder-drop">
@@ -1055,87 +2198,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                             </div>
                           )}
 
-                          {/* Indicadores & Mãozinhas renderizadas sobre a tela */}
-                          {(
-                            slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.indicators || []
-                          ).map((ind) => {
-                            if (ind.type === 'hand') {
-                              const handIcon =
-                                ind.direction === 'down'
-                                  ? '👇'
-                                  : ind.direction === 'left'
-                                  ? '👈'
-                                  : ind.direction === 'right'
-                                  ? '👉'
-                                  : '👆';
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className={`pointing-hand ${ind.direction || 'up'}`}
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm('Deseja remover esta mãozinha indicadora?')) {
-                                      removeIndicator(ind.id);
-                                    }
-                                  }}
-                                  title="Clique para remover indicador"
-                                >
-                                  {handIcon}
-                                </div>
-                              );
-                            }
-                            if (ind.type === 'spotlight') {
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className="spotlight-beacon"
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeIndicator(ind.id);
-                                  }}
-                                />
-                              );
-                            }
-                            if (ind.type === 'badge') {
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className="floating-badge"
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeIndicator(ind.id);
-                                  }}
-                                >
-                                  {ind.label || 'Atenção'}
-                                </div>
-                              );
-                            }
-                            if (ind.type === 'gif' && ind.gifUrl) {
-                              return (
-                                <img
-                                  key={ind.id}
-                                  src={ind.gifUrl}
-                                  alt="GIF"
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${ind.x}%`,
-                                    top: `${ind.y}%`,
-                                    maxWidth: '90px',
-                                    borderRadius: '8px',
-                                    zIndex: 10,
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeIndicator(ind.id);
-                                  }}
-                                />
-                              );
-                            }
-                            return null;
-                          })}
+                          {/* Renderização de todos os indicadores no Canvas do Studio */}
+                          {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
                         </div>
 
                         {/* Barra de Ações Rápidas da Imagem */}
@@ -1310,7 +2374,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <div className="canva-pdf-preview-container">
           <div className="pdf-preview-hint no-print">
             <span>
-              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão. Todos os textos são editáveis diretamente nas páginas!
+              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão em folhas A4 reais. Todos os textos são editáveis diretamente nas páginas!
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="btn secondary sm" onClick={handleExportHtml}>
@@ -1322,233 +2386,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             </div>
           </div>
 
-          <div className="presentation-manual-root" id="printable-procedure">
-            {/* Página 1: Capa */}
-            <section className="slide deep cover">
-              <div className="inner">
-                <div className="logo">
-                  <span className="a">Digi</span>
-                  <span className="b">farma</span>
-                </div>
-                <div className="v10-badge">
-                  {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
-                </div>
-                <h1
-                  className="display"
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
-                >
-                  {title}
-                </h1>
-                <p
-                  className="lead"
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
-                >
-                  {subtitle}
-                </p>
+          {renderPresentationManual(true)}
+        </div>
+      )}
 
-                <div className="stats">
-                  <div className="stat">
-                    <div className="n">{steps.length}<small>etapas</small></div>
-                    <div className="l">Roteiro operacional documentado</div>
-                  </div>
-                  <div className="stat">
-                    <div className="n">100<small>%</small></div>
-                    <div className="l">Conformidade com Boas Práticas (BPF)</div>
-                  </div>
-                  <div className="stat">
-                    <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
-                    <div className="l">Módulo integrado do sistema</div>
-                  </div>
-                  <div className="stat">
-                    <div className="n">{author}</div>
-                    <div className="l">Responsável técnico / elaboração</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Páginas 2..N: Etapas Operacionais */}
-            {steps.map((step, idx) => {
-              const stepNum = String(idx + 1).padStart(2, '0');
-              const imgUrl = images[idx];
-              const slideCfg = slidesConfig.find((s) => s.stepIndex === idx);
-              const indicators = slideCfg?.indicators || [];
-
-              return (
-                <section key={step.id} className="slide light step-slide">
-                  <div className="inner">
-                    <p className="eyebrow">
-                      <span>ETAPA {stepNum}</span> · Digifarma Treinamento
-                    </p>
-
-                    <h2
-                      className="head"
-                      contentEditable
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const val = e.currentTarget.textContent || step.title;
-                        setSteps((prev) =>
-                          prev.map((s, sIdx) => (sIdx === idx ? { ...s, title: val } : s))
-                        );
-                      }}
-                    >
-                      {step.title}
-                    </h2>
-
-                    <p
-                      className="lead"
-                      contentEditable
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const val = e.currentTarget.textContent || step.instruction || step.content || '';
-                        setSteps((prev) =>
-                          prev.map((s, sIdx) =>
-                            sIdx === idx ? { ...s, instruction: val, content: val } : s
-                          )
-                        );
-                      }}
-                    >
-                      {step.instruction || step.content}
-                    </p>
-
-                    <div className="feature-split">
-                      <div className="feature-left">
-                        {step.expectedResult && (
-                          <div className="fitem">
-                            <div className="fico">✓</div>
-                            <div className="ftxt">
-                              <h4>Resultado Esperado</h4>
-                              <p>{step.expectedResult}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {step.tips && (
-                          <div className="fitem">
-                            <div className="fico">💡</div>
-                            <div className="ftxt">
-                              <h4>Dica de Agilidade</h4>
-                              <p>{step.tips}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {step.warnings && (
-                          <div className="fitem warning">
-                            <div className="fico">⚠️</div>
-                            <div className="ftxt">
-                              <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                              <p>{step.warnings}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="shotframe">
-                        <div className="frame">
-                          {imgUrl ? (
-                            <img src={imgUrl} alt={step.title} />
-                          ) : (
-                            <div style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
-                              Captura de Tela do Digifarma
-                            </div>
-                          )}
-
-                          {/* Mãozinhas no preview */}
-                          {indicators.map((ind) => {
-                            if (ind.type === 'hand') {
-                              const handIcon =
-                                ind.direction === 'down'
-                                  ? '👇'
-                                  : ind.direction === 'left'
-                                  ? '👈'
-                                  : ind.direction === 'right'
-                                  ? '👉'
-                                  : '👆';
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className={`pointing-hand ${ind.direction || 'up'}`}
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                >
-                                  {handIcon}
-                                </div>
-                              );
-                            }
-                            if (ind.type === 'spotlight') {
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className="spotlight-beacon"
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                />
-                              );
-                            }
-                            if (ind.type === 'badge') {
-                              return (
-                                <div
-                                  key={ind.id}
-                                  className="floating-badge"
-                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
-                                >
-                                  {ind.label || 'Atenção'}
-                                </div>
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              );
-            })}
-
-            {/* Página Final: Homologação */}
-            <section className="slide deep">
-              <div className="inner">
-                <div className="logo">
-                  <span className="a">Digi</span>
-                  <span className="b">farma</span>
-                </div>
-                <div className="v10-badge">HOMOLOGAÇÃO OFICIAL BPF</div>
-                <h1 className="display" style={{ fontSize: '38px' }}>
-                  Controle da Qualidade &amp; Assinaturas
-                </h1>
-                <p className="lead">
-                  Procedimento auditado e homologado pelo Responsável Técnico e equipe de processos.
-                </p>
-
-                <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
-                  <div className="print-sign-col">
-                    <span className="print-sign-title">ELABORADO POR</span>
-                    <div className="print-sign-line"></div>
-                    <span className="print-sign-name">{author}</span>
-                    <span className="print-sign-role">Digifarma Sistemas</span>
-                  </div>
-
-                  <div className="print-sign-col">
-                    <span className="print-sign-title">REVISADO POR</span>
-                    <div className="print-sign-line"></div>
-                    <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
-                    <span className="print-sign-role">Controle de Procedimentos</span>
-                  </div>
-
-                  <div className="print-sign-col">
-                    <span className="print-sign-title">APROVADO POR</span>
-                    <div className="print-sign-line"></div>
-                    <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
-                    <span className="print-sign-role">Responsável Técnico / Gestor</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
+      {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM PARA IMPRIMIR DE QUALQUER MODO) ── */}
+      {editorMode === 'canva' && (
+        <div className="canva-print-mount-offscreen">
+          {renderPresentationManual(false)}
         </div>
       )}
     </div>

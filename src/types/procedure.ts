@@ -72,15 +72,54 @@ export interface ProcedureHistoryItem {
   details?: string;
 }
 
+export type IndicatorType =
+  | 'hand'
+  | 'arrow'
+  | 'spotlight'
+  | 'badge'
+  | 'rect'
+  | 'circle'
+  | 'text'
+  | 'icon'
+  | 'dropdown'
+  | 'gif';
+
+export type IndicatorGlow = 'none' | 'soft' | 'strong' | 'neon';
+export type IndicatorSize = 'sm' | 'md' | 'lg' | 'xl';
+export type IndicatorFillMode = 'outline' | 'filled';
+export type IndicatorDirection = 'up' | 'down' | 'left' | 'right' | 'up-right' | 'down-right' | 'up-left' | 'down-left';
+export type IndicatorIconName =
+  | 'alert'
+  | 'star'
+  | 'target'
+  | 'cursor'
+  | 'check'
+  | 'info'
+  | 'bolt'
+  | 'forbidden'
+  | 'lock';
+
 export interface SlideIndicator {
   id: string;
-  type: 'hand' | 'spotlight' | 'badge' | 'arrow' | 'gif';
+  type: IndicatorType;
   x: number; // percent 0-100
   y: number; // percent 0-100
-  label?: string;
-  direction?: 'up' | 'down' | 'left' | 'right';
-  color?: string;
+  label?: string; // for badge, text box or dropdown title
+  content?: string; // for dropdown body or detailed note
+  direction?: IndicatorDirection;
+  color?: string; // primary accent color (hex)
+  bgColor?: string; // background fill color
+  borderColor?: string;
+  fillMode?: IndicatorFillMode;
+  opacity?: number; // 0.1 to 1.0 (e.g. 1.0, 0.75, 0.5, 0.25)
+  glow?: IndicatorGlow;
+  size?: IndicatorSize;
+  fontSize?: number;
+  width?: number; // percent or px
+  height?: number; // percent or px
+  iconName?: IndicatorIconName;
   gifUrl?: string;
+  hasShadow?: boolean;
 }
 
 export interface SlideShape {

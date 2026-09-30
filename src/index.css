@@ -5101,7 +5101,13 @@ h2.head {
 
 /* ── 5. REGRAS DE IMPRESSÃO OFICIAL EM ALTA DEFINIÇÃO FULL-BLEED (@PAGE & @MEDIA PRINT) ── */
 @page {
+  size: A4 landscape !important;
   margin: 0 !important; /* Remove cabeçalho, rodapé, data, título e URL gerados pelo navegador */
+}
+
+/* Oculta documento de montagem de impressão na tela */
+.canva-print-mount-offscreen {
+  display: none !important;
 }
 
 @media print {
@@ -5112,10 +5118,10 @@ h2.head {
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    background: transparent !important;
+    background: #000000 !important;
     color: #ffffff !important;
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -5133,6 +5139,7 @@ h2.head {
   .canva-thumbnails-rail,
   .canva-design-tools,
   .canva-paste-indicator,
+  .canva-element-property-bar,
   .pdf-preview-hint,
   .canva-toast-banner {
     display: none !important;
@@ -5145,8 +5152,7 @@ h2.head {
   .main,
   #printable-procedure,
   .presentation-manual-root,
-  .canva-studio-root,
-  .canva-pdf-preview-container {
+  .canva-studio-root {
     display: block !important;
     position: static !important;
     float: none !important;
@@ -5160,6 +5166,25 @@ h2.head {
     background: transparent !important;
   }
 
+  /* Remove qualquer padding ou margem de preview de tela na impressão */
+  .canva-pdf-preview-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Torna visível o documento montado em modo Canva */
+  .canva-print-mount-offscreen {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
   /* Evita salto de página antes do primeiro slide */
   .slide:first-of-type {
     page-break-before: avoid !important;
@@ -5167,7 +5192,10 @@ h2.head {
     margin-top: 0 !important;
   }
 
-  /* Slide ocupando ponta a ponta (laterais e rodapé 100%) */
+  /* Slide ocupando ponta a ponta (laterais e rodapé 100% full bleed sem borda branca) */
+  .canva-pdf-preview-container .slide,
+  .canva-print-mount-offscreen .slide,
+  .presentation-manual-root .slide,
   .slide {
     page-break-after: always !important;
     break-after: page !important;
@@ -5175,10 +5203,12 @@ h2.head {
     break-inside: avoid !important;
     min-height: 100vh !important;
     height: 100vh !important;
+    max-height: 100vh !important;
     width: 100vw !important;
     max-width: 100vw !important;
+    min-width: 100vw !important;
     margin: 0 !important;
-    padding: 44px 52px !important;
+    padding: 38px 48px !important;
     box-sizing: border-box !important;
     border: none !important;
     border-radius: 0 !important;
@@ -5186,6 +5216,7 @@ h2.head {
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
+    overflow: hidden !important;
   }
 
   .slide:last-of-type {
@@ -5205,14 +5236,14 @@ h2.head {
 
   .slide.deep,
   .slide.dark {
-    background: #000000 !important;
+    background-color: #000000 !important;
     color: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   .slide.light {
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -9330,4 +9361,234 @@ input[type="checkbox"]:focus-visible,
   background: rgba(231, 76, 60, 0.1);
   box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.4);
 }
+
+/* ==========================================================================
+   BARRA FLUTUANTE DE PROPRIEDADES DO ELEMENTO & FORMAS DINÂMICAS DO CANVA
+   ========================================================================== */
+
+/* Barra Flutuante de Propriedades (In-Site, Zero Popups Nativos) */
+.canva-element-property-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.55rem 0.95rem;
+  background: #1a1e2b;
+  border: 1px solid #3b435b;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeInDown 0.2s ease-out;
+}
+
+.prop-bar-label {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  padding-right: 0.5rem;
+  border-right: 1px solid #2d3345;
+}
+
+.prop-bar-label strong {
+  color: #f1f5f9;
+}
+
+.prop-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.prop-group-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+/* Swatches de Cores */
+.prop-color-swatches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prop-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.prop-color-dot:hover {
+  transform: scale(1.2);
+}
+
+.prop-color-dot.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+  transform: scale(1.25);
+}
+
+/* Botões Mini de Opção (Opacidade, Glow, Tamanho, Direção) */
+.prop-btn-group {
+  display: flex;
+  align-items: center;
+  background: #0f1219;
+  border: 1px solid #2d3345;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.prop-btn-mini {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prop-btn-mini:hover {
+  color: #ffffff;
+}
+
+.prop-btn-mini.active {
+  background: var(--red);
+  color: #ffffff;
+}
+
+/* Input de Texto na Barra de Propriedades */
+.prop-text-input {
+  background: #0f1219;
+  border: 1px solid #3b435b;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+
+.prop-text-input:focus {
+  border-color: var(--red);
+}
+
+/* Ações da Barra (Remover e Fechar) */
+.prop-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.prop-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prop-btn-delete:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.prop-btn-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  padding: 3px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.prop-btn-close:hover {
+  color: #ffffff;
+}
+
+/* Elemento Selecionado no Canvas (Caixa Delimitadora com Outline) */
+.canva-canvas-indicator.selected-indicator {
+  outline: 2px dashed #ef4444 !important;
+  outline-offset: 4px !important;
+  border-radius: 4px;
+}
+
+/* Tag de Amostra na Toolbar */
+.badge-sample-tag {
+  background: var(--red);
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+
+/* Menu Suspenso Interativo (Dropdown / Accordion no Canvas e HTML) */
+.canva-interactive-dropdown {
+  background: #0f172a;
+  border: 1.5px solid var(--red);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  width: max-content;
+  max-width: 280px;
+  overflow: hidden;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.canva-interactive-dropdown summary {
+  padding: 6px 12px;
+  background: var(--red);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.canva-interactive-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.canva-interactive-dropdown .dropdown-chevron-icon {
+  transition: transform 0.2s ease;
+}
+
+.canva-interactive-dropdown[open] .dropdown-chevron-icon {
+  transform: rotate(180deg);
+}
+
+.canva-interactive-dropdown .dropdown-body-content {
+  padding: 8px 12px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 

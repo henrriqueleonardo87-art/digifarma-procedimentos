@@ -253,6 +253,22 @@ export function generateProcedureHtml(procedure: Procedure): string {
       50% { transform: translateX(10px); }
     }
 
+    /* SVG Hand Animada */
+    .pointing-hand-svg {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 15;
+      animation: fingerBounce 1.5s infinite;
+      cursor: pointer;
+    }
+
+    /* Seta SVG */
+    .arrow-svg-elem {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 14;
+    }
+
     /* Spotlight Radar Pulsante no Campo da Tela */
     .spotlight-beacon {
       position: absolute;
@@ -284,6 +300,46 @@ export function generateProcedureHtml(procedure: Procedure): string {
       z-index: 10;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Menu Suspenso Interativo (Dropdown / Accordion) */
+    .canva-interactive-dropdown {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 25;
+      background: #0f172a;
+      border: 1.5px solid var(--red);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      width: max-content;
+      max-width: 280px;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    .canva-interactive-dropdown summary {
+      padding: 6px 12px;
+      background: var(--red);
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      outline: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .canva-interactive-dropdown summary::-webkit-details-marker {
+      display: none;
+    }
+    .canva-interactive-dropdown .dropdown-body-content {
+      padding: 8px 12px;
+      background: #1e293b;
+      color: #f1f5f9;
+      font-size: 12px;
+      line-height: 1.4;
     }
 
     /* Checklist Interativo */
@@ -457,21 +513,107 @@ export function generateProcedureHtml(procedure: Procedure): string {
                   : `<div style="color:#64748b;font-weight:600;padding:40px;text-align:center;">Captura de Tela do ERP Digifarma</div>`
               }
 
-              <!-- Indicadores Interativos e Mãozinha -->
+              <!-- Indicadores Interativos, Formas, Cores e Menus Suspensos -->
               ${indicators
                 .map((ind) => {
+                  const color = ind.color || '#ef4444';
+                  const opacity = ind.opacity ?? 1.0;
+                  const glow = ind.glow ?? 'none';
+                  const size = ind.size ?? 'md';
+                  const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+                  const glowStyle =
+                    glow === 'neon'
+                      ? `filter: drop-shadow(0 0 10px ${color}) drop-shadow(0 0 3px #ffffff);`
+                      : glow === 'soft'
+                      ? `filter: drop-shadow(0 0 6px ${color});`
+                      : '';
+
                   if (ind.type === 'hand') {
-                    const handEmoji = ind.direction === 'down' ? '👇' : ind.direction === 'left' ? '👈' : ind.direction === 'right' ? '👉' : '👆';
-                    return `<div class="pointing-hand ${ind.direction || 'up'}" style="left:${ind.x}%;top:${ind.y}%;" title="${ind.label || 'Clique aqui'}">${handEmoji}</div>`;
+                    const rotation =
+                      ind.direction === 'right'
+                        ? 90
+                        : ind.direction === 'down'
+                        ? 180
+                        : ind.direction === 'left'
+                        ? 270
+                        : ind.direction === 'down-right'
+                        ? 135
+                        : ind.direction === 'up-right'
+                        ? 45
+                        : 0;
+
+                    return `<div class="pointing-hand-svg" style="left:${ind.x}%;top:${ind.y}%;opacity:${opacity};${glowStyle}" title="${ind.label || 'Clique aqui'}">
+                      <svg width="${38 * scale}" height="${38 * scale}" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${rotation}deg);">
+                        <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3"/>
+                        <path d="M14 9V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7"/>
+                        <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/>
+                        <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                      </svg>
+                    </div>`;
                   }
-                  if (ind.type === 'spotlight') {
-                    return `<div class="spotlight-beacon" style="left:${ind.x}%;top:${ind.y}%;"></div>`;
+                  if (ind.type === 'arrow') {
+                    const rotation =
+                      ind.direction === 'down'
+                        ? 90
+                        : ind.direction === 'left'
+                        ? 180
+                        : ind.direction === 'up'
+                        ? 270
+                        : ind.direction === 'down-right'
+                        ? 45
+                        : ind.direction === 'up-right'
+                        ? -45
+                        : 0;
+                    const markerId = `html-ah-${ind.id}`;
+
+                    return `<div class="arrow-svg-elem" style="left:${ind.x}%;top:${ind.y}%;opacity:${opacity};${glowStyle}">
+                      <svg width="${52 * scale}" height="${26 * scale}" viewBox="0 0 52 26" style="transform: rotate(${rotation}deg);">
+                        <defs>
+                          <marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                            <polygon points="0 0, 7 3.5, 0 7" fill="${color}" />
+                          </marker>
+                        </defs>
+                        <line x1="4" y1="13" x2="44" y2="13" stroke="${color}" stroke-width="${size === 'lg' || size === 'xl' ? 5 : size === 'sm' ? 3 : 4}" stroke-linecap="round" marker-end="url(#${markerId})" />
+                      </svg>
+                    </div>`;
+                  }
+                  if (ind.type === 'rect') {
+                    const isFilled = ind.fillMode === 'filled';
+                    const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
+                    const h = size === 'sm' ? 36 : size === 'lg' ? 75 : size === 'xl' ? 100 : 54;
+                    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);width:${w}px;height:${h}px;border:3px solid ${color};background:${isFilled ? color : 'transparent'};opacity:${opacity};border-radius:8px;z-index:12;display:flex;align-items:center;justify-content:center;color:${isFilled ? '#ffffff' : color};font-size:11px;font-weight:800;text-align:center;box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : 'none'};">${ind.label || ''}</div>`;
+                  }
+                  if (ind.type === 'circle') {
+                    const isFilled = ind.fillMode === 'filled';
+                    const d = size === 'sm' ? 36 : size === 'lg' ? 72 : size === 'xl' ? 96 : 52;
+                    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);width:${d}px;height:${d}px;border-radius:50%;border:3px solid ${color};background:${isFilled ? color : 'transparent'};opacity:${opacity};z-index:12;display:flex;align-items:center;justify-content:center;color:${isFilled ? '#ffffff' : color};font-size:12px;font-weight:900;box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : 'none'};">${ind.label || ''}</div>`;
+                  }
+                  if (ind.type === 'text') {
+                    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);background:rgba(15,23,42,0.88);color:${color};border:1.5px solid ${color};border-radius:6px;padding:4px 10px;font-size:13px;font-weight:700;opacity:${opacity};z-index:20;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">${ind.label || 'Texto'}</div>`;
                   }
                   if (ind.type === 'badge') {
-                    return `<div class="floating-badge" style="left:${ind.x}%;top:${ind.y}%;">${ind.label || 'Atenção'}</div>`;
+                    return `<div class="floating-badge" style="left:${ind.x}%;top:${ind.y}%;background:${color};opacity:${opacity};box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : '0 4px 12px rgba(0,0,0,0.4)'};">${ind.label || 'Atenção'}</div>`;
+                  }
+                  if (ind.type === 'icon') {
+                    const iconEmoji = ind.iconName === 'target' ? '🎯' : ind.iconName === 'cursor' ? '🖱️' : ind.iconName === 'star' ? '⭐' : ind.iconName === 'check' ? '✅' : ind.iconName === 'info' ? 'ℹ️' : ind.iconName === 'bolt' ? '⚡' : ind.iconName === 'forbidden' ? '🚫' : ind.iconName === 'lock' ? '🔒' : '⚠️';
+                    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);font-size:${size === 'sm' ? 22 : size === 'lg' ? 38 : size === 'xl' ? 48 : 30}px;opacity:${opacity};z-index:15;${glowStyle}">${iconEmoji}</div>`;
+                  }
+                  if (ind.type === 'dropdown') {
+                    return `<details class="canva-interactive-dropdown" style="left:${ind.x}%;top:${ind.y}%;border-color:${color};opacity:${opacity};">
+                      <summary style="background:${color};">
+                        <span>${ind.label || 'Ver Detalhes do Campo'}</span>
+                        <span style="font-size:10px;">▼</span>
+                      </summary>
+                      <div class="dropdown-body-content">
+                        <p>${ind.content || 'Instruções operacionais complementares do Digifarma.'}</p>
+                      </div>
+                    </details>`;
+                  }
+                  if (ind.type === 'spotlight') {
+                    return `<div class="spotlight-beacon" style="left:${ind.x}%;top:${ind.y}%;border-color:${color};background:rgba(231,76,60,0.25);"></div>`;
                   }
                   if (ind.type === 'gif' && ind.gifUrl) {
-                    return `<img src="${ind.gifUrl}" style="position:absolute;left:${ind.x}%;top:${ind.y}%;max-width:80px;border-radius:8px;z-index:10;" alt="GIF Indicador" />`;
+                    return `<img src="${ind.gifUrl}" style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);max-width:90px;border-radius:8px;z-index:10;opacity:${opacity};" alt="GIF Indicador" />`;
                   }
                   return '';
                 })
