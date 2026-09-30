@@ -16,8 +16,10 @@ export function getSavedConfig(): SupabaseConfig {
   }
 
   return {
-    url: import.meta.env.VITE_SUPABASE_URL || '',
-    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+    url: import.meta.env.VITE_SUPABASE_URL || 'https://yhmlaynltzwuksyzmzsg.supabase.co',
+    anonKey:
+      import.meta.env.VITE_SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobWxheW5sdHp3dWtzeXptenNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTY2NjYsImV4cCI6MjEwNjE5MjY2Nn0.dBHXFF29eTC6i-fBnGlNmdIpXkkzv9u-iciUUw0OpyE',
     bucketName: import.meta.env.VITE_SUPABASE_BUCKET || 'procedure-media',
   };
 }
@@ -59,10 +61,10 @@ export async function testConnection(): Promise<{ success: boolean; message: str
     const { error } = await client.from('procedures').select('id').limit(1);
     if (error) {
       // Pode ser tabela não criada
-      if (error.code === '42P01') {
+      if (error.code === '42P01' || error.code === 'PGRST205') {
         return {
           success: false,
-          message: 'Conectado ao Supabase, mas a tabela "procedures" ainda não existe. Execute o script SQL no seu Supabase!',
+          message: 'Conectado ao Supabase com sucesso! A tabela "procedures" precisa ser criada: basta rodar o script SQL no painel do Supabase.',
         };
       }
       return {

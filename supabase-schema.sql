@@ -1,14 +1,19 @@
 -- ============================================================
 -- BASE DE PROCEDIMENTOS / MANUAIS DIGIFARMA
--- Execute este script no SQL Editor do seu Supabase Dashboard
+-- Execute este script no SQL Editor do seu Supabase Dashboard:
+-- https://supabase.com/dashboard/project/yhmlaynltzwuksyzmzsg/sql
 -- ============================================================
 
 -- 1. Criação da tabela principal de Procedimentos
 CREATE TABLE IF NOT EXISTS public.procedures (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     subtitle TEXT,
     category TEXT NOT NULL DEFAULT 'Geral',
+    "systemVersion" TEXT DEFAULT 'v10',
+    "menuId" TEXT DEFAULT 'geral',
+    "submenuId" TEXT DEFAULT 'geral',
+    "systemPath" TEXT,
     author TEXT DEFAULT 'Administrador',
     blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
     tags TEXT[] DEFAULT '{}',
@@ -17,22 +22,32 @@ CREATE TABLE IF NOT EXISTS public.procedures (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Garantir que as colunas adicionais existam caso a tabela já tenha sido criada anteriormente
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "systemVersion" TEXT DEFAULT 'v10';
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "menuId" TEXT DEFAULT 'geral';
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "submenuId" TEXT DEFAULT 'geral';
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "systemPath" TEXT;
+
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE public.procedures ENABLE ROW LEVEL SECURITY;
 
--- Políticas de acesso livre (perfeito para uso interno/local sem necessidade de login complexo inicial)
+-- Políticas de acesso livre para a aplicação
+DROP POLICY IF EXISTS "Permitir leitura pública/anônima de procedimentos" ON public.procedures;
 CREATE POLICY "Permitir leitura pública/anônima de procedimentos"
     ON public.procedures FOR SELECT
     USING (true);
 
+DROP POLICY IF EXISTS "Permitir inserção de procedimentos" ON public.procedures;
 CREATE POLICY "Permitir inserção de procedimentos"
     ON public.procedures FOR INSERT
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Permitir atualização de procedimentos" ON public.procedures;
 CREATE POLICY "Permitir atualização de procedimentos"
     ON public.procedures FOR UPDATE
     USING (true);
 
+DROP POLICY IF EXISTS "Permitir exclusão de procedimentos" ON public.procedures;
 CREATE POLICY "Permitir exclusão de procedimentos"
     ON public.procedures FOR DELETE
     USING (true);
@@ -69,17 +84,39 @@ CREATE POLICY "Permitir upload de imagens de procedimentos"
     ON storage.objects FOR INSERT
     WITH CHECK (bucket_id = 'procedure-media');
 
+DROP POLICY IF EXISTS "Permitir atualização de imagens de procedimentos" ON storage.objects;
+CREATE POLICY "Permitir atualização de imagens de procedimentos"
+    ON storage.objects FOR UPDATE
+    USING (bucket_id = 'procedure-media');
+
 DROP POLICY IF EXISTS "Permitir exclusão de imagens de procedimentos" ON storage.objects;
 CREATE POLICY "Permitir exclusão de imagens de procedimentos"
     ON storage.objects FOR DELETE
     USING (bucket_id = 'procedure-media');
 
 -- 4. Exemplo inicial de procedimento pronto para visualização
-INSERT INTO public.procedures (title, subtitle, category, author, tags, blocks)
+INSERT INTO public.procedures (
+    id,
+    title,
+    subtitle,
+    category,
+    "systemVersion",
+    "menuId",
+    "submenuId",
+    "systemPath",
+    author,
+    tags,
+    blocks
+)
 VALUES (
-    'Procedimento de Recebimento e Conferência de Mercadorias',
+    'proc-recebimento-mercadorias',
+    'Recebimento e Conferência de Mercadorias',
     'Guia passo a passo operacional para entrada de notas fiscais e checagem de lotes',
-    'Operacional / Estoque',
+    'Estoque',
+    'v10',
+    'estoque',
+    'entrada-notas',
+    'Digifarma V10 ➔ Estoque ➔ Entrada de Notas XML',
     'Farmacêutico Responsável',
     ARRAY['Estoque', 'Conferência', 'Boas Práticas', 'SOP'],
     '[
@@ -133,4 +170,4 @@ VALUES (
         }
     ]'::jsonb
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;

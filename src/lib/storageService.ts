@@ -738,8 +738,15 @@ export async function fetchAllProcedures(): Promise<Procedure[]> {
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-        return data as Procedure[];
+        const normalized = (data as Record<string, unknown>[]).map((p) => ({
+          ...p,
+          systemVersion: (p.systemVersion || p.systemversion || 'v10') as SystemVersion,
+          menuId: (p.menuId || p.menuid || 'geral') as string,
+          submenuId: (p.submenuId || p.submenuid || 'geral') as string,
+          systemPath: (p.systemPath || p.systempath || '') as string,
+        })) as unknown as Procedure[];
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
+        return normalized;
       }
     } catch (err) {
       console.warn('Falha ao carregar do Supabase, buscando cache local:', err);
