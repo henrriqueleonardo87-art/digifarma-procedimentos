@@ -1,4 +1,111 @@
-import type { Procedure, StepBlock, ImageBlock, CalloutBlock } from '../types/procedure';
+function renderIndicatorHtml(ind: SlideIndicator): string {
+  const color = ind.color || '#ef4444';
+  const opacity = ind.opacity ?? 1.0;
+  const glow = ind.glow ?? 'none';
+  const size = ind.size ?? 'md';
+  const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+  const glowStyle =
+    glow === 'neon'
+      ? `filter: drop-shadow(0 0 10px ${color}) drop-shadow(0 0 3px #ffffff);`
+      : glow === 'soft'
+      ? `filter: drop-shadow(0 0 6px ${color});`
+      : '';
+
+  if (ind.type === 'hand') {
+    const rotation =
+      ind.direction === 'right'
+        ? 90
+        : ind.direction === 'down'
+        ? 180
+        : ind.direction === 'left'
+        ? 270
+        : ind.direction === 'down-right'
+        ? 135
+        : ind.direction === 'up-right'
+        ? 45
+        : 0;
+
+    return `<div class="pointing-hand-svg" style="left:${ind.x}%;top:${ind.y}%;opacity:${opacity};${glowStyle}" title="${ind.label || 'Clique aqui'}">
+      <svg width="${38 * scale}" height="${38 * scale}" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${rotation}deg);">
+        <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3"/>
+        <path d="M14 9V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7"/>
+        <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/>
+        <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+      </svg>
+    </div>`;
+  }
+  if (ind.type === 'arrow') {
+    const rotation =
+      ind.direction === 'down'
+        ? 90
+        : ind.direction === 'left'
+        ? 180
+        : ind.direction === 'up'
+        ? 270
+        : ind.direction === 'down-right'
+        ? 45
+        : ind.direction === 'up-right'
+        ? -45
+        : 0;
+    const markerId = `html-ah-${ind.id}`;
+
+    return `<div class="arrow-svg-elem" style="left:${ind.x}%;top:${ind.y}%;opacity:${opacity};${glowStyle}">
+      <svg width="${52 * scale}" height="${26 * scale}" viewBox="0 0 52 26" style="transform: rotate(${rotation}deg);">
+        <defs>
+          <marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <polygon points="0 0, 7 3.5, 0 7" fill="${color}" />
+          </marker>
+        </defs>
+        <line x1="4" y1="13" x2="44" y2="13" stroke="${color}" stroke-width="${size === 'lg' || size === 'xl' ? 5 : size === 'sm' ? 3 : 4}" stroke-linecap="round" marker-end="url(#${markerId})" />
+      </svg>
+    </div>`;
+  }
+  if (ind.type === 'rect') {
+    const isFilled = ind.fillMode === 'filled';
+    const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
+    const h = size === 'sm' ? 36 : size === 'lg' ? 75 : size === 'xl' ? 100 : 54;
+    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);width:${w}px;height:${h}px;border:3px solid ${color};background:${isFilled ? (ind.bgColor || color) : 'transparent'};opacity:${opacity};border-radius:8px;z-index:12;display:flex;align-items:center;justify-content:center;color:${ind.textColor || (isFilled ? '#ffffff' : color)};font-family:${ind.fontFamily || 'inherit'};font-size:11px;font-weight:800;text-align:center;box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : 'none'};">${ind.label || ''}</div>`;
+  }
+  if (ind.type === 'circle') {
+    const isFilled = ind.fillMode === 'filled';
+    const d = size === 'sm' ? 36 : size === 'lg' ? 72 : size === 'xl' ? 96 : 52;
+    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);width:${d}px;height:${d}px;border-radius:50%;border:3px solid ${color};background:${isFilled ? (ind.bgColor || color) : 'transparent'};opacity:${opacity};z-index:12;display:flex;align-items:center;justify-content:center;color:${ind.textColor || (isFilled ? '#ffffff' : color)};font-family:${ind.fontFamily || 'inherit'};font-size:12px;font-weight:900;box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : 'none'};">${ind.label || ''}</div>`;
+  }
+  if (ind.type === 'text') {
+    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);background:${ind.bgColor || 'rgba(15,23,42,0.88)'};color:${ind.textColor || color};border:1.5px solid ${color};font-family:${ind.fontFamily || 'inherit'};border-radius:6px;padding:4px 10px;font-size:13px;font-weight:700;opacity:${opacity};z-index:20;max-width:260px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">${ind.label || 'Texto'}</div>`;
+  }
+  if (ind.type === 'badge') {
+    return `<div class="floating-badge" style="left:${ind.x}%;top:${ind.y}%;background:${color};color:${ind.textColor || '#ffffff'};font-family:${ind.fontFamily || 'inherit'};opacity:${opacity};box-shadow:${glow === 'neon' ? `0 0 12px ${color}` : '0 4px 12px rgba(0,0,0,0.4)'};">${ind.label || 'Atenção'}</div>`;
+  }
+  if (ind.type === 'icon') {
+    const iconEmoji = ind.iconName === 'target' ? '🎯' : ind.iconName === 'cursor' ? '🖱️' : ind.iconName === 'star' ? '⭐' : ind.iconName === 'check' ? '✅' : ind.iconName === 'info' ? 'ℹ️' : ind.iconName === 'bolt' ? '⚡' : ind.iconName === 'forbidden' ? '🚫' : ind.iconName === 'lock' ? '🔒' : '⚠️';
+    return `<div style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);font-size:${size === 'sm' ? 22 : size === 'lg' ? 38 : size === 'xl' ? 48 : 30}px;opacity:${opacity};z-index:15;${glowStyle}">${iconEmoji}</div>`;
+  }
+  if (ind.type === 'dropdown') {
+    const optsHtml = (ind.dropdownOptions && ind.dropdownOptions.length > 0)
+      ? `<ul class="dropdown-options-list">${ind.dropdownOptions.map(opt => `<li class="dropdown-opt-item"><span class="dropdown-opt-bullet" style="background:${color};"></span><span style="color:${ind.textColor || '#e2e8f0'};">${opt.text}</span></li>`).join('')}</ul>`
+      : '';
+    return `<details class="canva-interactive-dropdown" style="left:${ind.x}%;top:${ind.y}%;border-color:${color};opacity:${opacity};font-family:${ind.fontFamily || 'inherit'};">
+      <summary style="background:${color};color:${ind.textColor || '#ffffff'};">
+        <span>${ind.label || 'Opções & Instruções'}</span>
+        <span style="font-size:10px;">▼</span>
+      </summary>
+      <div class="dropdown-body-content" style="background:${ind.bgColor || '#1e293b'};">
+        ${ind.content ? `<p style="color:${ind.textColor || '#f1f5f9'};margin-bottom:6px;">${ind.content}</p>` : ''}
+        ${optsHtml}
+      </div>
+    </details>`;
+  }
+  if (ind.type === 'spotlight') {
+    return `<div class="spotlight-beacon" style="left:${ind.x}%;top:${ind.y}%;border-color:${color};background:rgba(231,76,60,0.25);"></div>`;
+  }
+  if (ind.type === 'gif' && ind.gifUrl) {
+    return `<img src="${ind.gifUrl}" style="position:absolute;left:${ind.x}%;top:${ind.y}%;transform:translate(-50%,-50%);max-width:90px;border-radius:8px;z-index:10;opacity:${opacity};" alt="GIF Indicador" />`;
+  }
+  return '';
+}
+
+import type { Procedure, StepBlock, ImageBlock, CalloutBlock, SlideIndicator } from '../types/procedure';
 
 export function generateProcedureHtml(procedure: Procedure): string {
   const isV10 = procedure.systemVersion === 'v10';
@@ -18,7 +125,7 @@ export function generateProcedureHtml(procedure: Procedure): string {
   <title>${procedure.title} — Procedimento Digifarma</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800;900&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --ink: #050608;
@@ -317,6 +424,27 @@ export function generateProcedureHtml(procedure: Procedure): string {
       overflow: hidden;
       font-size: 12px;
     }
+    .dropdown-options-list {
+      list-style: none;
+      margin: 8px 0 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dropdown-opt-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      line-height: 1.35;
+    }
+    .dropdown-opt-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
     .canva-interactive-dropdown summary {
       padding: 6px 12px;
       background: var(--red);
@@ -411,7 +539,7 @@ export function generateProcedureHtml(procedure: Procedure): string {
 <body>
 
   <!-- SLIDE 1: CAPA EDITORIAL -->
-  <section class="slide deep">
+  <section class="slide deep" style="position:relative;">
     <div class="inner">
       <div>
         <div class="logo">
@@ -441,6 +569,7 @@ export function generateProcedureHtml(procedure: Procedure): string {
         </div>
       </div>
     </div>
+    ${(slidesConfig.find((s) => s.slideType === "cover" || s.id === "slide-cover" || s.slideIndex === 0)?.indicators || []).map(renderIndicatorHtml).join("")}
   </section>
 
   <!-- SLIDES DE ETAPAS OPERACIONAIS COM INDICADORES E MÃOZINHA -->

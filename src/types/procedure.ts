@@ -99,6 +99,12 @@ export type IndicatorIconName =
   | 'forbidden'
   | 'lock';
 
+export interface DropdownOption {
+  id: string;
+  text: string;
+  badge?: string;
+}
+
 export interface SlideIndicator {
   id: string;
   type: IndicatorType;
@@ -107,9 +113,14 @@ export interface SlideIndicator {
   label?: string; // for badge, text box or dropdown title
   content?: string; // for dropdown body or detailed note
   direction?: IndicatorDirection;
-  color?: string; // primary accent color (hex)
+  color?: string; // primary accent / border color (hex)
   bgColor?: string; // background fill color
   borderColor?: string;
+  textColor?: string; // custom font color
+  fontFamily?: string; // Inter, Outfit, Roboto, Playfair Display, Fira Code, Bebas Neue, Nunito
+  fontWeight?: string | number;
+  dropdownOptions?: DropdownOption[];
+  slideIndex?: number; // target slide index
   fillMode?: IndicatorFillMode;
   opacity?: number; // 0.1 to 1.0 (e.g. 1.0, 0.75, 0.5, 0.25)
   glow?: IndicatorGlow;
@@ -146,6 +157,7 @@ export interface SlideConfig {
   bgTheme?: 'deep' | 'dark' | 'light' | 'custom';
   customBgColor?: string;
   stepIndex?: number;
+  slideIndex?: number;
   indicators?: SlideIndicator[];
   shapes?: SlideShape[];
 }

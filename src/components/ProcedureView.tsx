@@ -26,6 +26,7 @@ import type {
   ImageBlock,
   CalloutBlock,
   SystemMenu,
+  SlideIndicator,
 } from '../types/procedure';
 import { ProcedureTimelineModal } from './ProcedureTimelineModal';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
@@ -105,6 +106,332 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
     }, 1200);
   };
 
+  const getSlideIndicators = (slideIdx: number): SlideIndicator[] => {
+    const isCover = slideIdx === 0;
+    const isStep = slideIdx >= 1 && slideIdx <= stepBlocks.length;
+    const isBpf = slideIdx === stepBlocks.length + 1;
+    const isChecklist = slideIdx === stepBlocks.length + 2;
+    const isSignatures = slideIdx === stepBlocks.length + 3;
+    const stepIdx = isStep ? slideIdx - 1 : undefined;
+
+    const targetId = isCover
+      ? 'slide-cover'
+      : isStep
+      ? `slide-step-${stepIdx}`
+      : isBpf
+      ? 'slide-bpf'
+      : isChecklist
+      ? 'slide-checklist'
+      : 'slide-signatures';
+
+    const found = procedure.slidesConfig?.find((s) => {
+      if (isCover) return s.slideType === 'cover' || s.id === 'slide-cover';
+      if (isStep) return s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`;
+      if (isBpf) return s.slideType === 'callout' || s.id === 'slide-bpf';
+      if (isChecklist) return s.slideType === 'checklist' || s.id === 'slide-checklist';
+      if (isSignatures) return s.slideType === 'signatures' || s.id === 'slide-signatures';
+      return s.id === targetId;
+    });
+
+    return found?.indicators || [];
+  };
+
+  const renderIndicatorViewItem = (ind: SlideIndicator) => {
+    const color = ind.color || '#ef4444';
+    const opacity = ind.opacity ?? 1.0;
+    const glow = ind.glow ?? 'none';
+    const size = ind.size ?? 'md';
+    const glowStyle =
+      glow === 'neon'
+        ? `0 0 12px ${color}, 0 0 4px #ffffff`
+        : glow === 'soft'
+        ? `0 0 8px ${color}`
+        : undefined;
+
+    let elemContent: React.ReactNode = null;
+
+    if (ind.type === 'hand') {
+      const rotation =
+        ind.direction === 'right'
+          ? 90
+          : ind.direction === 'down'
+          ? 180
+          : ind.direction === 'left'
+          ? 270
+          : ind.direction === 'down-right'
+          ? 135
+          : ind.direction === 'up-right'
+          ? 45
+          : 0;
+      const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+
+      elemContent = (
+        <svg
+          width={38 * scale}
+          height={38 * scale}
+          viewBox="0 0 24 24"
+          fill={color}
+          stroke="#ffffff"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))',
+          }}
+        >
+          <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3" />
+          <path d="M14 9V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7" />
+          <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
+          <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+        </svg>
+      );
+    } else if (ind.type === 'arrow') {
+      const rotation =
+        ind.direction === 'down'
+          ? 90
+          : ind.direction === 'left'
+          ? 180
+          : ind.direction === 'up'
+          ? 270
+          : ind.direction === 'down-right'
+          ? 45
+          : ind.direction === 'up-right'
+          ? -45
+          : 0;
+      const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
+      const markerId = `view-ah-${ind.id}`;
+
+      elemContent = (
+        <svg
+          width={52 * scale}
+          height={26 * scale}
+          viewBox="0 0 52 26"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+          }}
+        >
+          <defs>
+            <marker id={markerId} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <polygon points="0 0, 7 3.5, 0 7" fill={color} />
+            </marker>
+          </defs>
+          <line
+            x1="4"
+            y1="13"
+            x2="44"
+            y2="13"
+            stroke={color}
+            strokeWidth={size === 'lg' || size === 'xl' ? 5 : size === 'sm' ? 3 : 4}
+            strokeLinecap="round"
+            markerEnd={`url(#${markerId})`}
+          />
+        </svg>
+      );
+    } else if (ind.type === 'rect') {
+      const isFilled = ind.fillMode === 'filled';
+      const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
+      const h = size === 'sm' ? 36 : size === 'lg' ? 75 : size === 'xl' ? 100 : 54;
+      elemContent = (
+        <div
+          style={{
+            width: `${w}px`,
+            height: `${h}px`,
+            border: `3px solid ${color}`,
+            backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
+            opacity,
+            borderRadius: '8px',
+            boxShadow: glowStyle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: ind.textColor || (isFilled ? '#ffffff' : color),
+            fontFamily: ind.fontFamily || 'inherit',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            padding: '2px 4px',
+            textAlign: 'center',
+          }}
+        >
+          {ind.label || ''}
+        </div>
+      );
+    } else if (ind.type === 'circle') {
+      const isFilled = ind.fillMode === 'filled';
+      const d = size === 'sm' ? 36 : size === 'lg' ? 72 : size === 'xl' ? 96 : 52;
+      elemContent = (
+        <div
+          style={{
+            width: `${d}px`,
+            height: `${d}px`,
+            borderRadius: '50%',
+            border: `3px solid ${color}`,
+            backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
+            opacity,
+            boxShadow: glowStyle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: ind.textColor || (isFilled ? '#ffffff' : color),
+            fontFamily: ind.fontFamily || 'inherit',
+            fontSize: size === 'sm' ? '0.75rem' : '0.9rem',
+            fontWeight: 900,
+          }}
+        >
+          {ind.label || ''}
+        </div>
+      );
+    } else if (ind.type === 'text') {
+      elemContent = (
+        <div
+          style={{
+            backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.88)',
+            color: ind.textColor || ind.color || '#ffffff',
+            border: `1.5px solid ${color}`,
+            fontFamily: ind.fontFamily || 'inherit',
+            borderRadius: '6px',
+            padding: '4px 10px',
+            fontSize: size === 'sm' ? '0.75rem' : size === 'lg' ? '1.05rem' : size === 'xl' ? '1.25rem' : '0.86rem',
+            fontWeight: 700,
+            opacity,
+            boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
+            maxWidth: '280px',
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.3,
+          }}
+        >
+          {ind.label || 'Texto Informativo'}
+        </div>
+      );
+    } else if (ind.type === 'badge') {
+      elemContent = (
+        <div
+          style={{
+            backgroundColor: color,
+            color: ind.textColor || '#ffffff',
+            fontFamily: ind.fontFamily || 'inherit',
+            padding: size === 'sm' ? '2px 8px' : size === 'lg' ? '5px 14px' : '3px 10px',
+            borderRadius: '999px',
+            fontSize: size === 'sm' ? '0.7rem' : size === 'lg' ? '0.9rem' : '0.78rem',
+            fontWeight: 800,
+            opacity,
+            boxShadow: glowStyle || '0 4px 10px rgba(0,0,0,0.4)',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {ind.label || 'Atenção'}
+        </div>
+      );
+    } else if (ind.type === 'icon') {
+      const sz = size === 'sm' ? 20 : size === 'lg' ? 36 : size === 'xl' ? 48 : 28;
+      elemContent = (
+        <div
+          style={{
+            opacity,
+            filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))',
+          }}
+        >
+          {ind.iconName === 'target' ? (
+            <Target size={sz} color={color} />
+          ) : ind.iconName === 'cursor' ? (
+            <MousePointer size={sz} color={color} />
+          ) : ind.iconName === 'star' ? (
+            <Star size={sz} color={color} fill={color} />
+          ) : ind.iconName === 'check' ? (
+            <Check size={sz} color={color} strokeWidth={3} />
+          ) : ind.iconName === 'info' ? (
+            <Info size={sz} color={color} />
+          ) : ind.iconName === 'bolt' ? (
+            <Zap size={sz} color={color} fill={color} />
+          ) : ind.iconName === 'forbidden' ? (
+            <Ban size={sz} color={color} />
+          ) : ind.iconName === 'lock' ? (
+            <Lock size={sz} color={color} />
+          ) : (
+            <AlertTriangle size={sz} color={color} fill="rgba(245, 158, 11, 0.25)" />
+          )}
+        </div>
+      );
+    } else if (ind.type === 'dropdown') {
+      elemContent = (
+        <details
+          className="canva-interactive-dropdown"
+          style={{
+            borderColor: color,
+            boxShadow: glowStyle,
+            opacity,
+            fontFamily: ind.fontFamily || 'inherit',
+          }}
+        >
+          <summary style={{ backgroundColor: color, color: ind.textColor || '#ffffff' }}>
+            <span>{ind.label || 'Opções & Instruções Fiscais'}</span>
+            <ChevronDown size={14} className="dropdown-chevron-icon" />
+          </summary>
+          <div className="dropdown-body-content" style={{ backgroundColor: ind.bgColor || '#1e293b' }}>
+            {ind.content && (
+              <p style={{ color: ind.textColor || '#f1f5f9', marginBottom: '6px' }}>{ind.content}</p>
+            )}
+            {ind.dropdownOptions && ind.dropdownOptions.length > 0 && (
+              <ul className="dropdown-options-list">
+                {ind.dropdownOptions.map((opt) => (
+                  <li key={opt.id} className="dropdown-opt-item">
+                    <span className="dropdown-opt-bullet" style={{ backgroundColor: color }} />
+                    <span style={{ color: ind.textColor || '#e2e8f0' }}>{opt.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
+      );
+    } else if (ind.type === 'spotlight') {
+      elemContent = (
+        <div
+          className="spotlight-beacon"
+          style={{
+            borderColor: color,
+            backgroundColor: 'rgba(231, 76, 60, 0.25)',
+            boxShadow: glowStyle,
+            width: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
+            height: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
+          }}
+        />
+      );
+    } else if (ind.type === 'gif' && ind.gifUrl) {
+      elemContent = (
+        <img
+          src={ind.gifUrl}
+          alt="GIF"
+          style={{
+            maxWidth: size === 'sm' ? '60px' : size === 'lg' ? '120px' : '88px',
+            borderRadius: '8px',
+            opacity,
+            boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
+          }}
+        />
+      );
+    }
+
+    return (
+      <div
+        key={ind.id}
+        className="canva-canvas-indicator"
+        style={{
+          position: 'absolute',
+          left: `${ind.x}%`,
+          top: `${ind.y}%`,
+          transform: 'translate(-50%, -50%)',
+          zIndex: 20,
+          userSelect: 'none',
+        }}
+      >
+        {elemContent}
+      </div>
+    );
+  };
+
   return (
     <article className="presentation-manual-root" id="printable-procedure">
       {/* ── BARRA FIXA DE AÇÕES DO POP (NÃO APARECE NA IMPRESSÃO) ── */}
@@ -171,7 +498,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
       />
 
       {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
-      <section className="slide deep cover">
+      <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
           <div className="logo">
             <span className="a">Digi</span>
@@ -226,6 +553,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Indicadores Visuais da Capa */}
+        {getSlideIndicators(0).map(renderIndicatorViewItem)}
       </section>
 
       {/* ── 02 · ETAPAS OPERACIONAIS FORMATADAS EM SLIDES ── */}
@@ -328,282 +658,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                     )}
 
                     {/* Indicadores Visuais da Etapa, Formas, Cores e Mãozinha */}
-                    {(
-                      procedure.slidesConfig?.find((s) => s.stepIndex === idx)?.indicators || []
-                    ).map((ind) => {
-                      const color = ind.color || '#ef4444';
-                      const opacity = ind.opacity ?? 1.0;
-                      const glow = ind.glow ?? 'none';
-                      const size = ind.size ?? 'md';
-                      const glowStyle =
-                        glow === 'neon'
-                          ? `0 0 12px ${color}, 0 0 4px #ffffff`
-                          : glow === 'soft'
-                          ? `0 0 8px ${color}`
-                          : undefined;
-
-                      let elemContent: React.ReactNode = null;
-
-                      if (ind.type === 'hand') {
-                        const rotation =
-                          ind.direction === 'right'
-                            ? 90
-                            : ind.direction === 'down'
-                            ? 180
-                            : ind.direction === 'left'
-                            ? 270
-                            : ind.direction === 'down-right'
-                            ? 135
-                            : ind.direction === 'up-right'
-                            ? 45
-                            : 0;
-                        const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
-
-                        elemContent = (
-                          <svg
-                            width={38 * scale}
-                            height={38 * scale}
-                            viewBox="0 0 24 24"
-                            fill={color}
-                            stroke="#ffffff"
-                            strokeWidth="1.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            style={{
-                              transform: `rotate(${rotation}deg)`,
-                              filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))',
-                            }}
-                          >
-                            <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3" />
-                            <path d="M14 9V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7" />
-                            <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
-                            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
-                          </svg>
-                        );
-                      } else if (ind.type === 'arrow') {
-                        const rotation =
-                          ind.direction === 'down'
-                            ? 90
-                            : ind.direction === 'left'
-                            ? 180
-                            : ind.direction === 'up'
-                            ? 270
-                            : ind.direction === 'down-right'
-                            ? 45
-                            : ind.direction === 'up-right'
-                            ? -45
-                            : 0;
-                        const scale = size === 'sm' ? 0.75 : size === 'lg' ? 1.35 : size === 'xl' ? 1.75 : 1.0;
-                        const markerId = `view-ah-${ind.id}`;
-
-                        elemContent = (
-                          <svg
-                            width={52 * scale}
-                            height={26 * scale}
-                            viewBox="0 0 52 26"
-                            style={{
-                              transform: `rotate(${rotation}deg)`,
-                              filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
-                            }}
-                          >
-                            <defs>
-                              <marker id={markerId} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                                <polygon points="0 0, 7 3.5, 0 7" fill={color} />
-                              </marker>
-                            </defs>
-                            <line
-                              x1="4"
-                              y1="13"
-                              x2="44"
-                              y2="13"
-                              stroke={color}
-                              strokeWidth={size === 'lg' || size === 'xl' ? 5 : size === 'sm' ? 3 : 4}
-                              strokeLinecap="round"
-                              markerEnd={`url(#${markerId})`}
-                            />
-                          </svg>
-                        );
-                      } else if (ind.type === 'rect') {
-                        const isFilled = ind.fillMode === 'filled';
-                        const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
-                        const h = size === 'sm' ? 36 : size === 'lg' ? 75 : size === 'xl' ? 100 : 54;
-                        elemContent = (
-                          <div
-                            style={{
-                              width: `${w}px`,
-                              height: `${h}px`,
-                              border: `3px solid ${color}`,
-                              backgroundColor: isFilled ? color : 'transparent',
-                              opacity,
-                              borderRadius: '8px',
-                              boxShadow: glowStyle,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: isFilled ? '#ffffff' : color,
-                              fontSize: '0.75rem',
-                              fontWeight: 800,
-                              padding: '2px 4px',
-                              textAlign: 'center',
-                            }}
-                          >
-                            {ind.label || ''}
-                          </div>
-                        );
-                      } else if (ind.type === 'circle') {
-                        const isFilled = ind.fillMode === 'filled';
-                        const d = size === 'sm' ? 36 : size === 'lg' ? 72 : size === 'xl' ? 96 : 52;
-                        elemContent = (
-                          <div
-                            style={{
-                              width: `${d}px`,
-                              height: `${d}px`,
-                              borderRadius: '50%',
-                              border: `3px solid ${color}`,
-                              backgroundColor: isFilled ? color : 'transparent',
-                              opacity,
-                              boxShadow: glowStyle,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: isFilled ? '#ffffff' : color,
-                              fontSize: size === 'sm' ? '0.75rem' : '0.9rem',
-                              fontWeight: 900,
-                            }}
-                          >
-                            {ind.label || ''}
-                          </div>
-                        );
-                      } else if (ind.type === 'text') {
-                        elemContent = (
-                          <div
-                            style={{
-                              backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.85)',
-                              color,
-                              border: `1.5px solid ${color}`,
-                              borderRadius: '6px',
-                              padding: '4px 10px',
-                              fontSize: size === 'sm' ? '0.75rem' : size === 'lg' ? '1.05rem' : size === 'xl' ? '1.25rem' : '0.86rem',
-                              fontWeight: 700,
-                              opacity,
-                              boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
-                              maxWidth: '260px',
-                              whiteSpace: 'pre-wrap',
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {ind.label || 'Texto Informativo'}
-                          </div>
-                        );
-                      } else if (ind.type === 'badge') {
-                        elemContent = (
-                          <div
-                            style={{
-                              backgroundColor: color,
-                              color: '#ffffff',
-                              padding: size === 'sm' ? '2px 8px' : size === 'lg' ? '5px 14px' : '3px 10px',
-                              borderRadius: '999px',
-                              fontSize: size === 'sm' ? '0.7rem' : size === 'lg' ? '0.9rem' : '0.78rem',
-                              fontWeight: 800,
-                              opacity,
-                              boxShadow: glowStyle || '0 4px 10px rgba(0,0,0,0.4)',
-                              letterSpacing: '0.02em',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {ind.label || 'Atenção'}
-                          </div>
-                        );
-                      } else if (ind.type === 'icon') {
-                        const sz = size === 'sm' ? 20 : size === 'lg' ? 36 : size === 'xl' ? 48 : 28;
-                        elemContent = (
-                          <div
-                            style={{
-                              opacity,
-                              filter: glowStyle ? `drop-shadow(${glowStyle})` : 'drop-shadow(0 3px 6px rgba(0,0,0,0.5))',
-                            }}
-                          >
-                            {ind.iconName === 'target' ? (
-                              <Target size={sz} color={color} />
-                            ) : ind.iconName === 'cursor' ? (
-                              <MousePointer size={sz} color={color} />
-                            ) : ind.iconName === 'star' ? (
-                              <Star size={sz} color={color} fill={color} />
-                            ) : ind.iconName === 'check' ? (
-                              <Check size={sz} color={color} strokeWidth={3} />
-                            ) : ind.iconName === 'info' ? (
-                              <Info size={sz} color={color} />
-                            ) : ind.iconName === 'bolt' ? (
-                              <Zap size={sz} color={color} fill={color} />
-                            ) : ind.iconName === 'forbidden' ? (
-                              <Ban size={sz} color={color} />
-                            ) : ind.iconName === 'lock' ? (
-                              <Lock size={sz} color={color} />
-                            ) : (
-                              <AlertTriangle size={sz} color={color} fill="rgba(245, 158, 11, 0.25)" />
-                            )}
-                          </div>
-                        );
-                      } else if (ind.type === 'dropdown') {
-                        elemContent = (
-                          <details
-                            className="canva-interactive-dropdown"
-                            style={{ borderColor: color, boxShadow: glowStyle, opacity }}
-                          >
-                            <summary style={{ backgroundColor: color }}>
-                              <span>{ind.label || 'Ver Detalhes do Campo'}</span>
-                              <ChevronDown size={14} className="dropdown-chevron-icon" />
-                            </summary>
-                            <div className="dropdown-body-content">
-                              <p>{ind.content || 'Instruções e regras complementares.'}</p>
-                            </div>
-                          </details>
-                        );
-                      } else if (ind.type === 'spotlight') {
-                        elemContent = (
-                          <div
-                            className="spotlight-beacon"
-                            style={{
-                              borderColor: color,
-                              backgroundColor: 'rgba(231, 76, 60, 0.25)',
-                              boxShadow: glowStyle,
-                              width: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
-                              height: size === 'sm' ? '32px' : size === 'lg' ? '56px' : '44px',
-                            }}
-                          />
-                        );
-                      } else if (ind.type === 'gif' && ind.gifUrl) {
-                        elemContent = (
-                          <img
-                            src={ind.gifUrl}
-                            alt="GIF"
-                            style={{
-                              maxWidth: size === 'sm' ? '60px' : size === 'lg' ? '120px' : '88px',
-                              borderRadius: '8px',
-                              opacity,
-                              boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
-                            }}
-                          />
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={ind.id}
-                          className="canva-canvas-indicator"
-                          style={{
-                            position: 'absolute',
-                            left: `${ind.x}%`,
-                            top: `${ind.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                            zIndex: 20,
-                            userSelect: 'none',
-                          }}
-                        >
-                          {elemContent}
-                        </div>
-                      );
-                    })}
+                    {getSlideIndicators(idx + 1).map(renderIndicatorViewItem)}
                   </div>
                   {associatedImg?.caption && (
                     <div className="shotframe-caption-text">{associatedImg.caption}</div>
@@ -639,7 +694,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
       {/* ── 03 · ALERTAS E BOAS PRÁTICAS ADICIONAIS ── */}
       {calloutBlocks.length > 0 && (
-        <section className="slide light" data-title="Observações Importantes">
+        <section className="slide light" data-title="Observações Importantes" style={{ position: 'relative' }}>
           <div className="inner">
             <p className="eyebrow">
               <span className="num">BPF</span>
@@ -661,11 +716,12 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               ))}
             </div>
           </div>
+          {getSlideIndicators(stepBlocks.length + 1).map(renderIndicatorViewItem)}
         </section>
       )}
 
       {/* ── 04 · CHECKLIST FINAL DE AUDITORIA & QUALIDADE ── */}
-      <section className="slide light" data-title="Checklist de Validação">
+      <section className="slide light" data-title="Checklist de Validação" style={{ position: 'relative' }}>
         <div className="inner">
           <p className="eyebrow">
             <span className="num">CHECKLIST</span>
@@ -706,10 +762,11 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             </div>
           </div>
         </div>
+        {getSlideIndicators(stepBlocks.length + 2).map(renderIndicatorViewItem)}
       </section>
 
       {/* ── 05 · SLIDE FINAL: ASSINATURAS E APROVAÇÃO OFICIAL BPF ── */}
-      <section className="slide deep cta print-sop-signatures-block" data-title="Homologação">
+      <section className="slide deep cta print-sop-signatures-block" data-title="Homologação" style={{ position: 'relative' }}>
         <div className="inner">
           <div className="logo">
             <span className="a">Digi</span>
@@ -756,6 +813,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             <b>Digifarma Sistemas LTDA</b> · Digitalmente <b style={{ color: 'var(--red)' }}>fácil</b>
           </div>
         </div>
+        {getSlideIndicators(stepBlocks.length + 3).map(renderIndicatorViewItem)}
       </section>
     </article>
   );

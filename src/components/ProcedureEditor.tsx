@@ -402,35 +402,101 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 2. GESTÃO DE INDICADORES, FORMAS, ARRASTE & PROPRIEDADES (ZERO POPUPS NATIVOS!)
+  // ─────────────────────────────────────────────────────────────
+  // 2. GESTÃO DE INDICADORES, FORMAS, ARRASTE & PROPRIEDADES (VINCULADO AO SLIDE ATIVO!)
   // ─────────────────────────────────────────────────────────────
   const currentStepIndex = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
   const currentStep = steps[currentStepIndex];
 
-  // Adicionar Indicador com auto-seleção e zero popups
-  const pushIndicator = (indicator: SlideIndicator, toastMsg?: string) => {
-    const stepIdx = currentStepIndex;
-    setSlidesConfig((prev) => {
-      const exists = prev.find((s) => s.stepIndex === stepIdx);
-      if (exists) {
-        return prev.map((s) =>
-          s.stepIndex === stepIdx
-            ? { ...s, indicators: [...(s.indicators || []), indicator] }
-            : s
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: `slide-step-${stepIdx}`,
-          slideType: 'step',
-          stepIndex: stepIdx,
-          bgTheme: 'light',
-          indicators: [indicator],
-        },
-      ];
-    });
+  // Helper universal para obter as configurações do slide atual (0=Capa, 1..N=Etapas, N+1=BPF, N+2=Checklist, N+3=Assinaturas)
+  const getSlideConfigForIndex = (slideIdx: number): SlideConfig | undefined => {
+    if (slideIdx === 0) {
+      return slidesConfig.find((s) => s.slideType === 'cover' || s.id === 'slide-cover');
+    }
+    if (slideIdx <= steps.length) {
+      const stepIdx = slideIdx - 1;
+      return slidesConfig.find((s) => s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`);
+    }
+    if (slideIdx === steps.length + 1) {
+      return slidesConfig.find((s) => s.slideType === 'callout' || s.id === 'slide-bpf');
+    }
+    if (slideIdx === steps.length + 2) {
+      return slidesConfig.find((s) => s.slideType === 'checklist' || s.id === 'slide-checklist');
+    }
+    return slidesConfig.find((s) => s.slideType === 'signatures' || s.id === 'slide-signatures');
+  };
 
+  const getIndicatorsForSlideIndex = (slideIdx: number): SlideIndicator[] => {
+    const cfg = getSlideConfigForIndex(slideIdx);
+    return cfg?.indicators || [];
+  };
+
+  const updateIndicatorsForSlideIndex = (
+    slideIdx: number,
+    updater: (current: SlideIndicator[]) => SlideIndicator[]
+  ) => {
+    const isCover = slideIdx === 0;
+    const isStep = slideIdx >= 1 && slideIdx <= steps.length;
+    const isBpf = slideIdx === steps.length + 1;
+    const isChecklist = slideIdx === steps.length + 2;
+    const isSignatures = slideIdx === steps.length + 3;
+
+    const stepIdx = isStep ? slideIdx - 1 : undefined;
+    const targetId = isCover
+      ? 'slide-cover'
+      : isStep
+      ? `slide-step-${stepIdx}`
+      : isBpf
+      ? 'slide-bpf'
+      : isChecklist
+      ? 'slide-checklist'
+      : 'slide-signatures';
+
+    const slideType = isCover
+      ? 'cover'
+      : isStep
+      ? 'step'
+      : isBpf
+      ? 'callout'
+      : isChecklist
+      ? 'checklist'
+      : 'signatures';
+
+    setSlidesConfig((prev) => {
+      const existingIdx = prev.findIndex((s) => {
+        if (isCover) return s.slideType === 'cover' || s.id === 'slide-cover';
+        if (isStep) return s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`;
+        if (isBpf) return s.slideType === 'callout' || s.id === 'slide-bpf';
+        if (isChecklist) return s.slideType === 'checklist' || s.id === 'slide-checklist';
+        if (isSignatures) return s.slideType === 'signatures' || s.id === 'slide-signatures';
+        return false;
+      });
+
+      if (existingIdx !== -1) {
+        const copy = [...prev];
+        copy[existingIdx] = {
+          ...copy[existingIdx],
+          indicators: updater(copy[existingIdx].indicators || []),
+        };
+        return copy;
+      } else {
+        return [
+          ...prev,
+          {
+            id: targetId,
+            slideType,
+            stepIndex: stepIdx,
+            bgTheme: isCover || isSignatures ? 'deep' : 'light',
+            indicators: updater([]),
+          },
+        ];
+      }
+    });
+  };
+
+  // Adicionar Indicador com auto-seleção e vinculação DIRETA ao slide selecionado
+  const pushIndicator = (indicator: SlideIndicator, toastMsg?: string) => {
+    updateIndicatorsForSlideIndex(activeSlideIndex, (list) => [...list, indicator]);
     setSelectedIndicatorId(indicator.id);
     if (toastMsg) showToast(toastMsg);
   };
@@ -449,7 +515,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         size: 'md',
         glow: 'soft',
       },
-      `Mãozinha indicadora (${direction}) adicionada!`
+      `Mãozinha indicadora (${direction}) adicionada ao slide atual!`
     );
   };
 
@@ -480,6 +546,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         type: 'rect',
         fillMode,
         color,
+        textColor: '#ffffff',
         x: 50,
         y: 50,
         size: 'md',
@@ -500,6 +567,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         type: 'circle',
         fillMode,
         color,
+        textColor: '#ffffff',
         x: 50,
         y: 50,
         size: 'md',
@@ -519,31 +587,35 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         type: 'badge',
         label,
         color,
+        textColor: '#ffffff',
+        fontFamily: 'Inter, sans-serif',
         x: 45,
         y: 45,
         size: 'md',
         glow: 'soft',
       },
-      'Badge criada! Edite o texto na barra acima.'
+      'Badge criada! Edite o texto e a cor na barra acima.'
     );
   };
 
-  // Caixa de Texto Livre
-  const addTextBox = (label = 'Instrução do Campo...', color = '#ffffff') => {
+  // Caixa de Texto Livre com Fonte e Cores customizáveis
+  const addTextBox = (label = 'Instrução do Campo...', textColor = '#ffffff') => {
     const newId = `text-${Date.now()}`;
     pushIndicator(
       {
         id: newId,
         type: 'text',
         label,
-        color,
-        bgColor: 'rgba(15, 23, 42, 0.85)',
+        color: '#ef4444',
+        textColor,
+        bgColor: 'rgba(15, 23, 42, 0.88)',
+        fontFamily: 'Inter, sans-serif',
         x: 50,
         y: 45,
         size: 'md',
         glow: 'soft',
       },
-      'Caixa de texto criada! Edite o conteúdo na barra acima.'
+      'Caixa de texto criada! Altere fonte e cores na barra acima.'
     );
   };
 
@@ -565,8 +637,11 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     );
   };
 
-  // Menu Suspenso Interativo (Dropdown / Accordion para HTML)
-  const addDropdown = (label = 'Ver Detalhes do Campo', content = 'Informações adicionais e regras de negócio.') => {
+  // Menu Suspenso Interativo Completo com Opções Customizáveis
+  const addDropdown = (
+    label = 'Instruções e Ações Fiscais',
+    content = 'Selecione uma opção ou consulte as orientações abaixo:'
+  ) => {
     const newId = `drop-${Date.now()}`;
     pushIndicator(
       {
@@ -575,12 +650,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         label,
         content,
         color: '#ef4444',
+        textColor: '#ffffff',
+        bgColor: '#0f172a',
+        fontFamily: 'Inter, sans-serif',
+        dropdownOptions: [
+          { id: `opt-${Date.now()}-1`, text: '1. Gravar registro e confirmar lote' },
+          { id: `opt-${Date.now()}-2`, text: '2. Consultar histórico fiscal' },
+          { id: `opt-${Date.now()}-3`, text: '3. Imprimir comprovante de saída' },
+        ],
         x: 50,
         y: 50,
         size: 'md',
         glow: 'soft',
       },
-      'Menu suspenso interativo adicionado!'
+      'Menu suspenso adicionado! Adicione ou edite opções na barra acima.'
     );
   };
 
@@ -612,39 +695,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         y: 45,
         size: 'md',
       },
-      'GIF animado anexado ao passo a passo!'
+      'GIF animado anexado!'
     );
   };
 
-  // Atualizar indicador selecionado
+  // Atualizar indicador selecionado no slide ativo
   const updateSelectedIndicator = (updates: Partial<SlideIndicator>) => {
     if (!selectedIndicatorId) return;
-    const stepIdx = currentStepIndex;
-
-    setSlidesConfig((prev) =>
-      prev.map((s) =>
-        s.stepIndex === stepIdx
-          ? {
-              ...s,
-              indicators: (s.indicators || []).map((ind) =>
-                ind.id === selectedIndicatorId ? { ...ind, ...updates } : ind
-              ),
-            }
-          : s
-      )
+    updateIndicatorsForSlideIndex(activeSlideIndex, (list) =>
+      list.map((ind) => (ind.id === selectedIndicatorId ? { ...ind, ...updates } : ind))
     );
   };
 
-  // Remover indicador (Zero confirm nativo de navegador)
+  // Remover indicador (com feedback in-site, zero confirm de navegador)
   const removeIndicator = (indId: string) => {
-    const stepIdx = currentStepIndex;
-    setSlidesConfig((prev) =>
-      prev.map((s) =>
-        s.stepIndex === stepIdx
-          ? { ...s, indicators: (s.indicators || []).filter((i) => i.id !== indId) }
-          : s
-      )
-    );
+    updateIndicatorsForSlideIndex(activeSlideIndex, (list) => list.filter((i) => i.id !== indId));
     if (selectedIndicatorId === indId) {
       setSelectedIndicatorId(null);
     }
@@ -664,17 +729,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       const x = Math.max(2, Math.min(98, Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100)));
       const y = Math.max(2, Math.min(98, Math.round(((moveEvent.clientY - rect.top) / rect.height) * 100)));
 
-      setSlidesConfig((prev) =>
-        prev.map((s) =>
-          s.stepIndex === currentStepIndex
-            ? {
-                ...s,
-                indicators: (s.indicators || []).map((ind) =>
-                  ind.id === indId ? { ...ind, x, y } : ind
-                ),
-              }
-            : s
-        )
+      updateIndicatorsForSlideIndex(activeSlideIndex, (list) =>
+        list.map((ind) => (ind.id === indId ? { ...ind, x, y } : ind))
       );
     };
 
@@ -696,28 +752,31 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     if (selectedIndicatorId) {
       // Reposiciona o elemento selecionado no ponto clicado
       updateSelectedIndicator({ x, y });
-    } else {
-      // Se não havia nada selecionado e não há elementos, adiciona uma mãozinha no local
-      const currentCfg = slidesConfig.find((s) => s.stepIndex === currentStepIndex);
-      const indicators = currentCfg?.indicators || [];
-      if (indicators.length === 0) {
-        addPointingHand('up');
-      }
     }
   };
 
   // Alternar Cor / Tema do Slide Ativo (Deep Escuro vs Claro)
   const toggleSlideTheme = () => {
-    const stepIdx = currentStepIndex;
-    setSlidesConfig((prev) =>
-      prev.map((s) => {
-        if (s.stepIndex === stepIdx || (activeSlideIndex === 0 && s.slideType === 'cover')) {
+    setSlidesConfig((prev) => {
+      const isCover = activeSlideIndex === 0;
+      const isStep = activeSlideIndex >= 1 && activeSlideIndex <= steps.length;
+      const stepIdx = isStep ? activeSlideIndex - 1 : undefined;
+
+      return prev.map((s) => {
+        const matches =
+          (isCover && (s.slideType === 'cover' || s.id === 'slide-cover')) ||
+          (isStep && (s.stepIndex === stepIdx || s.id === `slide-step-${stepIdx}`)) ||
+          (activeSlideIndex === steps.length + 1 && (s.slideType === 'callout' || s.id === 'slide-bpf')) ||
+          (activeSlideIndex === steps.length + 2 && (s.slideType === 'checklist' || s.id === 'slide-checklist')) ||
+          (activeSlideIndex === steps.length + 3 && (s.slideType === 'signatures' || s.id === 'slide-signatures'));
+
+        if (matches) {
           const next = s.bgTheme === 'deep' || s.bgTheme === 'dark' ? 'light' : 'deep';
           return { ...s, bgTheme: next };
         }
         return s;
-      })
-    );
+      });
+    });
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -884,7 +943,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   const totalSlidesCount = 1 + steps.length + 3;
 
   // Elemento atualmente selecionado para a barra flutuante de propriedades
-  const activeSlideIndicators = slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.indicators || [];
+  const activeSlideIndicators = getIndicatorsForSlideIndex(activeSlideIndex);
   const selectedIndicator = activeSlideIndicators.find((i) => i.id === selectedIndicatorId);
 
   // ─────────────────────────────────────────────────────────────
@@ -923,14 +982,15 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             width: `${w}px`,
             height: `${h}px`,
             border: `3px solid ${color}`,
-            backgroundColor: isFilled ? color : 'transparent',
+            backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
             opacity,
             borderRadius: '8px',
             boxShadow: glowStyle,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: isFilled ? '#ffffff' : color,
+            color: ind.textColor || (isFilled ? '#ffffff' : color),
+            fontFamily: ind.fontFamily || 'inherit',
             fontSize: '0.75rem',
             fontWeight: 800,
             padding: '2px 4px',
@@ -950,13 +1010,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             height: `${d}px`,
             borderRadius: '50%',
             border: `3px solid ${color}`,
-            backgroundColor: isFilled ? color : 'transparent',
+            backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
             opacity,
             boxShadow: glowStyle,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: isFilled ? '#ffffff' : color,
+            color: ind.textColor || (isFilled ? '#ffffff' : color),
+            fontFamily: ind.fontFamily || 'inherit',
             fontSize: size === 'sm' ? '0.75rem' : '0.9rem',
             fontWeight: 900,
           }}
@@ -968,16 +1029,17 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       content = (
         <div
           style={{
-            backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.85)',
-            color,
+            backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.88)',
+            color: ind.textColor || ind.color || '#ffffff',
             border: `1.5px solid ${color}`,
+            fontFamily: ind.fontFamily || 'inherit',
             borderRadius: '6px',
             padding: '4px 10px',
             fontSize: size === 'sm' ? '0.75rem' : size === 'lg' ? '1.05rem' : size === 'xl' ? '1.25rem' : '0.86rem',
             fontWeight: 700,
             opacity,
             boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
-            maxWidth: '260px',
+            maxWidth: '280px',
             whiteSpace: 'pre-wrap',
             lineHeight: 1.3,
           }}
@@ -990,7 +1052,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <div
           style={{
             backgroundColor: color,
-            color: '#ffffff',
+            color: ind.textColor || '#ffffff',
+            fontFamily: ind.fontFamily || 'inherit',
             padding: size === 'sm' ? '2px 8px' : size === 'lg' ? '5px 14px' : '3px 10px',
             borderRadius: '999px',
             fontSize: size === 'sm' ? '0.7rem' : size === 'lg' ? '0.9rem' : '0.78rem',
@@ -1022,18 +1085,32 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       content = (
         <details
           className="canva-interactive-dropdown"
+          open={isInteractive}
           style={{
             borderColor: color,
             boxShadow: glowStyle,
             opacity,
+            fontFamily: ind.fontFamily || 'inherit',
           }}
         >
-          <summary style={{ backgroundColor: color }}>
+          <summary style={{ backgroundColor: color, color: ind.textColor || '#ffffff' }}>
             <span>{ind.label || 'Opções & Instruções Fiscais'}</span>
             <ChevronDown size={14} className="dropdown-chevron-icon" />
           </summary>
-          <div className="dropdown-body-content">
-            <p>{ind.content || 'Instrução operacional detalhada e atalhos de rotina.'}</p>
+          <div className="dropdown-body-content" style={{ backgroundColor: ind.bgColor || '#1e293b' }}>
+            {ind.content && (
+              <p style={{ color: ind.textColor || '#f1f5f9', marginBottom: '6px' }}>{ind.content}</p>
+            )}
+            {ind.dropdownOptions && ind.dropdownOptions.length > 0 && (
+              <ul className="dropdown-options-list">
+                {ind.dropdownOptions.map((opt) => (
+                  <li key={opt.id} className="dropdown-opt-item">
+                    <span className="dropdown-opt-bullet" style={{ backgroundColor: color }} />
+                    <span style={{ color: ind.textColor || '#e2e8f0' }}>{opt.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </details>
       );
@@ -1084,6 +1161,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           setSelectedIndicatorId(ind.id);
         } : undefined}
       >
+        {/* Botão de exclusão "X" diretamente no elemento para remoção imediata */}
+        {isInteractive && (
+          <button
+            type="button"
+            className="indicator-corner-delete-btn no-print"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeIndicator(ind.id);
+            }}
+            title="Remover este elemento da tela"
+          >
+            ✕
+          </button>
+        )}
         {content}
       </div>
     );
@@ -1096,7 +1187,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     return (
       <div className="presentation-manual-root" id="printable-procedure">
         {/* Página 1: Capa Editorial */}
-        <section className="slide deep cover">
+        <section className="slide deep cover" style={{ position: 'relative' }}>
           <div className="inner">
             <div className="logo">
               <span className="a">Digi</span>
@@ -1141,14 +1232,17 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Renderização de todos os indicadores adicionados na Capa */}
+          {getIndicatorsForSlideIndex(0).map((ind) => renderIndicatorItem(ind, isEditable))}
         </section>
 
         {/* Páginas 2..N: Etapas Operacionais com Shotframes e Formas */}
         {steps.map((step, idx) => {
           const stepNum = String(idx + 1).padStart(2, '0');
           const imgUrl = images[idx];
-          const slideCfg = slidesConfig.find((s) => s.stepIndex === idx);
-          const indicators = slideCfg?.indicators || [];
+          const indicators = getIndicatorsForSlideIndex(idx + 1);
+          const slideCfg = getSlideConfigForIndex(idx + 1);
           const isDark = slideCfg?.bgTheme === 'deep' || slideCfg?.bgTheme === 'dark';
 
           return (
@@ -1232,7 +1326,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                       )}
 
                       {/* Renderização de todos os indicadores na folha oficial */}
-                      {indicators.map((ind) => renderIndicatorItem(ind, false))}
+                      {indicators.map((ind) => renderIndicatorItem(ind, isEditable))}
                     </div>
                   </div>
                 </div>
@@ -1242,7 +1336,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         })}
 
         {/* Página BPF / Diretrizes */}
-        <section className="slide light">
+        <section className="slide light" style={{ position: 'relative' }}>
           <div className="inner">
             <p className="eyebrow">
               <span>BPF</span> · Boas Práticas &amp; Diretrizes
@@ -1288,10 +1382,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Renderização de todos os indicadores no slide BPF */}
+          {getIndicatorsForSlideIndex(steps.length + 1).map((ind) => renderIndicatorItem(ind, isEditable))}
         </section>
 
         {/* Página Checklist */}
-        <section className="slide light">
+        <section className="slide light" style={{ position: 'relative' }}>
           <div className="inner">
             <p className="eyebrow">
               <span>CHECKLIST</span> · Homologação
@@ -1315,10 +1412,13 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Renderização de todos os indicadores no slide Checklist */}
+          {getIndicatorsForSlideIndex(steps.length + 2).map((ind) => renderIndicatorItem(ind, isEditable))}
         </section>
 
         {/* Página Final: Homologação & Assinaturas */}
-        <section className="slide deep">
+        <section className="slide deep" style={{ position: 'relative' }}>
           <div className="inner">
             <div className="logo">
               <span className="a">Digi</span>
@@ -1362,6 +1462,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Renderização de todos os indicadores no slide Assinaturas */}
+          {getIndicatorsForSlideIndex(steps.length + 3).map((ind) => renderIndicatorItem(ind, isEditable))}
         </section>
       </div>
     );
@@ -1827,9 +1930,94 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   </span>
                 </div>
 
-                {/* Paleta de Cores */}
+                {/* Tipografia / Família de Fonte */}
                 <div className="prop-bar-group">
-                  <span className="prop-group-title">Cor:</span>
+                  <span className="prop-group-title">Fonte:</span>
+                  <select
+                    className="prop-font-select"
+                    value={selectedIndicator.fontFamily || 'Inter, sans-serif'}
+                    onChange={(e) => updateSelectedIndicator({ fontFamily: e.target.value })}
+                  >
+                    <option value="Inter, sans-serif">Inter (Moderno)</option>
+                    <option value="Outfit, sans-serif">Outfit (Tech)</option>
+                    <option value="Roboto, sans-serif">Roboto (Clássico)</option>
+                    <option value="'Playfair Display', serif">Playfair (Elegante)</option>
+                    <option value="'Fira Code', monospace">Fira Code (Mono)</option>
+                    <option value="'Bebas Neue', sans-serif">Bebas Neue (Manchete)</option>
+                    <option value="'Nunito', sans-serif">Nunito (Arredondado)</option>
+                  </select>
+                </div>
+
+                {/* Cor do Texto */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Texto:</span>
+                  <div className="prop-color-swatches">
+                    {[
+                      { label: 'Branco', hex: '#ffffff' },
+                      { label: 'Preto', hex: '#0f172a' },
+                      { label: 'Vermelho', hex: '#ef4444' },
+                      { label: 'Amarelo', hex: '#f59e0b' },
+                      { label: 'Verde', hex: '#10b981' },
+                      { label: 'Azul', hex: '#3b82f6' },
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        className={`prop-color-dot ${selectedIndicator.textColor === c.hex ? 'active' : ''}`}
+                        style={{ backgroundColor: c.hex }}
+                        onClick={() => updateSelectedIndicator({ textColor: c.hex })}
+                        title={`Cor do Texto: ${c.label}`}
+                      />
+                    ))}
+                    <div className="prop-color-input-wrapper" title="Personalizar cor do texto">
+                      <input
+                        type="color"
+                        className="prop-color-native-input"
+                        value={selectedIndicator.textColor && selectedIndicator.textColor.startsWith('#') ? selectedIndicator.textColor : '#ffffff'}
+                        onChange={(e) => updateSelectedIndicator({ textColor: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cor do Fundo da Caixa */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Fundo:</span>
+                  <div className="prop-color-swatches">
+                    {[
+                      { label: 'Escuro', hex: '#0f172a' },
+                      { label: 'Preto', hex: '#000000' },
+                      { label: 'Branco', hex: '#ffffff' },
+                      { label: 'Vermelho', hex: '#ef4444' },
+                      { label: 'Azul', hex: '#3b82f6' },
+                      { label: 'Transparente', hex: 'transparent' },
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        className={`prop-color-dot ${selectedIndicator.bgColor === c.hex ? 'active' : ''}`}
+                        style={{
+                          backgroundColor: c.hex === 'transparent' ? 'transparent' : c.hex,
+                          border: c.hex === 'transparent' ? '2px dashed #94a3b8' : undefined,
+                        }}
+                        onClick={() => updateSelectedIndicator({ bgColor: c.hex })}
+                        title={`Cor do Fundo: ${c.label}`}
+                      />
+                    ))}
+                    <div className="prop-color-input-wrapper" title="Personalizar cor de fundo">
+                      <input
+                        type="color"
+                        className="prop-color-native-input"
+                        value={selectedIndicator.bgColor && selectedIndicator.bgColor.startsWith('#') ? selectedIndicator.bgColor : '#0f172a'}
+                        onChange={(e) => updateSelectedIndicator({ bgColor: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cor Principal / Borda / Destaque */}
+                <div className="prop-bar-group">
+                  <span className="prop-group-title">Borda:</span>
                   <div className="prop-color-swatches">
                     {[
                       { label: 'Vermelho', hex: '#ef4444' },
@@ -1850,6 +2038,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                         title={c.label}
                       />
                     ))}
+                    <div className="prop-color-input-wrapper" title="Personalizar cor principal">
+                      <input
+                        type="color"
+                        className="prop-color-native-input"
+                        value={selectedIndicator.color && selectedIndicator.color.startsWith('#') ? selectedIndicator.color : '#ef4444'}
+                        onChange={(e) => updateSelectedIndicator({ color: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1990,6 +2186,58 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                     ✕
                   </button>
                 </div>
+
+                {/* Gerenciador Completo de Opções do Menu Suspenso */}
+                {selectedIndicator.type === 'dropdown' && (
+                  <div className="prop-dropdown-manager">
+                    <div className="prop-dropdown-manager-header">
+                      <span>Opções do Menu Suspenso ({selectedIndicator.dropdownOptions?.length || 0}):</span>
+                      <button
+                        type="button"
+                        className="btn-add-dropdown-opt"
+                        onClick={() => {
+                          const currentOpts = selectedIndicator.dropdownOptions || [];
+                          const newOpt = {
+                            id: `opt-${Date.now()}`,
+                            text: `Opção ${(currentOpts.length + 1).toString().padStart(2, '0')}`,
+                          };
+                          updateSelectedIndicator({ dropdownOptions: [...currentOpts, newOpt] });
+                        }}
+                      >
+                        <Plus size={11} /> Adicionar Opção
+                      </button>
+                    </div>
+                    <div className="prop-dropdown-options-list">
+                      {(selectedIndicator.dropdownOptions || []).map((opt, optIdx) => (
+                        <div key={opt.id} className="prop-dropdown-option-row">
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = (selectedIndicator.dropdownOptions || []).map((o, idx) =>
+                                idx === optIdx ? { ...o, text: val } : o
+                              );
+                              updateSelectedIndicator({ dropdownOptions: updated });
+                            }}
+                            placeholder="Texto da opção..."
+                          />
+                          <button
+                            type="button"
+                            className="btn-remove-dropdown-opt"
+                            onClick={() => {
+                              const updated = (selectedIndicator.dropdownOptions || []).filter((_, idx) => idx !== optIdx);
+                              updateSelectedIndicator({ dropdownOptions: updated });
+                            }}
+                            title="Remover opção"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1997,7 +2245,12 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             <div className="canva-slide-viewport">
               {/* Slide 0: Capa */}
               {activeSlideIndex === 0 && (
-                <div className="slide deep canva-slide-canvas">
+                <div
+                  className="slide deep canva-slide-canvas"
+                  ref={shotframeRef}
+                  onClick={handleShotframeClick}
+                  style={{ position: 'relative' }}
+                >
                   <div className="inner">
                     <div className="logo">
                       <span className="a">Digi</span>
@@ -2061,6 +2314,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Renderização de todos os indicadores no Canvas da Capa */}
+                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
                 </div>
               )}
 
@@ -2238,7 +2494,12 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               {/* Slide BPF / Orientações */}
               {activeSlideIndex === steps.length + 1 && (
-                <div className="slide light canva-slide-canvas">
+                <div
+                  className="slide light canva-slide-canvas"
+                  ref={shotframeRef}
+                  onClick={handleShotframeClick}
+                  style={{ position: 'relative' }}
+                >
                   <div className="inner">
                     <p className="eyebrow">
                       <span>BPF</span> · Boas Práticas &amp; Diretrizes
@@ -2285,12 +2546,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                       ))}
                     </div>
                   </div>
+
+                  {/* Renderização de todos os indicadores no Canvas do BPF */}
+                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
                 </div>
               )}
 
               {/* Slide Checklist */}
               {activeSlideIndex === steps.length + 2 && (
-                <div className="slide light canva-slide-canvas">
+                <div
+                  className="slide light canva-slide-canvas"
+                  ref={shotframeRef}
+                  onClick={handleShotframeClick}
+                  style={{ position: 'relative' }}
+                >
                   <div className="inner">
                     <p className="eyebrow">
                       <span>CHECKLIST</span> · Homologação
@@ -2314,12 +2583,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                       ))}
                     </div>
                   </div>
+
+                  {/* Renderização de todos os indicadores no Canvas do Checklist */}
+                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
                 </div>
               )}
 
               {/* Slide Assinaturas */}
               {activeSlideIndex === steps.length + 3 && (
-                <div className="slide deep canva-slide-canvas">
+                <div
+                  className="slide deep canva-slide-canvas"
+                  ref={shotframeRef}
+                  onClick={handleShotframeClick}
+                  style={{ position: 'relative' }}
+                >
                   <div className="inner">
                     <div className="logo">
                       <span className="a">Digi</span>
@@ -2362,6 +2639,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Renderização de todos os indicadores no Canvas de Assinaturas */}
+                  {activeSlideIndicators.map((ind) => renderIndicatorItem(ind, true))}
                 </div>
               )}
             </div>
