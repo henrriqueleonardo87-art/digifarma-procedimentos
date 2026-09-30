@@ -13,7 +13,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import type { Procedure, SystemMenu } from './types/procedure';
 import type { AppUser } from './types/auth';
-import { getCurrentUser, logout as authLogout } from './lib/authService';
+import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
 import {
   fetchAllProcedures,
   saveProcedure,
@@ -239,6 +239,13 @@ export function App() {
     setCurrentUser(null);
   };
 
+  const handleUpdateAvatar = async (avatarUrl: string) => {
+    if (!currentUser) return;
+    await updateUserAvatar(currentUser.id, avatarUrl);
+    const updated = getCurrentUser();
+    setCurrentUser(updated);
+  };
+
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
@@ -260,6 +267,8 @@ export function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebarCollapse}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Backdrop para fechar o menu lateral no celular ao tocar fora */}
@@ -276,7 +285,7 @@ export function App() {
         <Navbar
           currentUser={currentUser}
           onLogout={handleLogout}
-          onChangePasswordClick={() => setIsResetPasswordOpen(true)}
+          onUpdateAvatar={handleUpdateAvatar}
           onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 

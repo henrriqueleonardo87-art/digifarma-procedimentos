@@ -1,21 +1,36 @@
-import React from 'react';
-import { Menu, LogOut, User as UserIcon } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Menu, LogOut, User as UserIcon, Camera } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface NavbarProps {
   onToggleSidebarMobile?: () => void;
   currentUser?: AppUser | null;
   onLogout?: () => void;
-  onChangePasswordClick?: () => void;
+  onUpdateAvatar?: (avatarUrl: string) => Promise<void> | void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onToggleSidebarMobile,
   currentUser,
   onLogout,
-  onChangePasswordClick,
+  onUpdateAvatar,
 }) => {
-  const displayName = currentUser?.name || 'Visitante';
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const displayName = currentUser?.name || currentUser?.username || 'Visitante';
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result && onUpdateAvatar) {
+        onUpdateAvatar(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <header className="global-header no-print">
@@ -45,21 +60,36 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="global-header-right">
         {currentUser && (
           <div className="header-user-pill">
-            <div className="header-user-avatar" title={`Conectado como ${displayName}`}>
-              <UserIcon size={14} />
-              <span>{displayName}</span>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarFileChange}
+            />
+
+            <div
+              className="header-user-avatar-wrap"
+              onClick={() => fileInputRef.current?.click()}
+              title="Clique para importar/alterar sua foto de perfil"
+            >
+              {currentUser.avatar_url ? (
+                <img
+                  src={currentUser.avatar_url}
+                  alt={displayName}
+                  className="header-avatar-img"
+                />
+              ) : (
+                <div className="header-avatar-circle">
+                  <UserIcon size={14} />
+                </div>
+              )}
+              <div className="header-avatar-camera-badge" title="Importar foto">
+                <Camera size={9} />
+              </div>
             </div>
 
-            {onChangePasswordClick && (
-              <button
-                type="button"
-                className="header-btn-key"
-                onClick={onChangePasswordClick}
-                title="Alterar minha senha"
-              >
-                Senha
-              </button>
-            )}
+            <span className="header-username-text">{displayName}</span>
 
             {onLogout && (
               <button
@@ -69,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Sair da conta"
                 aria-label="Sair"
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
                 <span className="logout-text">Sair</span>
               </button>
             )}

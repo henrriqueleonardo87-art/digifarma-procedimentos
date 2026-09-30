@@ -3,6 +3,7 @@ export interface AppUser {
   username: string;
   name: string;
   displayName?: string;
+  avatar_url?: string;
   password?: string;
   must_change_password: boolean;
   created_at?: string;

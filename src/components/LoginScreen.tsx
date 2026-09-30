@@ -33,12 +33,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickSelect = (name: string) => {
-    setUsername(name);
-    setPassword('Trein@mento123');
-    setError('');
-  };
-
   return (
     <div className="login-screen-root">
       <div className="login-card-container">
@@ -111,24 +105,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <ArrowRight size={16} />
           </button>
         </form>
-
-        {/* Usuários Rápidos */}
-        <div className="login-quick-users">
-          <span className="login-quick-title">Acesso rápido:</span>
-          <div className="login-quick-badges">
-            {['Icaro', 'Leonardo', 'Wallace', 'Whitalo'].map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={`login-quick-btn ${username.toLowerCase() === name.toLowerCase() ? 'active' : ''}`}
-                onClick={() => handleQuickSelect(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <span className="login-quick-hint">Senha padrão inicial: <code>Trein@mento123</code></span>
-        </div>
 
         <div className="login-card-foot">
           <ShieldCheck size={14} />

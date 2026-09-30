@@ -1,43 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
   ArrowLeft,
-  Heading,
-  AlignLeft,
-  Image as ImageIcon,
-  AlertTriangle,
-  CheckSquare,
+  Plus,
+  Trash2,
+  Upload,
+  Printer,
+  Eye,
+  Sparkles,
   ArrowUp,
   ArrowDown,
-  Trash2,
-  Copy,
-  Upload,
-  Link as LinkIcon,
-  Loader2,
-  FileText,
-  Tag,
-  User,
-  Building2,
-  Monitor,
-  Navigation,
-  AlertCircle,
+  Info,
+  Image as ImageIcon,
+  Palette,
+  FileDown,
+  ClipboardPaste,
+  Circle,
+  Square,
 } from 'lucide-react';
 import type {
   Procedure,
   ProcedureBlock,
-  HeadingBlock,
-  TextBlock,
+  StepBlock,
   ImageBlock,
   CalloutBlock,
-  StepBlock,
-  BlockType,
-  CalloutVariant,
   SystemMenu,
   SystemVersion,
   ProcedureHistoryItem,
+  SlideIndicator,
+  SlideConfig,
 } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
+import { downloadProcedureHtml } from '../lib/htmlExporter';
 
 interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
@@ -56,226 +51,445 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const [title, setTitle] = useState(initialProcedure?.title || '');
-  const [subtitle, setSubtitle] = useState(initialProcedure?.subtitle || '');
-  const [systemPath, setSystemPath] = useState(initialProcedure?.systemPath || '');
-  const [systemVersion, setSystemVersion] = useState<SystemVersion | 'ambos'>(
+  // Modo de Exibição do Editor: 'canva' (Studio Visual) ou 'pdf-preview' (Páginas A4 Interativas)
+  const [editorMode, setEditorMode] = useState<'canva' | 'pdf-preview'>('canva');
+
+  // Metadados Gerais
+  const [title, setTitle] = useState(initialProcedure?.title || 'Novo Procedimento Operacional Padrão');
+  const [subtitle, setSubtitle] = useState(
+    initialProcedure?.subtitle || 'Procedimento Operacional Padrão e Roteiro de Treinamento do Digifarma ERP'
+  );
+  const [systemPath] = useState(
+    initialProcedure?.systemPath || 'Digifarma V10 ➔ Treinamento Operacional'
+  );
+  const [systemVersion] = useState<SystemVersion | 'ambos'>(
     initialProcedure?.systemVersion || activeVersion
   );
   const [menuId, setMenuId] = useState(initialProcedure?.menuId || (menus[0]?.id || 'cadastros'));
-  const [submenuId, setSubmenuId] = useState(initialProcedure?.submenuId || '');
-  const category = initialProcedure?.category || 'Cadastros';
+  const [submenuId] = useState(initialProcedure?.submenuId || '');
   const [author, setAuthor] = useState(
-    initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo'
+    initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo Trevas'
   );
-  const [tagsInput, setTagsInput] = useState(initialProcedure?.tags?.join(', ') || '');
-  const [blocks, setBlocks] = useState<ProcedureBlock[]>(
-    initialProcedure?.blocks && initialProcedure.blocks.length > 0
-      ? initialProcedure.blocks
+
+  // Etapas Operacionais (Passo a Passo)
+  const initialSteps = initialProcedure?.blocks?.filter((b): b is StepBlock => b.type === 'step') || [];
+  const [steps, setSteps] = useState<StepBlock[]>(
+    initialSteps.length > 0
+      ? initialSteps
       : [
           {
-            id: `b-${Date.now()}-1`,
-            type: 'heading',
-            content: '1. Acesso à Rotina no Digifarma',
-          } as HeadingBlock,
-          {
-            id: `b-${Date.now()}-2`,
-            type: 'text',
-            content: 'Descreva detalhadamente o primeiro passo operacional que o colaborador deve realizar...',
-          } as TextBlock,
+            id: `step-${Date.now()}-1`,
+            type: 'step',
+            title: 'Acesso à Rotina no Digifarma',
+            content: 'Navegue pelo menu lateral e selecione o módulo correspondente.',
+            instruction: 'Acesse o sistema com suas credenciais homologadas e abra o formulário principal.',
+            expectedResult: 'Janela da rotina carregada em tela única com campos desbloqueados.',
+            tips: 'Use a tecla F2 para busca rápida de registros.',
+            warnings: 'Confirme se o turno do caixa ou o lote do produto estão abertos antes de continuar.',
+            completed: false,
+          },
         ]
   );
 
+  // Imagens associadas às etapas
+  const initialImages = initialProcedure?.blocks?.filter((b): b is ImageBlock => b.type === 'image') || [];
+  const [images, setImages] = useState<Record<number, string>>(
+    initialImages.reduce((acc, img, idx) => {
+      acc[idx] = img.url;
+      return acc;
+    }, {} as Record<number, string>)
+  );
+
+  // Alertas e Recomendações BPF
+  const initialCallouts = initialProcedure?.blocks?.filter((b): b is CalloutBlock => b.type === 'callout') || [];
+  const [callouts, setCallouts] = useState<CalloutBlock[]>(
+    initialCallouts.length > 0
+      ? initialCallouts
+      : [
+          {
+            id: `callout-${Date.now()}-1`,
+            type: 'callout',
+            calloutType: 'warning',
+            title: 'Rastreabilidade e Segurança Sanitária',
+            content: 'Todas as operações que envolvam medicamentos controlados devem ser auditadas pelo Farmacêutico Responsável.',
+          },
+        ]
+  );
+
+  // Configurações de Slides & Indicadores (Mãozinhas, Spotlights, Cores)
+  const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(
+    initialProcedure?.slidesConfig || [
+      { id: 'slide-cover', slideType: 'cover', bgTheme: 'deep' },
+      {
+        id: 'slide-step-0',
+        slideType: 'step',
+        stepIndex: 0,
+        bgTheme: 'light',
+        indicators: [
+          {
+            id: `ind-${Date.now()}-1`,
+            type: 'hand',
+            direction: 'up',
+            x: 52,
+            y: 58,
+            label: 'Campo Código',
+          },
+        ],
+      },
+      { id: 'slide-bpf', slideType: 'callout', bgTheme: 'light' },
+      { id: 'slide-checklist', slideType: 'checklist', bgTheme: 'light' },
+      { id: 'slide-signatures', slideType: 'signatures', bgTheme: 'deep' },
+    ]
+  );
+
+  // Slide Ativo no Modo Canva (0 = Capa, 1..N = Etapas, N+1 = BPF, N+2 = Checklist, N+3 = Assinaturas)
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
+  // Feedback de Toast e Status de Salvamento
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  // Adição de Blocos
-  const addBlock = (type: BlockType, afterIndex?: number) => {
-    const id = `block-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    let newBlock: ProcedureBlock;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRootRef = useRef<HTMLDivElement>(null);
 
-    switch (type) {
-      case 'heading':
-        newBlock = { id, type: 'heading', content: '', level: 2 };
-        break;
-      case 'text':
-        newBlock = { id, type: 'text', content: '' };
-        break;
-      case 'image':
-        newBlock = { id, type: 'image', url: '', caption: '', altText: '' };
-        break;
-      case 'callout':
-        newBlock = { id, type: 'callout', calloutType: 'info', content: '', title: 'Informação Importante' };
-        break;
-      case 'step':
-        newBlock = { id, type: 'step', content: '', completed: false };
-        break;
-      default:
-        return;
-    }
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
-    if (typeof afterIndex === 'number' && afterIndex >= 0) {
-      const updated = [...blocks];
-      updated.splice(afterIndex + 1, 0, newBlock);
-      setBlocks(updated);
-    } else {
-      setBlocks((prev) => [...prev, newBlock]);
+  // ─────────────────────────────────────────────────────────────
+  // 1. SUPORTE GLOBAL A COLAR IMAGENS DA ÁREA DE TRANSFERÊNCIA (CTRL+V)
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            processPastedImageFile(file);
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, [activeSlideIndex, steps.length]);
+
+  const processPastedImageFile = async (file: File) => {
+    setUploading(true);
+    showToast('Processando imagem colada...');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      // Se o slide ativo for uma etapa, associa a essa etapa
+      const stepIdx = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
+      setImages((prev) => ({ ...prev, [stepIdx]: dataUrl }));
+
+      showToast(`Imagem anexada com sucesso à Etapa ${(stepIdx + 1).toString().padStart(2, '0')}!`);
+      setUploading(false);
+
+      // Upload assíncrono para o Supabase Storage se disponível
+      try {
+        const publicUrl = await uploadProcedureImage(file);
+        if (publicUrl) {
+          setImages((prev) => ({ ...prev, [stepIdx]: publicUrl }));
+        }
+      } catch {
+        // mantém DataURL
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleManualUploadClick = (stepIdx: number) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.dataset.stepIndex = String(stepIdx);
+      fileInputRef.current.click();
     }
   };
 
-  const updateBlock = (id: string, updates: Partial<ProcedureBlock>) => {
-    setBlocks((prev) =>
-      prev.map((block) => {
-        if (block.id === id) {
-          return { ...block, ...updates } as ProcedureBlock;
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processPastedImageFile(file);
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. GESTÃO DE SLIDES, INDICADORES & FORMAS
+  // ─────────────────────────────────────────────────────────────
+  const currentStepIndex = activeSlideIndex === 0 ? 0 : Math.min(activeSlideIndex - 1, steps.length - 1);
+  const currentStep = steps[currentStepIndex];
+
+  // Adicionar Mãozinha Indicadora na Imagem da Etapa Ativa
+  const addPointingHand = (direction: 'up' | 'down' | 'left' | 'right' = 'up') => {
+    const stepIdx = currentStepIndex;
+    const newIndicator: SlideIndicator = {
+      id: `ind-${Date.now()}`,
+      type: 'hand',
+      direction,
+      x: 50,
+      y: 50,
+      label: 'Campo de Ação',
+    };
+
+    setSlidesConfig((prev) => {
+      const exists = prev.find((s) => s.stepIndex === stepIdx);
+      if (exists) {
+        return prev.map((s) =>
+          s.stepIndex === stepIdx
+            ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+            : s
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: `slide-step-${stepIdx}`,
+          slideType: 'step',
+          stepIndex: stepIdx,
+          bgTheme: 'light',
+          indicators: [newIndicator],
+        },
+      ];
+    });
+
+    showToast(`Mãozinha indicadora (${direction}) adicionada à tela!`);
+  };
+
+  // Adicionar Anel Pulsante (Spotlight Radar)
+  const addSpotlightBeacon = () => {
+    const stepIdx = currentStepIndex;
+    const newIndicator: SlideIndicator = {
+      id: `spot-${Date.now()}`,
+      type: 'spotlight',
+      x: 50,
+      y: 50,
+    };
+
+    setSlidesConfig((prev) => {
+      return prev.map((s) =>
+        s.stepIndex === stepIdx
+          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+          : s
+      );
+    });
+
+    showToast('Anel pulsante adicionado sobre a interface!');
+  };
+
+  // Adicionar Badge / Tag Flutuante
+  const addFloatingBadge = () => {
+    const label = prompt('Digite o texto da tag ou alerta:', 'Campo Obrigatório');
+    if (!label) return;
+
+    const stepIdx = currentStepIndex;
+    const newIndicator: SlideIndicator = {
+      id: `badge-${Date.now()}`,
+      type: 'badge',
+      x: 40,
+      y: 40,
+      label: label.trim(),
+    };
+
+    setSlidesConfig((prev) => {
+      return prev.map((s) =>
+        s.stepIndex === stepIdx
+          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+          : s
+      );
+    });
+  };
+
+  // Adicionar GIF Animado
+  const addAnimatedGif = () => {
+    const url = prompt(
+      'Insira o link direto de um GIF demonstrativo (ex: clique, digitação, animação):',
+      'https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif'
+    );
+    if (!url) return;
+
+    const stepIdx = currentStepIndex;
+    const newIndicator: SlideIndicator = {
+      id: `gif-${Date.now()}`,
+      type: 'gif',
+      x: 60,
+      y: 40,
+      gifUrl: url.trim(),
+    };
+
+    setSlidesConfig((prev) => {
+      return prev.map((s) =>
+        s.stepIndex === stepIdx
+          ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+          : s
+      );
+    });
+
+    showToast('GIF animado anexado ao passo a passo!');
+  };
+
+  // Mover / Reposicionar Indicador ao clicar na tela
+  const handleShotframeClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+    const stepIdx = currentStepIndex;
+    const currentCfg = slidesConfig.find((s) => s.stepIndex === stepIdx);
+    const indicators = currentCfg?.indicators || [];
+
+    if (indicators.length > 0) {
+      // Reposiciona o último indicador adicionado
+      const lastIndId = indicators[indicators.length - 1].id;
+      setSlidesConfig((prev) =>
+        prev.map((s) =>
+          s.stepIndex === stepIdx
+            ? {
+                ...s,
+                indicators: (s.indicators || []).map((ind) =>
+                  ind.id === lastIndId ? { ...ind, x, y } : ind
+                ),
+              }
+            : s
+        )
+      );
+    } else {
+      // Se não houver, adiciona uma mãozinha onde clicou
+      const newIndicator: SlideIndicator = {
+        id: `ind-${Date.now()}`,
+        type: 'hand',
+        direction: 'up',
+        x,
+        y,
+        label: 'Ação Aqui',
+      };
+      setSlidesConfig((prev) =>
+        prev.map((s) =>
+          s.stepIndex === stepIdx
+            ? { ...s, indicators: [...(s.indicators || []), newIndicator] }
+            : s
+        )
+      );
+    }
+  };
+
+  // Remover Indicador
+  const removeIndicator = (indId: string) => {
+    const stepIdx = currentStepIndex;
+    setSlidesConfig((prev) =>
+      prev.map((s) =>
+        s.stepIndex === stepIdx
+          ? { ...s, indicators: (s.indicators || []).filter((i) => i.id !== indId) }
+          : s
+      )
+    );
+  };
+
+  // Alternar Cor / Tema do Slide Ativo (Deep Escuro vs Claro)
+  const toggleSlideTheme = () => {
+    const stepIdx = currentStepIndex;
+    setSlidesConfig((prev) =>
+      prev.map((s) => {
+        if (s.stepIndex === stepIdx || (activeSlideIndex === 0 && s.slideType === 'cover')) {
+          const next = s.bgTheme === 'deep' || s.bgTheme === 'dark' ? 'light' : 'deep';
+          return { ...s, bgTheme: next };
         }
-        return block;
+        return s;
       })
     );
   };
 
-  const removeBlock = (id: string) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
-  };
-
-  const moveBlock = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= blocks.length) return;
-
-    const updated = [...blocks];
-    const temp = updated[index];
-    updated[index] = updated[targetIndex];
-    updated[targetIndex] = temp;
-    setBlocks(updated);
-  };
-
-  const duplicateBlock = (block: ProcedureBlock, index: number) => {
-    const duplicated: ProcedureBlock = {
-      ...block,
-      id: `block-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+  // ─────────────────────────────────────────────────────────────
+  // 3. GESTÃO DE ETAPAS (ADICIONAR / REMOVER / REORDENAR)
+  // ─────────────────────────────────────────────────────────────
+  const addStep = () => {
+    const newStepNum = steps.length + 1;
+    const newStep: StepBlock = {
+      id: `step-${Date.now()}-${newStepNum}`,
+      type: 'step',
+      title: `Nova Etapa ${newStepNum}: Roteiro Operacional`,
+      content: 'Instrução do passo a passo no sistema Digifarma.',
+      instruction: 'Descreva a validação necessária e os botões que devem ser acionados nesta etapa.',
+      expectedResult: 'Registro processado e confirmado com sucesso no banco de dados.',
+      tips: 'Atalho ou dica operacional para maior agilidade.',
+      completed: false,
     };
-    const updated = [...blocks];
-    updated.splice(index + 1, 0, duplicated);
-    setBlocks(updated);
+
+    setSteps([...steps, newStep]);
+    setSlidesConfig([
+      ...slidesConfig,
+      {
+        id: `slide-step-${steps.length}`,
+        slideType: 'step',
+        stepIndex: steps.length,
+        bgTheme: 'light',
+        indicators: [],
+      },
+    ]);
+    setActiveSlideIndex(steps.length + 1);
+    showToast(`Etapa ${newStepNum} criada!`);
   };
 
-  // Carregar Modelos Prontos no Padrão Digifarma V10
-  const loadTemplate = (templateKey: 'f7' | 'cliente360' | 'caixaCego' | 'recebimento' | 'controlados') => {
-    if (blocks.length > 2) {
-      const confirmReplace = window.confirm(
-        'Deseja carregar este modelo pronto? O conteúdo atual dos passos será substituído pela estrutura do modelo.'
-      );
-      if (!confirmReplace) return;
-    }
-
-    if (templateKey === 'f7') {
-      setTitle('Consulta F7 Inteligente, Pesquisa por Sintoma (IA) e Bula Completa');
-      setSubtitle('Procedimento de atendimento no balcão usando o F7 inteligente: pesquisa por necessidade com IA (Ctrl+Enter), equivalente genérico com máxima economia e conferência de bula');
-      setSystemPath('Digifarma V10 ➔ Balcão / PDV ➔ Tabela de Preços (F7) ➔ Pesquisa IA (Ctrl+Enter)');
-      setSystemVersion('v10');
-      setAuthor('Farmacêutico RT / Coordenação de Atendimento');
-      setTagsInput('V10, F7, Tabela de Preços, Inteligência Artificial, Genéricos, Bula');
-      setBlocks([
-        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Abertura da Tabela de Preços F7 no Balcão', level: 2 },
-        { id: `t-${Date.now()}-2`, type: 'text', content: 'No balcão ou caixa, pressione F7. O sistema exibe simultaneamente a foto do medicamento, valor da última compra, PMC e a coluna tabloide de ofertas.' },
-        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'info', title: 'Pesquisa por Sintoma com IA (Ctrl + Enter)', content: 'Quando o cliente não souber o nome do medicamento, tecle Ctrl + Enter e descreva o sintoma. A IA sugere as substâncias e medicamentos ideais.' },
-        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Tabela F7 com foto do produto e equivalentes genéricos de máxima economia' },
-        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Apresentação do Genérico com Máxima Economia', level: 2 },
-        { id: `t-${Date.now()}-6`, type: 'text', content: 'Verifique a indicação de porcentagem de economia (ex: "Até 65% de economia") e apresente a alternativa mais econômica para o cliente.' },
-        { id: `c-${Date.now()}-7`, type: 'callout', calloutType: 'success', title: 'Bula Completa Integrada (Ctrl + B)', content: 'Pressione Ctrl + B para exibir na hora a posologia, modo de usar e contraindicações sem sair do balcão.' },
-        { id: `s-${Date.now()}-8`, type: 'step', content: 'Validar com o cliente a dosagem e apresentação recomendada (gotas, comprimidos ou xarope).' },
-        { id: `s-${Date.now()}-9`, type: 'step', content: 'Pressionar Enter para carregar o produto selecionado diretamente na pré-venda do caixa.' },
-      ]);
-    } else if (templateKey === 'cliente360') {
-      setTitle('Painel 360º do Cliente, Histórico de Compras e Programa de Fidelidade');
-      setSubtitle('Como utilizar a visão unificada 360º do cliente: consulta de pontos, saldo de cashback, ticket médio e perfil por estrelas');
-      setSystemPath('Digifarma V10 ➔ Cadastros ➔ Clientes ➔ Painel 360º (Ctrl + Espaço)');
-      setSystemVersion('v10');
-      setAuthor('Gestão de Relacionamento & Fidelidade');
-      setTagsInput('V10, Clientes, Fidelidade, Cashback, CRM, 360º');
-      setBlocks([
-        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Localização Instantânea via Busca Global (Ctrl + Espaço)', level: 2 },
-        { id: `t-${Date.now()}-2`, type: 'text', content: 'Pressione o atalho global Ctrl + Espaço em qualquer tela do Digifarma V10 e digite o nome, CPF ou celular do cliente para abrir o Painel 360º.' },
-        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'success', title: 'Fidelidade Ativa no Balcão', content: 'O saldo acumulado de pontos e o cashback em reais aparecem logo abaixo da foto do cliente, permitindo resgate imediato de prêmios ou desconto.' },
-        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1556742049-0a67e5574f73?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Visão 360º com histórico de compras, frequência e estrelas do cliente' },
-        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Histórico de Compras e Alerta de Clientes em Risco', level: 2 },
-        { id: `t-${Date.now()}-6`, type: 'text', content: 'Analise a frequência de compras e os produtos habituais do cliente. Clientes 4 ou 5 estrelas devem receber tratamento preferencial.' },
-        { id: `s-${Date.now()}-7`, type: 'step', content: 'Conferir se o cliente possui compras a prazo em aberto ou convênio empresarial ativo.' },
-        { id: `s-${Date.now()}-8`, type: 'step', content: 'Oferecer o resgate do cashback acumulado para abater no pagamento da compra.' },
-      ]);
-    } else if (templateKey === 'caixaCego') {
-      setTitle('Fechamento de Caixa Cego e Alçadas de Segurança do Gestor');
-      setSubtitle('Procedimento de segurança para conferência cega do operador de caixa e ocultação de custos e estoques no balcão');
-      setSystemPath('Digifarma V10 ➔ Caixa & Financeiro ➔ Fechamento Cego de Turno');
-      setSystemVersion('v10');
-      setAuthor('Gestão Financeira & Prevenção de Perdas');
-      setTagsInput('V10, Caixa Cego, Segurança, Auditoria, Prevenção de Perdas');
-      setBlocks([
-        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Execução do Fechamento Cego pelo Operador', level: 2 },
-        { id: `t-${Date.now()}-2`, type: 'text', content: 'Ao encerrar o turno, o operador realiza a contagem física das cédulas, moedas, cartões e PIX. Digita no sistema apenas os valores apurados, sem ver o saldo esperado pelo sistema.' },
-        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'warning', title: 'Conferência Honesta e Prevenção de Fraudes', content: 'O fechamento cego impede que o operador ajuste valores ou oculte sobras/faltas de caixa durante o encerramento do turno.' },
-        { id: `h-${Date.now()}-4`, type: 'heading', content: '2. Conferência e Aprovação Exclusiva do Gestor', level: 2 },
-        { id: `t-${Date.now()}-5`, type: 'text', content: 'O gestor acessa o Painel de Caixas com sua senha master, visualiza a conciliação completa entre o saldo do sistema e a contagem física do operador, e valida as divergências.' },
-        { id: `s-${Date.now()}-6`, type: 'step', content: 'Verificar se todas as sangrias e suprimentos do dia foram homologados com comprovante assinado.' },
-        { id: `s-${Date.now()}-7`, type: 'step', content: 'Emitir o Termo de Encerramento do Caixa e arquivar junto ao envelope numerado do malote.' },
-      ]);
-    } else if (templateKey === 'recebimento') {
-      setTitle('Entrada de Nota Fiscal por Importação de XML e Conferência de Lotes');
-      setSubtitle('Importação do arquivo XML da distribuidora, amarração de produtos, conferência cega de validade e armazenamento PVPS');
-      setSystemPath('Digifarma ➔ Estoque ➔ Entrada de Notas ➔ Importar XML');
-      setSystemVersion('ambos');
-      setAuthor('Equipe de Logística & Estoque');
-      setTagsInput('Estoque, Conferência, Boas Práticas, XML, PVPS');
-      setBlocks([
-        { id: `h-${Date.now()}-1`, type: 'heading', content: '1. Recepção da Carga e Importação do XML', level: 2 },
-        { id: `t-${Date.now()}-2`, type: 'text', content: 'Importe o arquivo XML ou informe a chave de acesso de 44 dígitos da DANFE para carregar os produtos, quantidades e preços de custo.' },
-        { id: `c-${Date.now()}-3`, type: 'callout', calloutType: 'warning', title: 'Conferência Cega Obrigatória', content: 'Abra as caixas físicas na área de triagem limpa. Valide número de lote e validade (mínimo de 12 meses exigido).' },
-        { id: `i-${Date.now()}-4`, type: 'image', url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80', caption: 'Figura 1: Triagem de volumes físicos e conferência dos lotes das caixas recebidas' },
-        { id: `h-${Date.now()}-5`, type: 'heading', content: '2. Armazenamento e Norma PVPS', level: 2 },
-        { id: `t-${Date.now()}-6`, type: 'text', content: 'Guarde os produtos nas prateleiras organizados pelo método PVPS (Primeiro que Vence, Primeiro que Sai).' },
-        { id: `s-${Date.now()}-7`, type: 'step', content: 'Checar se as margens de lucro foram recalculadas com base no novo custo da nota.' },
-        { id: `s-${Date.now()}-8`, type: 'step', content: 'Finalizar a conciliação do estoque e alimentar o contas a pagar.' },
-      ]);
-    }
-  };
-
-  // Upload de Imagem
-  const handleImageFileChange = async (blockId: string, file: File) => {
-    try {
-      setUploadingBlockId(blockId);
-      const url = await uploadProcedureImage(file);
-      updateBlock(blockId, { url });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      alert(`Falha no upload: ${msg}. Você também pode colar uma URL pública direta.`);
-    } finally {
-      setUploadingBlockId(null);
-    }
-  };
-
-  // Salvar
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      setErrorMsg('O título principal do procedimento é obrigatório.');
+  const removeStep = (indexToRemove: number) => {
+    if (steps.length <= 1) {
+      alert('O procedimento deve conter pelo menos uma etapa operacional.');
       return;
     }
+    const updated = steps.filter((_, idx) => idx !== indexToRemove);
+    setSteps(updated);
+    setActiveSlideIndex(Math.max(1, activeSlideIndex - 1));
+    showToast('Etapa removida.');
+  };
 
-    setSaving(true);
-    setErrorMsg(null);
+  const moveStep = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= steps.length) return;
+    const updated = [...steps];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setSteps(updated);
+    setActiveSlideIndex(toIndex + 1);
+  };
 
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    const selectedMenu = menus.find((m) => m.id === menuId);
-    const categoryName = selectedMenu?.label || category || 'Geral';
-
+  // ─────────────────────────────────────────────────────────────
+  // 4. SALVAMENTO E EXPORTAÇÕES (PDF E HTML)
+  // ─────────────────────────────────────────────────────────────
+  const constructProcedureToSave = (): Procedure => {
     const nowIso = new Date().toISOString();
     const isNew = !initialProcedure?.id;
-    const authorName = currentUser?.name || currentUser?.username || author.trim() || 'Leonardo';
+    const authorName = currentUser?.name || currentUser?.username || author.trim() || 'Leonardo Trevas';
+
+    const selectedMenu = menus.find((m) => m.id === menuId);
+    const categoryName = selectedMenu?.label || 'Geral';
+
+    // Montar blocos compatíveis com o motor legado
+    const blocks: ProcedureBlock[] = [];
+
+    // Etapas e Imagens associadas
+    steps.forEach((step, idx) => {
+      blocks.push(step);
+      if (images[idx]) {
+        blocks.push({
+          id: `img-${step.id}`,
+          type: 'image',
+          url: images[idx],
+          caption: `Figura ${idx + 1}: Interface do Digifarma para ${step.title}`,
+        });
+      }
+    });
+
+    // Alertas
+    callouts.forEach((c) => blocks.push(c));
 
     const currentHistory: ProcedureHistoryItem[] = Array.isArray(initialProcedure?.history)
       ? [...initialProcedure.history]
@@ -285,11 +499,11 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       action: isNew ? 'create' : 'update',
       timestamp: nowIso,
       user: authorName,
-      description: isNew ? 'Criação do procedimento' : 'Atualização de conteúdo e passos',
+      description: isNew ? 'Criação do procedimento no Studio Canva' : 'Edição visual de slides e indicadores',
       details: isNew ? 'Criação do procedimento' : 'Atualização de conteúdo e passos',
     };
 
-    const procedureToSave: Procedure = {
+    return {
       id: initialProcedure?.id || `proc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: title.trim(),
       subtitle: subtitle.trim(),
@@ -299,8 +513,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       submenuId: submenuId || undefined,
       systemPath: systemPath.trim() || undefined,
       author: author.trim() || authorName,
-      tags,
+      tags: [categoryName, systemVersion === 'v10' ? 'V10' : 'R78', 'BPF'],
       blocks,
+      slidesConfig,
       is_favorite: initialProcedure?.is_favorite || false,
       created_at: initialProcedure?.created_at || nowIso,
       updated_at: nowIso,
@@ -308,528 +523,1034 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       updatedBy: authorName,
       history: [newHistoryItem, ...currentHistory],
     };
+  };
 
+  const handleSave = async () => {
+    if (!title.trim()) {
+      alert('Informe o título do procedimento.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      await onSave(procedureToSave);
+      const proc = constructProcedureToSave();
+      await onSave(proc);
+      showToast('Procedimento salvo com sucesso!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(`Erro ao salvar: ${msg}`);
+      alert(`Erro ao salvar: ${msg}`);
+    } finally {
       setSaving(false);
     }
   };
 
-  const selectedMenuObj = menus.find((m) => m.id === menuId);
+  const handleExportHtml = () => {
+    const proc = constructProcedureToSave();
+    downloadProcedureHtml(proc);
+    showToast('Download do arquivo HTML com animações iniciado!');
+  };
+
+  const handlePrintPdf = () => {
+    const originalTitle = document.title;
+    document.title = '';
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1200);
+  };
+
+  const totalSlidesCount = 1 + steps.length + 3;
 
   return (
-    <form className="editor-container no-print" onSubmit={handleSave}>
-      {/* Barra de Ações Superior com Botão de Voltar */}
-      <div className="editor-nav-header">
-        <button
-          type="button"
-          className="btn-back-clean"
-          onClick={onCancel}
-          disabled={saving}
-          title="Voltar aos manuais sem salvar"
-        >
-          <ArrowLeft size={16} />
-          <span>Voltar aos Manuais</span>
-        </button>
+    <div className="canva-studio-root" ref={editorRootRef}>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
 
-        <div className="editor-header-actions">
+      {/* ── TOPBAR DO STUDIO (CANVA TOOLBAR) ── */}
+      <header className="canva-topbar no-print">
+        <div className="canva-topbar-left">
           <button
             type="button"
-            className="btn btn-secondary"
+            className="canva-btn-back"
             onClick={onCancel}
-            disabled={saving}
+            title="Voltar aos manuais"
           >
-            Cancelar
+            <ArrowLeft size={16} />
+            <span>Voltar</span>
+          </button>
+
+          <div className="canva-title-box">
+            <input
+              type="text"
+              className="canva-title-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título Principal do Procedimento..."
+              title="Clique para editar o título principal"
+            />
+            <div className="canva-meta-pills">
+              <span className="canva-version-pill">
+                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+              </span>
+              <span className="canva-path-text">{systemPath}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Alternador de Modos: Studio Canva vs PDF Embutido */}
+        <div className="canva-mode-switcher">
+          <button
+            type="button"
+            className={`canva-mode-btn ${editorMode === 'canva' ? 'active' : ''}`}
+            onClick={() => setEditorMode('canva')}
+          >
+            <Palette size={14} />
+            <span>Studio Canva</span>
           </button>
 
           <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving}
+            type="button"
+            className={`canva-mode-btn ${editorMode === 'pdf-preview' ? 'active' : ''}`}
+            onClick={() => setEditorMode('pdf-preview')}
           >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            <span>{saving ? 'Gravando...' : 'Salvar Manual'}</span>
+            <Eye size={14} />
+            <span>Editor de PDF Embutido</span>
           </button>
         </div>
-      </div>
 
-      <div className="editor-title-box">
-        <h1 className="editor-page-title">
-          {initialProcedure ? 'Editar Procedimento' : 'Novo Procedimento Operacional'}
-        </h1>
-        <p className="editor-page-subtitle">
-          Preencha o título, o caminho no sistema e adicione os passos com imagens e orientações.
-        </p>
-      </div>
+        {/* Ações de Exportação e Salvamento */}
+        <div className="canva-topbar-actions">
+          <button
+            type="button"
+            className="canva-action-btn"
+            onClick={handleExportHtml}
+            title="Baixar arquivo HTML com animações da mãozinha e GIFs"
+          >
+            <FileDown size={15} />
+            <span>Exportar HTML</span>
+          </button>
 
-      {errorMsg && (
-        <div className="callout-card-minimal callout-danger" style={{ marginBottom: '1.25rem' }}>
-          <AlertCircle size={18} />
-          <div>{errorMsg}</div>
+          <button
+            type="button"
+            className="canva-action-btn primary"
+            onClick={handlePrintPdf}
+            title="Imprimir ou salvar em PDF de alta qualidade full bleed"
+          >
+            <Printer size={15} />
+            <span>Imprimir PDF</span>
+          </button>
+
+          <button
+            type="button"
+            className="canva-action-btn save"
+            onClick={handleSave}
+            disabled={saving || uploading}
+          >
+            <Save size={15} />
+            <span>{saving ? 'Gravando...' : uploading ? 'Enviando foto...' : 'Salvar POP'}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div className="canva-toast-banner no-print">
+          <Sparkles size={16} color="var(--red)" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Painel de Metadados Principais */}
-      <div className="editor-form-card">
-        <div className="form-row">
-          <div className="form-group" style={{ flex: 2 }}>
-            <label className="form-label">
-              <FileText size={14} color="var(--primary-500)" />
-              Título do Procedimento *
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Ex: Cadastro de Medicamentos e Código de Barras (EAN)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
+      {/* ── MODO 1: STUDIO VISUAL CANVA COM PAINEL DE FERRAMENTAS ── */}
+      {editorMode === 'canva' && (
+        <div className="canva-workspace no-print">
+          {/* Barra Lateral Esquerda: Miniaturas dos Slides (Thumbnails) */}
+          <aside className="canva-thumbnails-rail">
+            <div className="thumbnails-header">
+              <span className="thumbnails-title">Slides ({totalSlidesCount})</span>
+              <button
+                type="button"
+                className="btn-add-slide-mini"
+                onClick={addStep}
+                title="Adicionar nova etapa operacional"
+              >
+                <Plus size={14} />
+                <span>Etapa</span>
+              </button>
+            </div>
 
-          <div className="form-group" style={{ width: '220px' }}>
-            <label className="form-label">
-              <Monitor size={14} color="var(--primary-500)" />
-              Versão do Digifarma
-            </label>
-            <select
-              className="form-select"
-              value={systemVersion}
-              onChange={(e) => setSystemVersion(e.target.value as SystemVersion | 'ambos')}
-            >
-              <option value="classico">Digifarma R78</option>
-              <option value="v10">Digifarma V10</option>
-              <option value="ambos">Ambas as Versões</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">
-            <AlignLeft size={14} color="var(--text-muted)" />
-            Subtítulo / Objetivo da Rotina
-          </label>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Ex: Instruções para cadastro de código EAN, parametrização tributária e controle de lotes"
-            value={subtitle}
-            onChange={(e) => setSubtitle(e.target.value)}
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">
-            <Navigation size={14} color="var(--primary-500)" />
-            Caminho no Sistema (Como o operador chega nesta tela)
-          </label>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Ex: Menu Principal ➔ Cadastros ➔ Produtos ➔ Incluir Novo (F2)"
-            value={systemPath}
-            onChange={(e) => setSystemPath(e.target.value)}
-          />
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">
-              <Building2 size={14} color="var(--primary-500)" />
-              Módulo do Sistema (Menu Principal)
-            </label>
-            <select
-              className="form-select"
-              value={menuId}
-              onChange={(e) => {
-                setMenuId(e.target.value);
-                setSubmenuId('');
-              }}
-            >
-              {menus.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <Building2 size={14} color="var(--text-muted)" />
-              Item / Tela do Módulo
-            </label>
-            <select
-              className="form-select"
-              value={submenuId}
-              onChange={(e) => setSubmenuId(e.target.value)}
-            >
-              <option value="">(Selecione a rotina)</option>
-              {selectedMenuObj?.submenus.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <User size={14} color="var(--text-muted)" />
-              Responsável / Autor
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Ex: Farmacêutico Responsável"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <Tag size={14} color="var(--text-muted)" />
-              Tags de Busca
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="EAN, Lote, XML, Fiscal"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Modelos Prontos V10 */}
-      <div className="card-v10" style={{ marginBottom: '1.5rem', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-        <p className="eyebrow" style={{ marginBottom: '8px' }}>
-          <span className="num">MODELOS V10</span>
-          <span>ESTRUTURAS PRONTAS NO PADRÃO OFICIAL DIGIFARMA</span>
-        </p>
-        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
-          Carregue com 1 clique a estrutura completa com subtítulos, fotos, bulas e alertas operacionais:
-        </p>
-        <div className="pillrow" style={{ marginTop: '10px' }}>
-          <button
-            type="button"
-            className="pill"
-            onClick={() => loadTemplate('f7')}
-            title="Carregar roteiro de F7 com IA e Bula"
-          >
-            <span>💊 F7 Tabela de Preços (IA + Bula)</span>
-          </button>
-          <button
-            type="button"
-            className="pill"
-            onClick={() => loadTemplate('cliente360')}
-            title="Carregar roteiro do Painel 360º do Cliente"
-          >
-            <span>⭐ Painel 360º (Fidelidade + Cashback)</span>
-          </button>
-          <button
-            type="button"
-            className="pill"
-            onClick={() => loadTemplate('caixaCego')}
-            title="Carregar roteiro de Fechamento Cego de Caixa"
-          >
-            <span>🔒 Caixa Cego & Controle do Gestor</span>
-          </button>
-          <button
-            type="button"
-            className="pill"
-            onClick={() => loadTemplate('recebimento')}
-            title="Carregar roteiro de Entrada de Nota e Lotes PVPS"
-          >
-            <span>📦 Recebimento & Conferência DANFE</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Lista Sequencial de Blocos */}
-      <div className="editor-blocks-header">
-        <h2 className="editor-section-title">
-          Etapas e Conteúdo do Passo a Passo ({blocks.length})
-        </h2>
-        <span className="editor-section-desc">
-          Adicione quantos textos, subtítulos e imagens forem necessários. Você pode reordenar a qualquer momento.
-        </span>
-      </div>
-
-      <div className="editor-blocks-list">
-        {blocks.map((block, index) => {
-          const isFirst = index === 0;
-          const isLast = index === blocks.length - 1;
-
-          return (
-            <div key={block.id} className="editor-block-card">
-              {/* Barra de Título e Ações do Bloco */}
-              <div className="block-card-header">
-                <div className="block-type-pill">
-                  <span className="block-index">#{index + 1}</span>
-                  {block.type === 'heading' && (
-                    <>
-                      <Heading size={14} color="var(--primary-500)" />
-                      <span>Subtítulo / Etapa</span>
-                    </>
-                  )}
-                  {block.type === 'text' && (
-                    <>
-                      <AlignLeft size={14} color="#059669" />
-                      <span>Texto Operacional</span>
-                    </>
-                  )}
-                  {block.type === 'image' && (
-                    <>
-                      <ImageIcon size={14} color="#7c3aed" />
-                      <span>Captura de Tela / Imagem</span>
-                    </>
-                  )}
-                  {block.type === 'callout' && (
-                    <>
-                      <AlertTriangle size={14} color="#d97706" />
-                      <span>Alerta / Dica</span>
-                    </>
-                  )}
-                  {block.type === 'step' && (
-                    <>
-                      <CheckSquare size={14} color="#0284c7" />
-                      <span>Checklist / Verificação</span>
-                    </>
-                  )}
-                </div>
-
-                <div className="block-action-buttons">
-                  <button
-                    type="button"
-                    className="btn-icon-block"
-                    onClick={() => moveBlock(index, 'up')}
-                    disabled={isFirst}
-                    title="Mover para cima"
-                  >
-                    <ArrowUp size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon-block"
-                    onClick={() => moveBlock(index, 'down')}
-                    disabled={isLast}
-                    title="Mover para baixo"
-                  >
-                    <ArrowDown size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon-block"
-                    onClick={() => duplicateBlock(block, index)}
-                    title="Duplicar este bloco"
-                  >
-                    <Copy size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon-block danger"
-                    onClick={() => removeBlock(block.id)}
-                    title="Remover este bloco"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+            <div className="thumbnails-scroll-list">
+              {/* Slide 0: Capa */}
+              <div
+                className={`thumb-card ${activeSlideIndex === 0 ? 'active' : ''}`}
+                onClick={() => setActiveSlideIndex(0)}
+              >
+                <span className="thumb-num">01</span>
+                <div className="thumb-preview cover-preview">
+                  <strong>Capa Editorial</strong>
+                  <span>{title.slice(0, 32)}...</span>
                 </div>
               </div>
 
-              {/* Conteúdo do Bloco */}
-              <div className="block-card-body">
-                {/* 1. Subtítulo */}
-                {block.type === 'heading' && (
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <input
-                      type="text"
-                      className="form-input block-heading-input"
-                      placeholder="Ex: 2. Bipagem do Código EAN e Consulta Anvisa"
-                      value={(block as HeadingBlock).content}
-                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                    />
+              {/* Slides 1..N: Etapas */}
+              {steps.map((step, idx) => (
+                <div
+                  key={step.id}
+                  className={`thumb-card ${activeSlideIndex === idx + 1 ? 'active' : ''}`}
+                  onClick={() => setActiveSlideIndex(idx + 1)}
+                >
+                  <span className="thumb-num">{String(idx + 2).padStart(2, '0')}</span>
+                  <div className="thumb-preview">
+                    <strong>Etapa {(idx + 1).toString().padStart(2, '0')}</strong>
+                    <span>{step.title || 'Sem título'}</span>
+                    {images[idx] && <span className="thumb-badge-img">Tela</span>}
                   </div>
-                )}
-
-                {/* 2. Texto Operacional */}
-                {block.type === 'text' && (
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <textarea
-                      rows={4}
-                      className="form-textarea"
-                      placeholder="Descreva claramente o que o usuário deve fazer, teclas de atalho e campos a preencher..."
-                      value={(block as TextBlock).content}
-                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                    />
+                  <div className="thumb-actions-hover">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveStep(idx, idx - 1);
+                      }}
+                      title="Mover para cima"
+                    >
+                      <ArrowUp size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveStep(idx, idx + 1);
+                      }}
+                      title="Mover para baixo"
+                    >
+                      <ArrowDown size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeStep(idx);
+                      }}
+                      title="Excluir etapa"
+                    >
+                      <Trash2 size={11} />
+                    </button>
                   </div>
-                )}
+                </div>
+              ))}
 
-                {/* 3. Imagem */}
-                {block.type === 'image' && (
-                  <div className="block-image-inputs">
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <div className="image-url-box" style={{ flex: 1, position: 'relative' }}>
-                        <LinkIcon size={14} className="image-link-icon" />
-                        <input
-                          type="url"
-                          className="form-input"
-                          style={{ paddingLeft: '2rem' }}
-                          placeholder="Cole a URL direta da imagem (ou envie do seu computador)"
-                          value={(block as ImageBlock).url}
-                          onChange={(e) => updateBlock(block.id, { url: e.target.value })}
-                        />
-                      </div>
+              {/* Slide BPF */}
+              <div
+                className={`thumb-card ${activeSlideIndex === steps.length + 1 ? 'active' : ''}`}
+                onClick={() => setActiveSlideIndex(steps.length + 1)}
+              >
+                <span className="thumb-num">{String(steps.length + 2).padStart(2, '0')}</span>
+                <div className="thumb-preview">
+                  <strong>Boas Práticas BPF</strong>
+                  <span>Alertas e Diretrizes</span>
+                </div>
+              </div>
 
-                      <label className="btn-upload-file">
-                        {uploadingBlockId === block.id ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Upload size={14} />
-                        )}
-                        <span>{uploadingBlockId === block.id ? 'Enviando...' : 'Enviar Foto'}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImageFileChange(block.id, file);
-                          }}
-                        />
-                      </label>
-                    </div>
+              {/* Slide Checklist */}
+              <div
+                className={`thumb-card ${activeSlideIndex === steps.length + 2 ? 'active' : ''}`}
+                onClick={() => setActiveSlideIndex(steps.length + 2)}
+              >
+                <span className="thumb-num">{String(steps.length + 3).padStart(2, '0')}</span>
+                <div className="thumb-preview">
+                  <strong>Checklist</strong>
+                  <span>Auditoria Operacional</span>
+                </div>
+              </div>
 
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Legenda da imagem (ex: Figura 1: Tela de importação de XML no Digifarma)"
-                      value={(block as ImageBlock).caption || ''}
-                      onChange={(e) => updateBlock(block.id, { caption: e.target.value })}
-                    />
-
-                    {(block as ImageBlock).url && (
-                      <div className="block-image-preview">
-                        <img
-                          src={(block as ImageBlock).url}
-                          alt="Pré-visualização"
-                          className="preview-img"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 4. Alerta / Dica */}
-                {block.type === 'callout' && (
-                  <div className="block-callout-inputs">
-                    <div className="form-row" style={{ marginBottom: '0.5rem' }}>
-                      <div className="form-group" style={{ width: '180px', marginBottom: 0 }}>
-                        <select
-                          className="form-select"
-                          value={(block as CalloutBlock).calloutType || 'info'}
-                          onChange={(e) =>
-                            updateBlock(block.id, { calloutType: e.target.value as CalloutVariant })
-                          }
-                        >
-                          <option value="info">Informação</option>
-                          <option value="warning">Atenção</option>
-                          <option value="success">Dica / Sucesso</option>
-                          <option value="danger">Proibido / Perigo</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Título do Alerta (Ex: Conferência Cega Obrigatória)"
-                          value={(block as CalloutBlock).title || ''}
-                          onChange={(e) => updateBlock(block.id, { title: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      className="form-textarea"
-                      placeholder="Texto do aviso ou dica operacional..."
-                      value={(block as CalloutBlock).content}
-                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                {/* 5. Item de Checklist */}
-                {block.type === 'step' && (
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Ex: Verificar se a data de validade está legível antes de armazenar na prateleira"
-                      value={(block as StepBlock).content}
-                      onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                    />
-                  </div>
-                )}
+              {/* Slide Assinaturas */}
+              <div
+                className={`thumb-card ${activeSlideIndex === steps.length + 3 ? 'active' : ''}`}
+                onClick={() => setActiveSlideIndex(steps.length + 3)}
+              >
+                <span className="thumb-num">{String(steps.length + 4).padStart(2, '0')}</span>
+                <div className="thumb-preview cover-preview">
+                  <strong>Homologação</strong>
+                  <span>Controle & Assinaturas</span>
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </aside>
 
-      {/* Painel de Adicionar Blocos */}
-      <div className="editor-add-block-panel">
-        <span className="add-block-prompt">Adicionar novo bloco ao procedimento:</span>
-        <div className="add-block-buttons-row">
-          <button type="button" className="btn-add-block-item" onClick={() => addBlock('heading')}>
-            <Heading size={15} color="var(--primary-500)" />
-            <span>+ Subtítulo</span>
-          </button>
-          <button type="button" className="btn-add-block-item" onClick={() => addBlock('text')}>
-            <AlignLeft size={15} color="#059669" />
-            <span>+ Texto</span>
-          </button>
-          <button type="button" className="btn-add-block-item" onClick={() => addBlock('image')}>
-            <ImageIcon size={15} color="#7c3aed" />
-            <span>+ Imagem</span>
-          </button>
-          <button type="button" className="btn-add-block-item" onClick={() => addBlock('callout')}>
-            <AlertTriangle size={15} color="#d97706" />
-            <span>+ Alerta / Dica</span>
-          </button>
-          <button type="button" className="btn-add-block-item" onClick={() => addBlock('step')}>
-            <CheckSquare size={15} color="#0284c7" />
-            <span>+ Checklist</span>
-          </button>
+          {/* Área Central: Visual Stage / Canvas do Slide Ativo */}
+          <main className="canva-center-stage">
+            {/* Barra de Ferramentas de Design do Canva (Formas, Mãozinha, Cores, Sombra) */}
+            <div className="canva-design-tools">
+              <div className="tool-group">
+                <span className="tool-label">Indicadores & Dinamismo:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addPointingHand('up')}
+                  title="Adicionar mãozinha apontando para cima (👆)"
+                >
+                  <span className="emoji-tool">👆</span>
+                  <span>Mãozinha Acima</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={() => addPointingHand('right')}
+                  title="Adicionar mãozinha apontando para a direita (👉)"
+                >
+                  <span className="emoji-tool">👉</span>
+                  <span>Mãozinha Direita</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={addSpotlightBeacon}
+                  title="Adicionar anel radar pulsante no campo da tela"
+                >
+                  <Circle size={14} color="var(--red)" />
+                  <span>Anel Radar</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={addFloatingBadge}
+                  title="Adicionar badge de aviso sobre a imagem"
+                >
+                  <Square size={14} />
+                  <span>Badge Alerta</span>
+                </button>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={addAnimatedGif}
+                  title="Adicionar GIF animado"
+                >
+                  <Sparkles size={14} color="#f59e0b" />
+                  <span>GIF Animado</span>
+                </button>
+              </div>
+
+              <div className="tool-group" style={{ marginLeft: 'auto' }}>
+                <span className="tool-label">Tema da Página:</span>
+                <button
+                  type="button"
+                  className="canva-tool-btn"
+                  onClick={toggleSlideTheme}
+                  title="Alternar entre fundo Escuro e Claro"
+                >
+                  <Palette size={14} />
+                  <span>Alternar Fundo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Dica de Colagem Rápida Ctrl+V */}
+            <div className="canva-paste-indicator">
+              <ClipboardPaste size={15} color="var(--red)" />
+              <span>
+                <strong>Dica Pro:</strong> Copie qualquer print screen ou imagem no computador e pressione{' '}
+                <kbd>Ctrl + V</kbd> para colar direto nesta etapa!
+              </span>
+            </div>
+
+            {/* Visual Canvas do Slide Ativo */}
+            <div className="canva-slide-viewport">
+              {/* Slide 0: Capa */}
+              {activeSlideIndex === 0 && (
+                <div className="slide deep canva-slide-canvas">
+                  <div className="inner">
+                    <div className="logo">
+                      <span className="a">Digi</span>
+                      <span className="b">farma</span>
+                    </div>
+
+                    <div className="v10-badge">
+                      {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+                    </div>
+
+                    <input
+                      type="text"
+                      className="canva-inline-display-input"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Título Principal do Manual..."
+                    />
+
+                    <textarea
+                      className="canva-inline-lead-input"
+                      value={subtitle}
+                      onChange={(e) => setSubtitle(e.target.value)}
+                      placeholder="Subtítulo ou resumo operacional da rotina..."
+                      rows={2}
+                    />
+
+                    <div className="stats" style={{ marginTop: '36px' }}>
+                      <div className="stat">
+                        <div className="n">{steps.length || 1}<small>etapas</small></div>
+                        <div className="l">Roteiro operacional documentado</div>
+                      </div>
+                      <div className="stat">
+                        <div className="n">100<small>%</small></div>
+                        <div className="l">Conformidade BPF &amp; Qualidade</div>
+                      </div>
+                      <div className="stat">
+                        <div className="n" style={{ fontSize: '20px' }}>
+                          <select
+                            value={menuId}
+                            onChange={(e) => setMenuId(e.target.value)}
+                            className="canva-select-module"
+                          >
+                            {menus.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="l">Módulo integrado do sistema</div>
+                      </div>
+                      <div className="stat">
+                        <input
+                          type="text"
+                          value={author}
+                          onChange={(e) => setAuthor(e.target.value)}
+                          className="canva-inline-author-input"
+                          placeholder="Autor / Responsável"
+                        />
+                        <div className="l">Responsável técnico / elaboração</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Slides 1..N: Etapas Operacionais com Shotframe Interativo */}
+              {activeSlideIndex > 0 && activeSlideIndex <= steps.length && currentStep && (
+                <div className="slide light canva-slide-canvas">
+                  <div className="inner">
+                    <p className="eyebrow">
+                      <span>ETAPA {String(currentStepIndex + 1).padStart(2, '0')}</span> · Roteiro Passo a Passo
+                    </p>
+
+                    <input
+                      type="text"
+                      className="canva-inline-head-input"
+                      value={currentStep.title || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSteps((prev) =>
+                          prev.map((s, idx) => (idx === currentStepIndex ? { ...s, title: val } : s))
+                        );
+                      }}
+                      placeholder="Título da Etapa (ex: Acesso e Consulta de Lotes)..."
+                    />
+
+                    <textarea
+                      className="canva-inline-lead-input light"
+                      value={currentStep.instruction || currentStep.content}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSteps((prev) =>
+                          prev.map((s, idx) =>
+                            idx === currentStepIndex ? { ...s, instruction: val, content: val } : s
+                          )
+                        );
+                      }}
+                      placeholder="Instrução passo a passo detalhada para o operador..."
+                      rows={2}
+                    />
+
+                    <div className="feature-split">
+                      <div className="feature-left">
+                        {/* Resultado Esperado */}
+                        <div className="fitem">
+                          <div className="fico">✓</div>
+                          <div className="ftxt" style={{ flex: 1 }}>
+                            <h4>Resultado Esperado</h4>
+                            <input
+                              type="text"
+                              className="canva-inline-fitem-input"
+                              value={currentStep.expectedResult || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSteps((prev) =>
+                                  prev.map((s, idx) =>
+                                    idx === currentStepIndex ? { ...s, expectedResult: val } : s
+                                  )
+                                );
+                              }}
+                              placeholder="O que deve acontecer após executar este passo..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Dica de Agilidade */}
+                        <div className="fitem">
+                          <div className="fico">💡</div>
+                          <div className="ftxt" style={{ flex: 1 }}>
+                            <h4>Dica de Agilidade</h4>
+                            <input
+                              type="text"
+                              className="canva-inline-fitem-input"
+                              value={currentStep.tips || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSteps((prev) =>
+                                  prev.map((s, idx) =>
+                                    idx === currentStepIndex ? { ...s, tips: val } : s
+                                  )
+                                );
+                              }}
+                              placeholder="Atalhos do teclado ou recomendações práticas..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Alerta Ponto Crítico */}
+                        <div className="fitem warning">
+                          <div className="fico">⚠️</div>
+                          <div className="ftxt" style={{ flex: 1 }}>
+                            <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
+                            <input
+                              type="text"
+                              className="canva-inline-fitem-input"
+                              value={currentStep.warnings || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSteps((prev) =>
+                                  prev.map((s, idx) =>
+                                    idx === currentStepIndex ? { ...s, warnings: val } : s
+                                  )
+                                );
+                              }}
+                              placeholder="Atenção especial para evitar erros fiscais ou de caixa..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Shotframe com Suporte a Colar Imagem e Indicadores */}
+                      <div className="shotframe">
+                        <div
+                          className="frame canva-interactive-frame"
+                          onClick={handleShotframeClick}
+                          title="Clique na imagem para mover ou posicionar o indicador / mãozinha!"
+                        >
+                          {images[currentStepIndex] ? (
+                            <img
+                              src={images[currentStepIndex]}
+                              alt={currentStep.title}
+                              className="canva-step-img"
+                            />
+                          ) : (
+                            <div className="canva-placeholder-drop">
+                              <ImageIcon size={38} color="var(--red)" />
+                              <strong>Nenhuma imagem anexada</strong>
+                              <span>Cole um print com Ctrl+V ou clique no botão abaixo</span>
+                            </div>
+                          )}
+
+                          {/* Indicadores & Mãozinhas renderizadas sobre a tela */}
+                          {(
+                            slidesConfig.find((s) => s.stepIndex === currentStepIndex)?.indicators || []
+                          ).map((ind) => {
+                            if (ind.type === 'hand') {
+                              const handIcon =
+                                ind.direction === 'down'
+                                  ? '👇'
+                                  : ind.direction === 'left'
+                                  ? '👈'
+                                  : ind.direction === 'right'
+                                  ? '👉'
+                                  : '👆';
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className={`pointing-hand ${ind.direction || 'up'}`}
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Deseja remover esta mãozinha indicadora?')) {
+                                      removeIndicator(ind.id);
+                                    }
+                                  }}
+                                  title="Clique para remover indicador"
+                                >
+                                  {handIcon}
+                                </div>
+                              );
+                            }
+                            if (ind.type === 'spotlight') {
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className="spotlight-beacon"
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeIndicator(ind.id);
+                                  }}
+                                />
+                              );
+                            }
+                            if (ind.type === 'badge') {
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className="floating-badge"
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeIndicator(ind.id);
+                                  }}
+                                >
+                                  {ind.label || 'Atenção'}
+                                </div>
+                              );
+                            }
+                            if (ind.type === 'gif' && ind.gifUrl) {
+                              return (
+                                <img
+                                  key={ind.id}
+                                  src={ind.gifUrl}
+                                  alt="GIF"
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${ind.x}%`,
+                                    top: `${ind.y}%`,
+                                    maxWidth: '90px',
+                                    borderRadius: '8px',
+                                    zIndex: 10,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeIndicator(ind.id);
+                                  }}
+                                />
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+
+                        {/* Barra de Ações Rápidas da Imagem */}
+                        <div className="shotframe-toolbar-bottom">
+                          <button
+                            type="button"
+                            className="btn-shot-action"
+                            onClick={() => handleManualUploadClick(currentStepIndex)}
+                          >
+                            <Upload size={13} />
+                            <span>Importar Arquivo</span>
+                          </button>
+
+                          {images[currentStepIndex] && (
+                            <button
+                              type="button"
+                              className="btn-shot-action danger"
+                              onClick={() => {
+                                setImages((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[currentStepIndex];
+                                  return copy;
+                                });
+                              }}
+                            >
+                              <Trash2 size={13} />
+                              <span>Remover Foto</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Slide BPF / Orientações */}
+              {activeSlideIndex === steps.length + 1 && (
+                <div className="slide light canva-slide-canvas">
+                  <div className="inner">
+                    <p className="eyebrow">
+                      <span>BPF</span> · Boas Práticas &amp; Diretrizes
+                    </p>
+                    <h2 className="head">Orientações de Segurança &amp; Auditoria</h2>
+                    <p className="lead">
+                      Recomendações técnicas homologadas para garantia da qualidade operacional.
+                    </p>
+
+                    <div className="canva-callouts-list" style={{ marginTop: '28px' }}>
+                      {callouts.map((c, i) => (
+                        <div key={c.id} className="fitem" style={{ marginBottom: '16px' }}>
+                          <div className="fico">
+                            <Info size={22} color="var(--red)" />
+                          </div>
+                          <div className="ftxt" style={{ flex: 1 }}>
+                            <input
+                              type="text"
+                              className="canva-inline-head-input"
+                              style={{ fontSize: '1.05rem', marginBottom: '4px' }}
+                              value={c.title || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCallouts((prev) =>
+                                  prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
+                                );
+                              }}
+                              placeholder="Título da Diretriz..."
+                            />
+                            <textarea
+                              className="canva-inline-lead-input light"
+                              value={c.content}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCallouts((prev) =>
+                                  prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
+                                );
+                              }}
+                              placeholder="Texto explicativo da norma sanitária ou de controle..."
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Slide Checklist */}
+              {activeSlideIndex === steps.length + 2 && (
+                <div className="slide light canva-slide-canvas">
+                  <div className="inner">
+                    <p className="eyebrow">
+                      <span>CHECKLIST</span> · Homologação
+                    </p>
+                    <h2 className="head">Checklist de Auditoria Operacional</h2>
+                    <p className="lead">
+                      Validação obrigatória de cada uma das {steps.length} etapas cadastradas.
+                    </p>
+
+                    <div className="canva-checklist-preview" style={{ marginTop: '24px' }}>
+                      {steps.map((s, i) => (
+                        <div key={s.id} className="canva-check-row">
+                          <div className="canva-check-circle">✓</div>
+                          <div>
+                            <strong>
+                              Etapa {(i + 1).toString().padStart(2, '0')}: {s.title}
+                            </strong>
+                            <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Slide Assinaturas */}
+              {activeSlideIndex === steps.length + 3 && (
+                <div className="slide deep canva-slide-canvas">
+                  <div className="inner">
+                    <div className="logo">
+                      <span className="a">Digi</span>
+                      <span className="b">farma</span>
+                    </div>
+                    <div className="v10-badge">HOMOLOGAÇÃO OFICIAL</div>
+                    <h1 className="display" style={{ fontSize: '38px' }}>
+                      Controle da Qualidade &amp; BPF
+                    </h1>
+                    <p className="lead">
+                      Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.
+                    </p>
+
+                    <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
+                      <div className="print-sign-col">
+                        <span className="print-sign-title">ELABORADO POR</span>
+                        <div className="print-sign-line"></div>
+                        <input
+                          type="text"
+                          value={author}
+                          onChange={(e) => setAuthor(e.target.value)}
+                          className="canva-inline-sign-input"
+                          placeholder="Nome do Elaborador"
+                        />
+                        <span className="print-sign-role">Digifarma Sistemas</span>
+                      </div>
+
+                      <div className="print-sign-col">
+                        <span className="print-sign-title">REVISADO POR</span>
+                        <div className="print-sign-line"></div>
+                        <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
+                        <span className="print-sign-role">Controle de Procedimentos</span>
+                      </div>
+
+                      <div className="print-sign-col">
+                        <span className="print-sign-title">APROVADO POR</span>
+                        <div className="print-sign-line"></div>
+                        <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
+                        <span className="print-sign-role">Responsável Técnico / Gestor</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
-      </div>
+      )}
 
-      {/* Barra Inferior de Gravação */}
-      <div className="editor-footer-bar">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancelar
-        </button>
+      {/* ── MODO 2: EDITOR DE PDF EMBUTIDO (PÁGINAS A4 REAIS EM TEMPO REAL) ── */}
+      {editorMode === 'pdf-preview' && (
+        <div className="canva-pdf-preview-container">
+          <div className="pdf-preview-hint no-print">
+            <span>
+              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão. Todos os textos são editáveis diretamente nas páginas!
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn secondary sm" onClick={handleExportHtml}>
+                <FileDown size={14} /> Exportar HTML
+              </button>
+              <button type="button" className="btn primary sm" onClick={handlePrintPdf}>
+                <Printer size={14} /> Imprimir / PDF
+              </button>
+            </div>
+          </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={saving}
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          <span>{saving ? 'Gravando...' : 'Salvar Procedimento'}</span>
-        </button>
-      </div>
-    </form>
+          <div className="presentation-manual-root" id="printable-procedure">
+            {/* Página 1: Capa */}
+            <section className="slide deep cover">
+              <div className="inner">
+                <div className="logo">
+                  <span className="a">Digi</span>
+                  <span className="b">farma</span>
+                </div>
+                <div className="v10-badge">
+                  {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA R78'}
+                </div>
+                <h1
+                  className="display"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
+                >
+                  {title}
+                </h1>
+                <p
+                  className="lead"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
+                >
+                  {subtitle}
+                </p>
+
+                <div className="stats">
+                  <div className="stat">
+                    <div className="n">{steps.length}<small>etapas</small></div>
+                    <div className="l">Roteiro operacional documentado</div>
+                  </div>
+                  <div className="stat">
+                    <div className="n">100<small>%</small></div>
+                    <div className="l">Conformidade com Boas Práticas (BPF)</div>
+                  </div>
+                  <div className="stat">
+                    <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
+                    <div className="l">Módulo integrado do sistema</div>
+                  </div>
+                  <div className="stat">
+                    <div className="n">{author}</div>
+                    <div className="l">Responsável técnico / elaboração</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Páginas 2..N: Etapas Operacionais */}
+            {steps.map((step, idx) => {
+              const stepNum = String(idx + 1).padStart(2, '0');
+              const imgUrl = images[idx];
+              const slideCfg = slidesConfig.find((s) => s.stepIndex === idx);
+              const indicators = slideCfg?.indicators || [];
+
+              return (
+                <section key={step.id} className="slide light step-slide">
+                  <div className="inner">
+                    <p className="eyebrow">
+                      <span>ETAPA {stepNum}</span> · Digifarma Treinamento
+                    </p>
+
+                    <h2
+                      className="head"
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const val = e.currentTarget.textContent || step.title;
+                        setSteps((prev) =>
+                          prev.map((s, sIdx) => (sIdx === idx ? { ...s, title: val } : s))
+                        );
+                      }}
+                    >
+                      {step.title}
+                    </h2>
+
+                    <p
+                      className="lead"
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const val = e.currentTarget.textContent || step.instruction || step.content || '';
+                        setSteps((prev) =>
+                          prev.map((s, sIdx) =>
+                            sIdx === idx ? { ...s, instruction: val, content: val } : s
+                          )
+                        );
+                      }}
+                    >
+                      {step.instruction || step.content}
+                    </p>
+
+                    <div className="feature-split">
+                      <div className="feature-left">
+                        {step.expectedResult && (
+                          <div className="fitem">
+                            <div className="fico">✓</div>
+                            <div className="ftxt">
+                              <h4>Resultado Esperado</h4>
+                              <p>{step.expectedResult}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {step.tips && (
+                          <div className="fitem">
+                            <div className="fico">💡</div>
+                            <div className="ftxt">
+                              <h4>Dica de Agilidade</h4>
+                              <p>{step.tips}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {step.warnings && (
+                          <div className="fitem warning">
+                            <div className="fico">⚠️</div>
+                            <div className="ftxt">
+                              <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
+                              <p>{step.warnings}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="shotframe">
+                        <div className="frame">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={step.title} />
+                          ) : (
+                            <div style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
+                              Captura de Tela do Digifarma
+                            </div>
+                          )}
+
+                          {/* Mãozinhas no preview */}
+                          {indicators.map((ind) => {
+                            if (ind.type === 'hand') {
+                              const handIcon =
+                                ind.direction === 'down'
+                                  ? '👇'
+                                  : ind.direction === 'left'
+                                  ? '👈'
+                                  : ind.direction === 'right'
+                                  ? '👉'
+                                  : '👆';
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className={`pointing-hand ${ind.direction || 'up'}`}
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                >
+                                  {handIcon}
+                                </div>
+                              );
+                            }
+                            if (ind.type === 'spotlight') {
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className="spotlight-beacon"
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                />
+                              );
+                            }
+                            if (ind.type === 'badge') {
+                              return (
+                                <div
+                                  key={ind.id}
+                                  className="floating-badge"
+                                  style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                                >
+                                  {ind.label || 'Atenção'}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+            })}
+
+            {/* Página Final: Homologação */}
+            <section className="slide deep">
+              <div className="inner">
+                <div className="logo">
+                  <span className="a">Digi</span>
+                  <span className="b">farma</span>
+                </div>
+                <div className="v10-badge">HOMOLOGAÇÃO OFICIAL BPF</div>
+                <h1 className="display" style={{ fontSize: '38px' }}>
+                  Controle da Qualidade &amp; Assinaturas
+                </h1>
+                <p className="lead">
+                  Procedimento auditado e homologado pelo Responsável Técnico e equipe de processos.
+                </p>
+
+                <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
+                  <div className="print-sign-col">
+                    <span className="print-sign-title">ELABORADO POR</span>
+                    <div className="print-sign-line"></div>
+                    <span className="print-sign-name">{author}</span>
+                    <span className="print-sign-role">Digifarma Sistemas</span>
+                  </div>
+
+                  <div className="print-sign-col">
+                    <span className="print-sign-title">REVISADO POR</span>
+                    <div className="print-sign-line"></div>
+                    <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
+                    <span className="print-sign-role">Controle de Procedimentos</span>
+                  </div>
+
+                  <div className="print-sign-col">
+                    <span className="print-sign-title">APROVADO POR</span>
+                    <div className="print-sign-line"></div>
+                    <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
+                    <span className="print-sign-role">Responsável Técnico / Gestor</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

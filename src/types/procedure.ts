@@ -72,6 +72,45 @@ export interface ProcedureHistoryItem {
   details?: string;
 }
 
+export interface SlideIndicator {
+  id: string;
+  type: 'hand' | 'spotlight' | 'badge' | 'arrow' | 'gif';
+  x: number; // percent 0-100
+  y: number; // percent 0-100
+  label?: string;
+  direction?: 'up' | 'down' | 'left' | 'right';
+  color?: string;
+  gifUrl?: string;
+}
+
+export interface SlideShape {
+  id: string;
+  type: 'circle' | 'rect' | 'pill' | 'highlight';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  bgColor?: string;
+  borderColor?: string;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  opacity?: number;
+  text?: string;
+  textColor?: string;
+  hasShadow?: boolean;
+}
+
+export interface SlideConfig {
+  id: string;
+  slideType: 'cover' | 'step' | 'callout' | 'checklist' | 'signatures' | 'custom';
+  title?: string;
+  subtitle?: string;
+  bgTheme?: 'deep' | 'dark' | 'light' | 'custom';
+  customBgColor?: string;
+  stepIndex?: number;
+  indicators?: SlideIndicator[];
+  shapes?: SlideShape[];
+}
+
 export interface Procedure {
   id: string;
   title: string;
@@ -87,6 +126,7 @@ export interface Procedure {
   history?: ProcedureHistoryItem[];
   tags: string[];
   blocks: ProcedureBlock[];
+  slidesConfig?: SlideConfig[];
   is_favorite?: boolean;
   created_at?: string;
   updated_at?: string;

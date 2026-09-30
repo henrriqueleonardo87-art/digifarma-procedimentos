@@ -197,3 +197,42 @@ export async function updatePassword(
 
   return { success: true };
 }
+
+export async function updateUserAvatar(
+  userId: string,
+  avatarUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    try {
+      await supabase
+        .from('app_users')
+        .update({ avatar_url: avatarUrl, updated_at: now })
+        .eq('id', userId);
+    } catch (err) {
+      console.warn('Erro ao salvar avatar no Supabase:', err);
+    }
+  }
+
+  const localUsers = await getLocalUsers();
+  const updated = localUsers.map((u) => {
+    if (u.id === userId) {
+      return { ...u, avatar_url: avatarUrl, updated_at: now };
+    }
+    return u;
+  });
+  saveLocalUsers(updated);
+
+  const current = getCurrentUser();
+  if (current && current.id === userId) {
+    setCurrentUser({
+      ...current,
+      avatar_url: avatarUrl,
+      updated_at: now,
+    });
+  }
+
+  return { success: true };
+}

@@ -1,4 +1,6 @@
 import React from 'react';
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import type { AppUser } from '../types/auth';
 
 interface SidebarProps {
   currentView: string;
@@ -9,6 +11,8 @@ interface SidebarProps {
   onCloseMobile?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  currentUser?: AppUser | null;
+  onLogout?: () => void;
 }
 
 function navIcon(name: string) {
@@ -42,6 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   isCollapsed = false,
   onToggleCollapse,
+  currentUser,
+  onLogout,
 }) => {
   const handleNavClick = (view: string) => {
     onChangeView(view);
@@ -55,16 +61,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
       id="sidebar"
     >
-      {/* Brand Header */}
+      {/* Brand Header com Botão de Recolher no Topo */}
       <div className="brand">
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: isCollapsed ? '0' : '0.75rem',
+            gap: isCollapsed ? '0' : '0.65rem',
             cursor: 'pointer',
             flex: 1,
             justifyContent: isCollapsed ? 'center' : 'flex-start',
+            overflow: 'hidden',
           }}
           onClick={() => handleNavClick('dashboard')}
           title="Digifarma - Início"
@@ -73,12 +80,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
           </div>
           {!isCollapsed && (
-            <div>
+            <div style={{ overflow: 'hidden' }}>
               <div className="name">Digifarma</div>
               <div className="sub brand-product">Treinamento & POPs</div>
             </div>
           )}
         </div>
+
+        {/* Botão de Recolher / Expandir no Topo com ícone de seta */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sidebar-header-collapse-btn no-print"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        )}
 
         {onCloseMobile && (
           <button
@@ -173,18 +193,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && <span>Configurações</span>}
         </button>
 
-        {/* Botão para Recolher / Expandir Menu Lateral no Desktop */}
-        {onToggleCollapse && (
-          <button
-            type="button"
-            className="sidebar-collapse-toggle-btn no-print"
-            onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            <span className="collapse-arrow">{isCollapsed ? '❯' : '❮'}</span>
-            {!isCollapsed && <span className="collapse-label">Recolher</span>}
-          </button>
+        {/* Usuário no Rodapé do Menu Lateral */}
+        {currentUser && (
+          <div className={`sidebar-user-bottom ${isCollapsed ? 'collapsed' : ''}`}>
+            <div className="sidebar-user-avatar-wrap" title={`Conectado como ${currentUser.name || currentUser.username}`}>
+              {currentUser.avatar_url ? (
+                <img
+                  src={currentUser.avatar_url}
+                  alt={currentUser.name || currentUser.username}
+                  className="sidebar-avatar-img"
+                />
+              ) : (
+                <div className="sidebar-avatar-circle">
+                  <span>{(currentUser.name || currentUser.username).charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+            </div>
+
+            {!isCollapsed && (
+              <div className="sidebar-user-info-clean">
+                <span className="sidebar-user-name">{currentUser.name || currentUser.username}</span>
+                <span className="sidebar-user-role">Usuário Ativo</span>
+              </div>
+            )}
+
+            {!isCollapsed && onLogout && (
+              <button
+                type="button"
+                className="sidebar-logout-icon-btn"
+                onClick={onLogout}
+                title="Desconectar do sistema"
+                aria-label="Sair"
+              >
+                <LogOut size={14} />
+              </button>
+            )}
+          </div>
         )}
       </div>
     </aside>

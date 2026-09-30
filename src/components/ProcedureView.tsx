@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Info,
   History,
+  FileDown,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -19,6 +20,7 @@ import type {
   SystemMenu,
 } from '../types/procedure';
 import { ProcedureTimelineModal } from './ProcedureTimelineModal';
+import { downloadProcedureHtml } from '../lib/htmlExporter';
 
 interface ProcedureViewProps {
   procedure: Procedure;
@@ -125,6 +127,16 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           >
             <History size={15} color="var(--red)" />
             <span>Histórico</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-proc-action"
+            onClick={() => downloadProcedureHtml(procedure)}
+            title="Baixar arquivo HTML dinâmico com animações e GIFs"
+          >
+            <FileDown size={15} />
+            <span>Exportar HTML</span>
           </button>
 
           <button type="button" className="btn-proc-action primary" onClick={handlePrint}>
@@ -306,6 +318,70 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                         <span>Interface do ERP vinculada a esta etapa</span>
                       </div>
                     )}
+
+                    {/* Indicadores Visuais da Etapa e Mãozinha */}
+                    {(
+                      procedure.slidesConfig?.find((s) => s.stepIndex === idx)?.indicators || []
+                    ).map((ind) => {
+                      if (ind.type === 'hand') {
+                        const handIcon =
+                          ind.direction === 'down'
+                            ? '👇'
+                            : ind.direction === 'left'
+                            ? '👈'
+                            : ind.direction === 'right'
+                            ? '👉'
+                            : '👆';
+                        return (
+                          <div
+                            key={ind.id}
+                            className={`pointing-hand ${ind.direction || 'up'}`}
+                            style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                            title={ind.label || 'Campo'}
+                          >
+                            {handIcon}
+                          </div>
+                        );
+                      }
+                      if (ind.type === 'spotlight') {
+                        return (
+                          <div
+                            key={ind.id}
+                            className="spotlight-beacon"
+                            style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                          />
+                        );
+                      }
+                      if (ind.type === 'badge') {
+                        return (
+                          <div
+                            key={ind.id}
+                            className="floating-badge"
+                            style={{ left: `${ind.x}%`, top: `${ind.y}%` }}
+                          >
+                            {ind.label || 'Atenção'}
+                          </div>
+                        );
+                      }
+                      if (ind.type === 'gif' && ind.gifUrl) {
+                        return (
+                          <img
+                            key={ind.id}
+                            src={ind.gifUrl}
+                            alt="GIF"
+                            style={{
+                              position: 'absolute',
+                              left: `${ind.x}%`,
+                              top: `${ind.y}%`,
+                              maxWidth: '90px',
+                              borderRadius: '8px',
+                              zIndex: 10,
+                            }}
+                          />
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
                   {associatedImg?.caption && (
                     <div className="shotframe-caption-text">{associatedImg.caption}</div>
