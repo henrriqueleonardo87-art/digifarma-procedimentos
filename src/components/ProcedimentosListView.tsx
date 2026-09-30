@@ -6,6 +6,21 @@ import {
   ArrowRight,
   Edit,
   Trash2,
+  Rocket,
+  Monitor,
+  Printer,
+  BookOpen,
+  CheckCircle2,
+  FolderPlus,
+  Boxes,
+  ShoppingCart,
+  DollarSign,
+  FileSpreadsheet,
+  ShieldCheck,
+  Settings,
+  ChevronRight,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -13,40 +28,121 @@ interface ProcedimentosListViewProps {
   procedures: Procedure[];
   menus: SystemMenu[];
   activeVersion: SystemVersion;
-  onSelectProcedure: (id: string) => void;
+  onSelectProcedure: (id: string, autoPrint?: boolean) => void;
   onNewProcedure: () => void;
   onEditProcedure: (proc: Procedure) => void;
   onDeleteProcedure: (proc: Procedure) => void;
+  onChangeVersion?: (version: SystemVersion) => void;
 }
+
+// Mapeamento de ícones e descrições dos setores da farmácia
+const SECTOR_METADATA: Record<
+  string,
+  { label: string; icon: React.FC<{ size?: number }>; desc: string; color: string }
+> = {
+  cadastros: {
+    label: 'Cadastros',
+    icon: FolderPlus,
+    desc: 'Medicamentos, clientes, fornecedores, convênios e tabela de preços.',
+    color: '#3b82f6',
+  },
+  estoque: {
+    label: 'Estoque & Entradas',
+    icon: Boxes,
+    desc: 'Entrada de notas XML, controle de lotes/validades PVPS, inventário e balanço.',
+    color: '#10b981',
+  },
+  vendas: {
+    label: 'Vendas & Balcão',
+    icon: ShoppingCart,
+    desc: 'Atendimento, consulta F7 com IA, pré-venda, cashback e fidelidade.',
+    color: '#f59e0b',
+  },
+  financeiro: {
+    label: 'Financeiro & Caixa',
+    icon: DollarSign,
+    desc: 'Fechamento de caixa cego, contas a pagar, receber e sangrias.',
+    color: '#8b5cf6',
+  },
+  fiscal: {
+    label: 'Fiscal & Tributário',
+    icon: FileSpreadsheet,
+    desc: 'Emissão de NFC-e, NF-e, cartas de correção e regras tributárias.',
+    color: '#06b6d4',
+  },
+  sngpc: {
+    label: 'SNGPC & Controlados',
+    icon: ShieldCheck,
+    desc: 'Portaria 344/98, receituários especiais, livro eletrônico e Anvisa.',
+    color: '#ef4444',
+  },
+  utilitarios: {
+    label: 'Configurações & Sistema',
+    icon: Settings,
+    desc: 'Usuários, alçadas de desconto, permissões e backup do banco.',
+    color: '#64748b',
+  },
+};
 
 export const ProcedimentosListView: React.FC<ProcedimentosListViewProps> = ({
   procedures,
-  menus,
   activeVersion,
   onSelectProcedure,
   onNewProcedure,
   onEditProcedure,
   onDeleteProcedure,
+  onChangeVersion,
 }) => {
-  const [filterVersion, setFilterVersion] = useState<string>(activeVersion || 'todos');
-  const [filterMenu, setFilterMenu] = useState<string>('todos');
-  const [filterStatus, setFilterStatus] = useState<string>('todos');
+  // Estado: se o usuário está visualizando a tela de escolha dos 2 cards ou o detalhe do setor
+  const [selectedVersion, setSelectedVersion] = useState<SystemVersion | null>(() => {
+    return activeVersion || null;
+  });
+
+  // Filtros internos
+  const [activeSector, setActiveSector] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<string>('data_desc');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Filtragem
-  const filteredList = useMemo(() => {
-    let list = [...procedures];
+  // Troca de versão
+  const handleSelectVersion = (version: SystemVersion) => {
+    setSelectedVersion(version);
+    setActiveSector('todos');
+    if (onChangeVersion) onChangeVersion(version);
+  };
 
-    if (filterVersion !== 'todos') {
-      list = list.filter((p) => p.systemVersion === filterVersion || p.systemVersion === 'ambos');
-    }
+  // Contagem de procedimentos por versão
+  const v10Count = useMemo(() => {
+    return procedures.filter(
+      (p) => p.systemVersion === 'v10' || p.systemVersion === 'ambos' || !p.systemVersion
+    ).length;
+  }, [procedures]);
 
-    if (filterMenu !== 'todos') {
-      list = list.filter(
-        (p) => p.menuId === filterMenu || p.category?.toLowerCase() === filterMenu.toLowerCase()
-      );
+  const classicoCount = useMemo(() => {
+    return procedures.filter(
+      (p) => p.systemVersion === 'classico' || p.systemVersion === 'ambos' || !p.systemVersion
+    ).length;
+  }, [procedures]);
+
+  // Procedimentos da versão selecionada
+  const versionProcedures = useMemo(() => {
+    if (!selectedVersion) return [];
+    return procedures.filter(
+      (p) =>
+        p.systemVersion === selectedVersion ||
+        p.systemVersion === 'ambos' ||
+        !p.systemVersion
+    );
+  }, [procedures, selectedVersion]);
+
+  // Lista filtrada por busca e setor
+  const filteredProcedures = useMemo(() => {
+    let list = [...versionProcedures];
+
+    if (activeSector !== 'todos') {
+      list = list.filter((p) => {
+        const mId = (p.menuId || '').toLowerCase();
+        const cat = (p.category || '').toLowerCase();
+        return mId === activeSector || cat.includes(activeSector);
+      });
     }
 
     if (searchTerm.trim()) {
@@ -56,296 +152,423 @@ export const ProcedimentosListView: React.FC<ProcedimentosListViewProps> = ({
           p.title.toLowerCase().includes(q) ||
           p.subtitle?.toLowerCase().includes(q) ||
           p.systemPath?.toLowerCase().includes(q) ||
-          p.category?.toLowerCase().includes(q)
+          p.category?.toLowerCase().includes(q) ||
+          p.tags?.some((t) => t.toLowerCase().includes(q))
       );
     }
 
-    // Ordenação
-    list.sort((a, b) => {
-      if (sortOrder === 'titulo_asc') return a.title.localeCompare(b.title);
-      if (sortOrder === 'titulo_desc') return b.title.localeCompare(a.title);
-      if (sortOrder === 'data_asc') {
-        return (a.updated_at || '').localeCompare(b.updated_at || '');
-      }
-      return (b.updated_at || '').localeCompare(a.updated_at || '');
+    return list;
+  }, [versionProcedures, activeSector, searchTerm]);
+
+  // Agrupamento por Setor
+  const groupedBySector = useMemo(() => {
+    const groups: Record<string, Procedure[]> = {};
+
+    filteredProcedures.forEach((proc) => {
+      const rawSector = (proc.menuId || proc.category || 'cadastros').toLowerCase();
+      let key = 'cadastros';
+
+      if (rawSector.includes('estoque')) key = 'estoque';
+      else if (rawSector.includes('venda') || rawSector.includes('balcão') || rawSector.includes('balcao'))
+        key = 'vendas';
+      else if (rawSector.includes('finan') || rawSector.includes('caixa')) key = 'financeiro';
+      else if (rawSector.includes('fisc')) key = 'fiscal';
+      else if (rawSector.includes('sngpc') || rawSector.includes('control')) key = 'sngpc';
+      else if (rawSector.includes('util') || rawSector.includes('config')) key = 'utilitarios';
+      else key = 'cadastros';
+
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(proc);
     });
 
-    return list;
-  }, [procedures, filterVersion, filterMenu, searchTerm, sortOrder]);
+    return groups;
+  }, [filteredProcedures]);
 
-  const formatDate = (isoString?: string) => {
-    if (!isoString) return 'Recentemente';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return isoString;
-    }
-  };
+  // Lista dos setores disponíveis na versão selecionada
+  const availableSectors = useMemo(() => {
+    const set = new Set<string>();
+    versionProcedures.forEach((proc) => {
+      const raw = (proc.menuId || proc.category || 'cadastros').toLowerCase();
+      if (raw.includes('estoque')) set.add('estoque');
+      else if (raw.includes('venda') || raw.includes('balcão') || raw.includes('balcao'))
+        set.add('vendas');
+      else if (raw.includes('finan') || raw.includes('caixa')) set.add('financeiro');
+      else if (raw.includes('fisc')) set.add('fiscal');
+      else if (raw.includes('sngpc') || raw.includes('control')) set.add('sngpc');
+      else if (raw.includes('util') || raw.includes('config')) set.add('utilitarios');
+      else set.add('cadastros');
+    });
+    return Array.from(set);
+  }, [versionProcedures]);
 
-  const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(filteredList.map((p) => p.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  return (
-    <div className="procedimentos-view-container">
-      {/* Topbar estilo LH Group */}
-      <div className="topbar">
-        <div>
-          <h1 className="dashboard-title head" style={{ margin: 0 }}>
-            Procedimentos Operacionais Padrão (POPs)
+  // =========================================================================
+  // CENÁRIO 1: TELA COM OS 2 CARDS (V10 E CLÁSSICO)
+  // =========================================================================
+  if (!selectedVersion) {
+    return (
+      <div className="procedimentos-view-container">
+        {/* Cabeçalho Centralizado */}
+        <div className="version-choice-hero">
+          <p className="eyebrow" style={{ marginBottom: '8px' }}>
+            <span className="num">SISTEMA DIGIFARMA</span>
+            <span>BASE DE CONHECIMENTO & MANUAIS POP</span>
+          </p>
+          <h1 className="head" style={{ fontSize: '2rem', marginBottom: '8px' }}>
+            Procedimentos Operacionais Padronizados
           </h1>
-          <div className="muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-            Consulte, gerencie e audite todos os manuais e instruções de trabalho do Digifarma ERP.
+          <p className="lead muted" style={{ maxWidth: '680px', margin: '0 auto 2.5rem' }}>
+            Selecione a versão do Digifarma para acessar os manuais passo a passo, formulários BPF e fluxos operacionais organizados por setor.
+          </p>
+        </div>
+
+        {/* Grade com os 2 Cards Executivos */}
+        <div className="version-cards-grid">
+          {/* Card 1: Digifarma V10 Cloud */}
+          <div
+            className="version-card-exec v10-card"
+            onClick={() => handleSelectVersion('v10')}
+          >
+            <div className="version-card-badge-row">
+              <span className="version-pill v10">
+                <Sparkles size={12} />
+                <span>Nova Geração Cloud</span>
+              </span>
+              <span className="version-count-pill">{v10Count} Manuais</span>
+            </div>
+
+            <div className="version-card-icon-title">
+              <div className="version-icon-wrap v10">
+                <Rocket size={28} />
+              </div>
+              <div>
+                <h2>Digifarma V10 Cloud</h2>
+                <span className="version-card-sub">Web & Mobile · Arquitetura em Nuvem</span>
+              </div>
+            </div>
+
+            <p className="version-card-desc">
+              Roteiros modernos com inteligência artificial no F7 para busca de sintomas, fechamento de caixa cego, fidelidade 360º e sincronização em tempo real.
+            </p>
+
+            <div className="version-card-sectors-chips">
+              <span className="sector-chip">Cadastros</span>
+              <span className="sector-chip">Estoque</span>
+              <span className="sector-chip">Vendas & F7 (IA)</span>
+              <span className="sector-chip">Caixa Cego</span>
+              <span className="sector-chip">Configurações</span>
+            </div>
+
+            <div className="version-card-footer">
+              <span className="version-card-link">
+                Acessar Procedimentos V10
+                <ArrowRight size={16} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 2: Digifarma Clássico Desktop */}
+          <div
+            className="version-card-exec classico-card"
+            onClick={() => handleSelectVersion('classico')}
+          >
+            <div className="version-card-badge-row">
+              <span className="version-pill classico">
+                <Monitor size={12} />
+                <span>Desktop ERP Estável</span>
+              </span>
+              <span className="version-count-pill">{classicoCount} Manuais</span>
+            </div>
+
+            <div className="version-card-icon-title">
+              <div className="version-icon-wrap classico">
+                <Monitor size={28} />
+              </div>
+              <div>
+                <h2>Digifarma Clássico</h2>
+                <span className="version-card-sub">Windows Desktop · Operação Local</span>
+              </div>
+            </div>
+
+            <p className="version-card-desc">
+              Manuais práticos para rotinas de retaguarda, importação de notas fiscais via XML (F5), cadastro de clientes e atalhos rápidos de teclado.
+            </p>
+
+            <div className="version-card-sectors-chips">
+              <span className="sector-chip">Cadastros (F2)</span>
+              <span className="sector-chip">Entrada XML</span>
+              <span className="sector-chip">Vendas & Balcão</span>
+              <span className="sector-chip">SNGPC Portaria 344</span>
+              <span className="sector-chip">Financeiro</span>
+            </div>
+
+            <div className="version-card-footer">
+              <span className="version-card-link">
+                Acessar Procedimentos Clássico
+                <ArrowRight size={16} />
+              </span>
+            </div>
           </div>
         </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {selectedIds.length > 0 && (
-            <span className="muted" style={{ fontSize: '0.82rem' }}>
-              {selectedIds.length} selecionado(s)
-            </span>
-          )}
-
-          <button
-            type="button"
-            className="btn primary"
-            onClick={onNewProcedure}
-          >
-            <Plus size={15} />
-            <span>+ Novo POP</span>
-          </button>
-        </div>
       </div>
+    );
+  }
 
-      {/* Barra de Filtros no Padrão LH Group */}
-      <div className="filters">
-        <select
-          id="f-version"
-          value={filterVersion}
-          onChange={(e) => setFilterVersion(e.target.value)}
+  // =========================================================================
+  // CENÁRIO 2: PROCEDIMENTOS DA VERSÃO ESCOLHIDA SEPARADOS POR SETOR
+  // =========================================================================
+  return (
+    <div className="procedimentos-view-container">
+      {/* Barra de Navegação Superior da Versão */}
+      <div className="version-view-top-bar">
+        <button
+          type="button"
+          className="btn-back-version"
+          onClick={() => setSelectedVersion(null)}
+          title="Voltar para a escolha entre V10 e Clássico"
         >
-          <option value="todos">Todas as versões</option>
-          <option value="v10">Digifarma V10 Cloud</option>
-          <option value="classico">Digifarma Clássico (Desktop)</option>
-        </select>
+          <ArrowRight size={15} style={{ transform: 'rotate(180deg)' }} />
+          <span>Trocar Versão</span>
+        </button>
 
-        <select
-          id="f-menu"
-          value={filterMenu}
-          onChange={(e) => setFilterMenu(e.target.value)}
-        >
-          <option value="todos">Todos os módulos</option>
-          {menus.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          id="f-status"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="todos">Todos os status</option>
-          <option value="homologado">Homologados BPF</option>
-          <option value="elaboracao">Em Elaboração</option>
-        </select>
-
-        <div className="search-filter-box" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Buscar por nome, rota..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '30px' }}
-          />
+        <div className="version-view-title-block">
+          <div className="version-indicator-tag">
+            {selectedVersion === 'v10' ? (
+              <>
+                <Rocket size={14} color="#10b981" />
+                <strong>Digifarma V10 Cloud</strong>
+              </>
+            ) : (
+              <>
+                <Monitor size={14} color="#3b82f6" />
+                <strong>Digifarma Clássico Desktop</strong>
+              </>
+            )}
+            <span className="tag-separator">•</span>
+            <span>{versionProcedures.length} procedimentos homologados</span>
+          </div>
         </div>
-
-        <select
-          id="f-sort"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value)}
-        >
-          <option value="data_desc">Data (mais recente)</option>
-          <option value="data_asc">Data (mais antiga)</option>
-          <option value="titulo_asc">Título (A-Z)</option>
-          <option value="titulo_desc">Título (Z-A)</option>
-        </select>
 
         <button
           type="button"
-          className="btn sm ghost"
-          onClick={() => {
-            setFilterVersion('todos');
-            setFilterMenu('todos');
-            setFilterStatus('todos');
-            setSearchTerm('');
-            setSortOrder('data_desc');
-          }}
+          className="btn primary"
+          onClick={onNewProcedure}
         >
-          Limpar filtros
+          <Plus size={15} />
+          <span>+ Novo Procedimento</span>
         </button>
       </div>
 
-      {/* Tabela Formatada no Padrão LH Group */}
-      <div className="table-wrap">
-        {filteredList.length === 0 ? (
-          <div className="empty-state">
-            <div className="ic">🗒</div>
-            <p>Nenhum procedimento encontrado com os filtros selecionados.</p>
-          </div>
-        ) : (
-          <table className="table-lh">
-            <thead>
-              <tr>
-                <th style={{ width: '40px', textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.length > 0 && selectedIds.length === filteredList.length}
-                    onChange={toggleSelectAll}
-                    title="Selecionar todos"
-                  />
-                </th>
-                <th style={{ width: '105px' }}>Data</th>
-                <th style={{ width: '110px' }}>Versão</th>
-                <th>Manual / POP</th>
-                <th>Módulo &amp; Rota no ERP</th>
-                <th style={{ width: '130px' }}>Etapas / Checklist</th>
-                <th style={{ width: '130px' }}>Status</th>
-                <th style={{ width: '130px', textAlign: 'right' }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredList.map((proc) => {
-                const stepCount = proc.blocks.filter((b) => b.type === 'step' || b.type === 'heading').length;
-                const checkCount = proc.blocks.filter((b) => b.type === 'step').length;
-                const isV10 = proc.systemVersion === 'v10';
-                const menuObj = menus.find((m) => m.id === proc.menuId);
-                const isChecked = selectedIds.includes(proc.id);
+      {/* Controles de Filtro e Busca */}
+      <div className="sector-controls-bar">
+        <div className="search-filter-box" style={{ flex: 1, maxWidth: '420px', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            className="custom-search-input"
+            placeholder="Pesquisar por nome, atalho, palavra-chave..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '36px' }}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => setSearchTerm('')}
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
-                return (
-                  <tr
-                    key={proc.id}
-                    className="tx-row-editable"
-                    onClick={() => onSelectProcedure(proc.id)}
-                    title="Clique para visualizar o manual completo"
-                  >
-                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleSelectOne(proc.id)}
-                      />
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={12} />
-                        {formatDate(proc.updated_at)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`version-pill ${isV10 ? 'v10' : 'classico'}`}>
-                        {isV10 ? 'V10 Cloud' : 'Desktop'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                          {proc.title}
-                        </strong>
-                        {proc.subtitle && (
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {proc.subtitle}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="module-tag-pill">
-                          {menuObj?.label || proc.category || 'Geral'}
-                        </span>
-                        {proc.systemPath && (
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                            {proc.systemPath}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        {stepCount} {stepCount === 1 ? 'etapa' : 'etapas'}
-                        {checkCount > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> • {checkCount} checks</span>}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="status-pill status-confirmado">
-                        <span className="dot" />
-                        Homologado
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-table-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectProcedure(proc.id);
-                          }}
-                          title="Acessar POP"
-                        >
-                          <span>Acessar</span>
-                          <ArrowRight size={13} />
-                        </button>
+        {/* Pílulas de Filtro por Setor */}
+        <div className="sector-pills-row">
+          <button
+            type="button"
+            className={`sector-pill ${activeSector === 'todos' ? 'active' : ''}`}
+            onClick={() => setActiveSector('todos')}
+          >
+            <Layers size={13} />
+            <span>Todos os Setores</span>
+            <span className="pill-badge">{versionProcedures.length}</span>
+          </button>
 
-                        <button
-                          type="button"
-                          className="btn sm ghost"
-                          style={{ padding: '0.35rem 0.5rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditProcedure(proc);
-                          }}
-                          title="Editar"
-                        >
-                          <Edit size={13} />
-                        </button>
+          {availableSectors.map((secKey) => {
+            const meta = SECTOR_METADATA[secKey] || {
+              label: secKey,
+              icon: FolderPlus,
+              desc: '',
+              color: '#64748b',
+            };
+            const Icon = meta.icon;
+            const count = versionProcedures.filter((p) => {
+              const m = (p.menuId || p.category || '').toLowerCase();
+              return m === secKey || m.includes(secKey);
+            }).length;
 
-                        <button
-                          type="button"
-                          className="btn sm danger"
-                          style={{ padding: '0.35rem 0.5rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteProcedure(proc);
-                          }}
-                          title="Excluir"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+            return (
+              <button
+                type="button"
+                key={secKey}
+                className={`sector-pill ${activeSector === secKey ? 'active' : ''}`}
+                onClick={() => setActiveSector(secKey)}
+              >
+                <Icon size={13} />
+                <span>{meta.label}</span>
+                <span className="pill-badge">{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Lista de Procedimentos Separados por Setor */}
+      {filteredProcedures.length === 0 ? (
+        <div className="empty-state-sector">
+          <Layers size={40} color="var(--text-muted)" />
+          <h3>Nenhum procedimento encontrado</h3>
+          <p className="muted">
+            {searchTerm
+              ? `Nenhum resultado corresponde à busca "${searchTerm}".`
+              : 'Não há procedimentos cadastrados neste setor para esta versão.'}
+          </p>
+          <button
+            type="button"
+            className="btn secondary sm"
+            onClick={() => {
+              setSearchTerm('');
+              setActiveSector('todos');
+            }}
+          >
+            Limpar filtros
+          </button>
+        </div>
+      ) : (
+        <div className="sectors-list-container">
+          {Object.entries(groupedBySector).map(([secKey, procs]) => {
+            const meta = SECTOR_METADATA[secKey] || {
+              label: secKey.toUpperCase(),
+              icon: FolderPlus,
+              desc: 'Rotinas operacionais da farmácia.',
+              color: 'var(--red)',
+            };
+            const SectorIcon = meta.icon;
+
+            return (
+              <section key={secKey} className="sector-section-block">
+                {/* Cabeçalho do Setor */}
+                <div className="sector-block-header">
+                  <div className="sector-title-group">
+                    <div className="sector-icon-badge" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>
+                      <SectorIcon size={20} />
+                    </div>
+                    <div>
+                      <div className="sector-header-name-row">
+                        <h2>{meta.label}</h2>
+                        <span className="sector-counter-tag">
+                          {procs.length} {procs.length === 1 ? 'procedimento' : 'procedimentos'}
+                        </span>
+                      </div>
+                      <p className="sector-header-desc">{meta.desc}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grade de Cards de Procedimentos do Setor */}
+                <div className="sector-procedures-grid">
+                  {procs.map((proc) => {
+                    const stepCount = proc.blocks.filter(
+                      (b) => b.type === 'step' || b.type === 'heading'
+                    ).length;
+
+                    return (
+                      <div key={proc.id} className="procedure-exec-card">
+                        <div className="proc-card-top">
+                          <div className="proc-card-badges">
+                            <span className="proc-cat-badge">{proc.category || meta.label}</span>
+                            <span className="proc-bpf-badge">
+                              <CheckCircle2 size={11} />
+                              <span>BPF Homologado</span>
+                            </span>
+                          </div>
+
+                          <div className="proc-time-estimate">
+                            <Clock size={12} />
+                            <span>{Math.max(stepCount * 2, 3)} min</span>
+                          </div>
+                        </div>
+
+                        <h3 className="proc-card-title">{proc.title}</h3>
+                        <p className="proc-card-sub">{proc.subtitle}</p>
+
+                        {proc.systemPath && (
+                          <div className="proc-card-route">
+                            <span className="route-kicker">ROTA ERP:</span>
+                            <span className="route-text" title={proc.systemPath}>
+                              {proc.systemPath}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="proc-card-meta-foot">
+                          <span className="proc-steps-count">
+                            {stepCount} {stepCount === 1 ? 'etapa' : 'etapas'} documentadas
+                          </span>
+
+                          <div className="proc-card-actions">
+                            {/* Ação 1: Abrir Visualizador em Slides */}
+                            <button
+                              type="button"
+                              className="btn-proc-open"
+                              onClick={() => onSelectProcedure(proc.id, false)}
+                              title="Abrir procedimento no formato de apresentação de slides"
+                            >
+                              <BookOpen size={14} />
+                              <span>Abrir</span>
+                              <ChevronRight size={13} />
+                            </button>
+
+                            {/* Ação 2: Imprimir / PDF Direto */}
+                            <button
+                              type="button"
+                              className="btn-proc-print"
+                              onClick={() => onSelectProcedure(proc.id, true)}
+                              title="Imprimir ou gerar PDF deste procedimento no padrão executivo V10"
+                            >
+                              <Printer size={14} />
+                              <span>PDF</span>
+                            </button>
+
+                            {/* Ação 3: Editar */}
+                            <button
+                              type="button"
+                              className="btn-proc-icon-opt"
+                              onClick={() => onEditProcedure(proc)}
+                              title="Editar procedimento"
+                            >
+                              <Edit size={13} />
+                            </button>
+
+                            {/* Ação 4: Excluir */}
+                            <button
+                              type="button"
+                              className="btn-proc-icon-opt danger"
+                              onClick={() => onDeleteProcedure(proc)}
+                              title="Excluir procedimento"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

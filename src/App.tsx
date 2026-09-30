@@ -9,10 +9,6 @@ import { ImageLightbox } from './components/ImageLightbox';
 import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
 import { ProcedimentosListView } from './components/ProcedimentosListView';
-import { AgendaView } from './components/AgendaView';
-import { RelatoriosView } from './components/RelatoriosView';
-import { IaConsultorView } from './components/IaConsultorView';
-import { AiChatWidget } from './components/AiChatWidget';
 import type { Procedure, SystemMenu, SystemVersion } from './types/procedure';
 import {
   fetchAllProcedures,
@@ -30,6 +26,7 @@ export function App() {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [menus, setMenus] = useState<SystemMenu[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [autoPrintActive, setAutoPrintActive] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<Procedure | null>(null);
@@ -98,77 +95,91 @@ export function App() {
 
   // Efeito de Tema
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('digifarma_theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('digifarma_theme', 'light');
-    }
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('digifarma_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  // Alternar Versão (Clássico / V10)
-  const handleSelectVersion = (version: SystemVersion) => {
-    setActiveVersion(version);
-    saveSystemVersion(version);
-    setCurrentView('dashboard');
-    setActiveId(null);
+  // Procedimento Ativo Atual
+  const activeProcedure = procedures.find((p) => p.id === activeId) || null;
+
+  // Handlers de Navegação e Ações
+  const handleSelectProcedure = (id: string, autoPrint = false) => {
+    setActiveId(id);
+    setAutoPrintActive(autoPrint);
+    setCurrentView('procedure-detail');
     setIsEditing(false);
   };
 
-  const activeProcedure = procedures.find((p) => p.id === activeId) || null;
-
-  // Ações de Navegação
-  const handleSelectProcedure = (id: string) => {
-    setActiveId(id);
-    setCurrentView('procedure-detail');
+  const handleSelectVersion = (version: SystemVersion) => {
+    setActiveVersion(version);
+    saveSystemVersion(version);
+    setCurrentView('procedimentos');
+    setActiveId(null);
     setIsEditing(false);
-    setEditingProcedure(null);
   };
 
   const handleBackFromProcedure = () => {
     setActiveId(null);
-    setCurrentView('dashboard');
+    setAutoPrintActive(false);
+    setCurrentView('procedimentos');
   };
 
   const handleNewProcedure = () => {
-    setEditingProcedure(null);
+    const newProc: Procedure = {
+      id: `proc-${Date.now()}`,
+      title: 'Novo Procedimento Operacional Padrão',
+      subtitle: 'Descrição sumária da rotina e diretrizes BPF',
+      category: 'Cadastros',
+      systemVersion: activeVersion || 'v10',
+      menuId: 'cadastros',
+      submenuId: 'produtos',
+      systemPath: `${activeVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'} ➔ Cadastros ➔ Produtos`,
+      author: 'Farmacêutico Responsável',
+      tags: ['BPF', activeVersion === 'v10' ? 'V10' : 'Clássico'],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      blocks: [
+        {
+          id: `step-${Date.now()}-1`,
+          type: 'step',
+          content: 'Acessar o módulo correspondente e conferir os dados cadastrais antes de validar a operação.',
+          completed: false,
+        },
+      ],
+    };
+    setEditingProcedure(newProc);
     setIsEditing(true);
     setCurrentView('editor');
   };
 
-  const handleEditProcedure = () => {
-    if (activeProcedure) {
-      setEditingProcedure(activeProcedure);
+  const handleEditProcedure = (procToEdit?: Procedure) => {
+    const target = procToEdit || activeProcedure;
+    if (target) {
+      setEditingProcedure(target);
       setIsEditing(true);
       setCurrentView('editor');
     }
   };
 
-  const handleSaveProcedure = async (procToSave: Procedure) => {
-    const saved = await saveProcedure(procToSave);
+  const handleSaveProcedure = async (savedProcedure: Procedure) => {
+    await saveProcedure(savedProcedure);
     setProcedures((prev) => {
-      const idx = prev.findIndex((p) => p.id === saved.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = saved;
-        return copy;
+      const exists = prev.some((p) => p.id === savedProcedure.id);
+      if (exists) {
+        return prev.map((p) => (p.id === savedProcedure.id ? savedProcedure : p));
       }
-      return [saved, ...prev];
+      return [savedProcedure, ...prev];
     });
-
-    setActiveId(saved.id);
     setIsEditing(false);
     setEditingProcedure(null);
+    setActiveId(savedProcedure.id);
     setCurrentView('procedure-detail');
   };
 
-  const handleDeleteClick = () => {
-    if (activeProcedure) {
-      setDeleteModalState({
-        isOpen: true,
-        procedure: activeProcedure,
-      });
+  const handleDeleteClick = (procToDelete?: Procedure) => {
+    const target = procToDelete || activeProcedure;
+    if (target) {
+      setDeleteModalState({ isOpen: true, procedure: target });
     }
   };
 
@@ -247,7 +258,10 @@ export function App() {
           onNewProcedure={handleNewProcedure}
           activeVersion={activeVersion}
           onChangeVersion={handleSelectVersion}
-          onReturnToVersionSelect={() => setCurrentView('dashboard')}
+          onReturnToVersionSelect={() => {
+            setCurrentView('procedimentos');
+            setActiveId(null);
+          }}
           procedures={procedures}
           onSelectProcedure={handleSelectProcedure}
         />
@@ -281,6 +295,7 @@ export function App() {
               }
               onUpdateStepCompletion={handleStepCompletionToggle}
               onBack={handleBackFromProcedure}
+              autoPrint={autoPrintActive}
             />
           ) : currentView === 'procedimentos' ? (
             <ProcedimentosListView
@@ -297,17 +312,8 @@ export function App() {
               onDeleteProcedure={(proc) => {
                 setDeleteModalState({ isOpen: true, procedure: proc });
               }}
+              onChangeVersion={handleSelectVersion}
             />
-          ) : currentView === 'ia' ? (
-            <IaConsultorView
-              procedures={procedures}
-              activeVersion={activeVersion || 'v10'}
-              onSelectProcedure={handleSelectProcedure}
-            />
-          ) : currentView === 'agenda' ? (
-            <AgendaView />
-          ) : currentView === 'relatorios' ? (
-            <RelatoriosView procedures={procedures} menus={menus} />
           ) : currentView === 'config' ? (
             <SettingsView
               menus={menus}
@@ -328,17 +334,11 @@ export function App() {
               activeVersion={activeVersion || 'v10'}
               onSelectProcedure={handleSelectProcedure}
               onNewProcedure={handleNewProcedure}
+              onNavigateToVersion={handleSelectVersion}
             />
           )}
         </main>
       </div>
-
-      {/* Assistente Flutuante IA Leo (Padrão LH Group) */}
-      <AiChatWidget
-        procedures={procedures}
-        activeVersion={activeVersion || 'v10'}
-        onSelectProcedure={handleSelectProcedure}
-      />
 
       {/* Modal de Supabase */}
       <SupabaseModal

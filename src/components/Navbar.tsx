@@ -288,10 +288,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span style={{ color: 'var(--red)', fontWeight: 800 }}>•</span>
                   <span><strong>Impressão Oficial (POP / BPF):</strong> Abra qualquer manual e clique em <em>Imprimir / PDF</em> para gerar o formulário homologado de auditoria com controle de versão e assinaturas.</span>
                 </li>
-                <li style={{ display: 'flex', gap: '8px', fontSize: '13.5px' }}>
-                  <span style={{ color: 'var(--red)', fontWeight: 800 }}>•</span>
-                  <span><strong>Consultor Leo • IA:</strong> Clique no botão flutuante no canto inferior direito para tirar dúvidas operacionais.</span>
-                </li>
               </ul>
             </div>
             <div className="modal-foot">

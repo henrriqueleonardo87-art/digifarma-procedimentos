@@ -28,38 +28,84 @@ export const DEFAULT_SYSTEM_MENUS: SystemMenu[] = [
     icon: 'FolderPlus',
     version: 'ambos',
     submenus: [
-      { id: 'clientes', label: 'Clientes', icon: 'Users' },
-      { id: 'fornecedores', label: 'Fornecedores', icon: 'Truck' },
-      { id: 'produtos', label: 'Produtos', icon: 'Package' },
-      { id: 'convenios', label: 'Convênios', icon: 'ShieldCheck' },
+      { id: 'produtos', label: 'Medicamentos & Produtos', icon: 'Package' },
+      { id: 'clientes', label: 'Clientes & Convênios', icon: 'Users' },
+      { id: 'fornecedores', label: 'Fornecedores & Distribuidoras', icon: 'Truck' },
+      { id: 'precos', label: 'Tabela de Preços & PMC', icon: 'Tag' },
     ],
   },
   {
     id: 'estoque',
-    label: 'Estoque',
+    label: 'Estoque & Entradas',
     icon: 'Boxes',
     version: 'ambos',
     submenus: [
-      { id: 'entrada-notas', label: 'Entrada de Notas', icon: 'FileInput' },
+      { id: 'entrada-notas', label: 'Entrada de Notas XML', icon: 'FileInput' },
       { id: 'inventario', label: 'Inventário & Balanço', icon: 'ClipboardCheck' },
-      { id: 'transferencias', label: 'Transferências', icon: 'ArrowLeftRight' },
-      { id: 'validade-lotes', label: 'Controle de Lotes', icon: 'CalendarAlert' },
+      { id: 'validade-lotes', label: 'Lotes & Validades (PVPS)', icon: 'CalendarAlert' },
+      { id: 'transferencias', label: 'Transferências entre Lojas', icon: 'ArrowLeftRight' },
+    ],
+  },
+  {
+    id: 'vendas',
+    label: 'Vendas & Balcão',
+    icon: 'ShoppingCart',
+    version: 'ambos',
+    submenus: [
+      { id: 'atendimento-f7', label: 'Consulta Rápida F7 com IA', icon: 'Search' },
+      { id: 'balcao-pdv', label: 'Atendimento & Pré-Venda', icon: 'UserCheck' },
+      { id: 'fidelidade', label: 'Fidelidade & Cashback 360º', icon: 'Award' },
+      { id: 'pbm', label: 'PBM & Convênios Farmácia', icon: 'ShieldCheck' },
+    ],
+  },
+  {
+    id: 'financeiro',
+    label: 'Financeiro & Caixa',
+    icon: 'DollarSign',
+    version: 'ambos',
+    submenus: [
+      { id: 'caixa-cego', label: 'Fechamento de Caixa Cego', icon: 'Lock' },
+      { id: 'contas-pagar', label: 'Contas a Pagar', icon: 'FileText' },
+      { id: 'contas-receber', label: 'Contas a Receber', icon: 'CreditCard' },
+      { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: 'TrendingUp' },
+    ],
+  },
+  {
+    id: 'fiscal',
+    label: 'Fiscal & Tributário',
+    icon: 'FileSpreadsheet',
+    version: 'ambos',
+    submenus: [
+      { id: 'nfce-nfe', label: 'Emissão NFC-e e NF-e', icon: 'Receipt' },
+      { id: 'tributacao', label: 'Regras de ICMS & PIS/COFINS', icon: 'Percent' },
+      { id: 'sped', label: 'SPED Fiscal & Sintegra', icon: 'FileCode' },
+    ],
+  },
+  {
+    id: 'sngpc',
+    label: 'SNGPC & Controlados',
+    icon: 'ShieldCheck',
+    version: 'ambos',
+    submenus: [
+      { id: 'portaria344', label: 'Portaria 344/98 e Retenção', icon: 'ShieldAlert' },
+      { id: 'livro-sngpc', label: 'Livro Eletrônico Anvisa', icon: 'BookOpen' },
+      { id: 'transmissao-anvisa', label: 'Transmissão de Arquivos XML', icon: 'Send' },
     ],
   },
   {
     id: 'utilitarios',
-    label: 'Utilitários',
-    icon: 'Wrench',
+    label: 'Configurações & Sistema',
+    icon: 'Settings',
     version: 'ambos',
     submenus: [
-      { id: 'configuracoes', label: 'Configurações', icon: 'Settings' },
-      { id: 'usuarios', label: 'Usuários & Permissões', icon: 'UserCog' },
-      { id: 'backup', label: 'Backup & Integrações', icon: 'Database' },
+      { id: 'usuarios', label: 'Usuários, Alçadas & Permissões', icon: 'UserCog' },
+      { id: 'backup', label: 'Backup & Banco de Dados', icon: 'Database' },
+      { id: 'parametros', label: 'Parâmetros Gerais do ERP', icon: 'Sliders' },
     ],
   },
 ];
 
-const DATA_VERSION_TAG = 'digifarma_seed_v4_v10';
+const DATA_VERSION_TAG = 'digifarma_seed_v5_setores';
 
 export const INITIAL_PROCEDURES: Procedure[] = [
   // ==========================================

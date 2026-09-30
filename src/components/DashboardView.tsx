@@ -13,6 +13,9 @@ import {
   Target,
   Sliders,
   Search,
+  Rocket,
+  Monitor,
+  Sparkles,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -22,6 +25,7 @@ interface DashboardViewProps {
   activeVersion: SystemVersion;
   onSelectProcedure: (id: string) => void;
   onNewProcedure: () => void;
+  onNavigateToVersion?: (version: SystemVersion) => void;
 }
 
 // Cores temáticas harmônicas para os módulos
@@ -41,6 +45,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   activeVersion,
   onSelectProcedure,
   onNewProcedure,
+  onNavigateToVersion,
 }) => {
   // Estado para interação de hover no gráfico de pizza
   const [hoveredModuleIndex, setHoveredModuleIndex] = useState<number | null>(null);
@@ -599,6 +604,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <Plus size={16} />
           <span>Novo Procedimento</span>
         </button>
+      </div>
+
+      {/* Cards de Acesso Rápido por Versão (V10 e Clássico) no Topo */}
+      <div className="dashboard-version-switch-cards">
+        <div
+          className={`dash-version-card v10 ${activeVersion === 'v10' ? 'active' : ''}`}
+          onClick={() => onNavigateToVersion && onNavigateToVersion('v10')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="dash-version-left">
+            <div className="dash-version-icon v10">
+              <Rocket size={22} />
+            </div>
+            <div>
+              <div className="dash-version-title-row">
+                <strong>Digifarma V10 Cloud</strong>
+                <span className="dash-version-pill v10">
+                  <Sparkles size={10} />
+                  <span>Nuvem</span>
+                </span>
+              </div>
+              <span className="dash-version-sub">
+                {procedures.filter(p => p.systemVersion === 'v10' || p.systemVersion === 'ambos').length} procedimentos divididos por setor · IA no F7 · Caixa Cego
+              </span>
+            </div>
+          </div>
+          <div className="btn-dash-version-action">
+            <span>Ver Setores</span>
+            <ArrowRight size={14} />
+          </div>
+        </div>
+
+        <div
+          className={`dash-version-card classico ${activeVersion === 'classico' ? 'active' : ''}`}
+          onClick={() => onNavigateToVersion && onNavigateToVersion('classico')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="dash-version-left">
+            <div className="dash-version-icon classico">
+              <Monitor size={22} />
+            </div>
+            <div>
+              <div className="dash-version-title-row">
+                <strong>Digifarma Clássico</strong>
+                <span className="dash-version-pill classico">Desktop</span>
+              </div>
+              <span className="dash-version-sub">
+                {procedures.filter(p => p.systemVersion === 'classico' || p.systemVersion === 'ambos').length} procedimentos divididos por setor · F2/F5 · Entrada XML
+              </span>
+            </div>
+          </div>
+          <div className="btn-dash-version-action">
+            <span>Ver Setores</span>
+            <ArrowRight size={14} />
+          </div>
+        </div>
       </div>
 
       {/* Grid de 4 Cards de Métricas Principais (KPIs) */}

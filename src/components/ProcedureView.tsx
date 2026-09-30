@@ -26,6 +26,7 @@ interface ProcedureViewProps {
   onOpenImageLightbox: (url: string, caption?: string) => void;
   onUpdateStepCompletion: (blockId: string, completed: boolean) => void;
   onBack?: () => void;
+  autoPrint?: boolean;
 }
 
 export const ProcedureView: React.FC<ProcedureViewProps> = ({
@@ -36,7 +37,17 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   onOpenImageLightbox,
   onUpdateStepCompletion,
   onBack,
+  autoPrint = false,
 }) => {
+  // Disparo automático de impressão quando solicitado direto do card
+  React.useEffect(() => {
+    if (autoPrint) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPrint]);
   // Encontrar nomes amigáveis para Menus e Submenus
   const menuInfo = useMemo(() => {
     const foundMenu = menus.find(
