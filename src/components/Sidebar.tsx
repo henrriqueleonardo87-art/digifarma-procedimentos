@@ -5,6 +5,8 @@ interface SidebarProps {
   onChangeView: (view: string) => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 function navIcon(name: string) {
@@ -34,22 +36,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChangeView,
   darkMode,
   onToggleDarkMode,
+  isOpenMobile,
+  onCloseMobile,
 }) => {
+  const handleNavClick = (view: string) => {
+    onChangeView(view);
+    onCloseMobile?.();
+  };
+
   return (
-    <aside className="sidebar no-print" id="sidebar">
+    <aside className={`sidebar no-print ${isOpenMobile ? 'mobile-open' : ''}`} id="sidebar">
       {/* Brand Header */}
-      <div
-        className="brand"
-        onClick={() => onChangeView('dashboard')}
-        style={{ cursor: 'pointer' }}
-      >
-        <div className="brand-logo-icon">
-          <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+      <div className="brand">
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flex: 1 }}
+          onClick={() => handleNavClick('dashboard')}
+        >
+          <div className="brand-logo-icon">
+            <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+          </div>
+          <div>
+            <div className="name">Digifarma</div>
+            <div className="sub brand-product">Treinamento & POPs</div>
+          </div>
         </div>
-        <div>
-          <div className="name">Digifarma</div>
-          <div className="sub brand-product">Treinamento & POPs</div>
-        </div>
+
+        {onCloseMobile && (
+          <button
+            type="button"
+            className="sidebar-mobile-close-btn"
+            onClick={onCloseMobile}
+            aria-label="Fechar menu lateral"
+            title="Fechar menu"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Lista de Navegação Principal: Somente Tela Inicial, Digifarma V10 e Digifarma R78 */}
@@ -57,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           type="button"
           className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
-          onClick={() => onChangeView('dashboard')}
+          onClick={() => handleNavClick('dashboard')}
         >
           <span className="ic">{navIcon('grid')}</span>
           <span>Tela inicial</span>
@@ -66,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           type="button"
           className={`nav-item ${currentView === 'v10' ? 'active' : ''}`}
-          onClick={() => onChangeView('v10')}
+          onClick={() => handleNavClick('v10')}
         >
           <span className="ic">{navIcon('rocket')}</span>
           <span>Digifarma V10</span>
@@ -75,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           type="button"
           className={`nav-item ${currentView === 'r78' ? 'active' : ''}`}
-          onClick={() => onChangeView('r78')}
+          onClick={() => handleNavClick('r78')}
         >
           <span className="ic">{navIcon('monitor')}</span>
           <span>Digifarma R78</span>
@@ -110,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           type="button"
           className={`nav-item sidebar-config-item ${currentView === 'config' ? 'active' : ''}`}
-          onClick={() => onChangeView('config')}
+          onClick={() => handleNavClick('config')}
         >
           <span className="ic">{navIcon('settings')}</span>
           <span>Configurações</span>

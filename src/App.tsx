@@ -32,6 +32,9 @@ export function App() {
   // Visão Ativa do Sistema: 'dashboard' | 'v10' | 'r78' | 'procedure-detail' | 'config' | 'editor'
   const [currentView, setCurrentView] = useState<string>('dashboard');
 
+  // Estado do Menu Lateral no Mobile
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // Tema Escuro / Claro
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('digifarma_theme') === 'dark';
@@ -215,21 +218,33 @@ export function App() {
 
   return (
     <div className="app">
-      {/* ── SIDEBAR FIXO: SOMENTE TELA INICIAL, DIGIFARMA V10 E DIGIFARMA R78 ── */}
+      {/* ── SIDEBAR FIXO / OFF-CANVAS MOBILE ── */}
       <Sidebar
         currentView={currentView}
         onChangeView={(view) => {
           setCurrentView(view);
           setActiveId(null);
           setIsEditing(false);
+          setIsMobileSidebarOpen(false);
         }}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
+
+      {/* Backdrop para fechar o menu lateral no celular ao tocar fora */}
+      {isMobileSidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "TREINAMENTO" ── */}
       <div className="app-content">
-        <Navbar onToggleSidebarMobile={() => {}} />
+        <Navbar onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
 
         <main className="main" id="main">
           {loading ? (
