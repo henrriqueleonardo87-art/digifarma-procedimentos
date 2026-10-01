@@ -4730,28 +4730,20 @@ h2.head {
   margin: 0 2px;
 }
 
-/* ── 5. REGRAS DE IMPRESSÃO OFICIAL EM ALTA DEFINIÇÃO FULL-BLEED (@PAGE & @MEDIA PRINT) ── */
-@page {
-  size: 297mm 210mm !important; /* Padrão Universal A4 Paisagem (297mm x 210mm) */
-  margin: 0mm !important; /* Sem margens automáticas, cabeçalhos ou rodapés do navegador */
-}
-
-/* Oculta documento de montagem de impressão na tela */
-.canva-print-mount-offscreen {
-  display: none !important;
-}
-
 /* ==========================================================================
    CONFIGURAÇÃO DE IMPRESSÃO IMPECÁVEL EM A4 PAISAGEM (MODERNO IGUAL AO HTML)
    ========================================================================== */
 @page {
-  size: 297mm 210mm;
+  size: A4 landscape;
   margin: 0;
 }
 
 @media print {
   *, *::before, *::after {
     box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   html, body {
@@ -11401,4 +11393,17 @@ input[type="checkbox"]:focus-visible,
 
 .pop-footer-brand b {
   color: #0f172a;
+}
+
+.spin-animate {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -56,6 +56,7 @@ import type {
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
+import { exportProcedurePdf } from '../lib/pdfExporter';
 
 interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
@@ -1038,13 +1039,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     showToast('Download do arquivo HTML com animações iniciado!');
   };
 
-  const handlePrintPdf = () => {
-    const originalTitle = document.title;
-    document.title = '';
-    window.print();
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 1200);
+  const handlePrintPdf = async () => {
+    const proc = constructProcedureToSave();
+    showToast('Gerando PDF Oficial em alta definição...');
+    try {
+      await exportProcedurePdf(proc);
+      showToast('PDF baixado com sucesso!');
+    } catch {
+      const originalTitle = document.title;
+      document.title = '';
+      window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1200);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────

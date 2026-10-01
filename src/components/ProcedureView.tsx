@@ -25,6 +25,7 @@ import {
   EyeOff,
   ClipboardCheck,
   MoreVertical,
+  Loader2,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -36,6 +37,7 @@ import type {
 } from '../types/procedure';
 import { ProcedureTimelineModal } from './ProcedureTimelineModal';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
+import { exportProcedurePdf } from '../lib/pdfExporter';
 
 interface ProcedureViewProps {
   procedure: Procedure;
@@ -66,12 +68,12 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   onSendToReview,
   onPublish,
 }) => {
-  // Disparo automático de impressão quando solicitado direto do card
+  // Disparo automático de PDF quando solicitado direto do card
   React.useEffect(() => {
     if (autoPrint) {
       const timer = setTimeout(() => {
-        window.print();
-      }, 400);
+        handleDownloadPdf();
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [autoPrint]);
@@ -126,6 +128,20 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
   const isV10 = procedure.systemVersion === 'v10';
   const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await exportProcedurePdf(procedure);
+    } catch (err) {
+      console.error('Falha na geração direta de PDF:', err);
+      handlePrint();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const handlePrint = () => {
     const originalTitle = document.title;
@@ -521,11 +537,21 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           <button
             type="button"
             className="btn-proc-primary-action print-cta"
-            onClick={handlePrint}
-            title="Imprimir ou Salvar Documento Oficial em PDF"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            title="Gerar e Baixar PDF Oficial em A4 Paisagem (Alta Definição)"
           >
-            <Printer size={15} />
-            <span>Imprimir PDF</span>
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 size={15} className="spin-animate" />
+                <span>Gerando PDF...</span>
+              </>
+            ) : (
+              <>
+                <FileDown size={15} />
+                <span>Baixar PDF</span>
+              </>
+            )}
           </button>
 
           {/* Dropdown Menu com Mais Opções */}
@@ -606,6 +632,19 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                     )}
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  className="proc-menu-item"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    handlePrint();
+                  }}
+                  title="Abrir caixa de diálogo de impressão do navegador"
+                >
+                  <Printer size={15} />
+                  <span>Imprimir no Navegador (Ctrl+P)</span>
+                </button>
 
                 <button
                   type="button"
