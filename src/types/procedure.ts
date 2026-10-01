@@ -35,6 +35,30 @@ export interface CalloutBlock extends BaseBlock {
   text?: string;
 }
 
+export interface OperationalItem {
+  id: string;
+  icon?: string;
+  title: string;
+  content: string;
+  text?: string;
+  type?: 'expected' | 'tip' | 'warning' | 'custom' | 'success' | 'info';
+}
+
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  note?: string;
+  checked?: boolean;
+  responsible?: string;
+}
+
+export interface SlideStatItem {
+  id: string;
+  number: string;
+  unit?: string;
+  label: string;
+}
+
 export interface StepBlock extends BaseBlock {
   type: 'step';
   stepNumber?: number;
@@ -45,6 +69,9 @@ export interface StepBlock extends BaseBlock {
   tips?: string;
   warnings?: string;
   completed?: boolean;
+  operationalItems?: OperationalItem[];
+  imageWidth?: string; // e.g. '50%', '75%', '100%'
+  imageAlignment?: 'left' | 'center' | 'right';
 }
 
 export type ProcedureBlock = HeadingBlock | TextBlock | ImageBlock | CalloutBlock | StepBlock;
@@ -82,7 +109,10 @@ export type IndicatorType =
   | 'text'
   | 'icon'
   | 'dropdown'
-  | 'gif';
+  | 'gif'
+  | 'shape'
+  | 'emoji'
+  | 'stamp';
 
 export type IndicatorGlow = 'none' | 'soft' | 'strong' | 'neon';
 export type IndicatorSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -97,7 +127,12 @@ export type IndicatorIconName =
   | 'info'
   | 'bolt'
   | 'forbidden'
-  | 'lock';
+  | 'lock'
+  | 'help'
+  | 'heart'
+  | 'shield'
+  | 'award'
+  | 'upload';
 
 export interface DropdownOption {
   id: string;
@@ -117,8 +152,14 @@ export interface SlideIndicator {
   bgColor?: string; // background fill color
   borderColor?: string;
   textColor?: string; // custom font color
-  fontFamily?: string; // Inter, Outfit, Roboto, Playfair Display, Fira Code, Bebas Neue, Nunito
+  fontFamily?: string; // Inter, Outfit, Roboto, Playfair Display, Fira Code, Bebas Neue, Nunito, Montserrat
   fontWeight?: string | number;
+  isBold?: boolean;
+  isItalic?: boolean;
+  isUnderline?: boolean;
+  textAlign?: 'left' | 'center' | 'right';
+  shapeType?: 'rect' | 'circle' | 'pill' | 'line' | 'arrow' | 'speech-bubble' | 'divider';
+  emojiChar?: string;
   dropdownOptions?: DropdownOption[];
   slideIndex?: number; // target slide index
   fillMode?: IndicatorFillMode;
@@ -161,6 +202,12 @@ export interface SlideConfig {
   slideIndex?: number;
   indicators?: SlideIndicator[];
   shapes?: SlideShape[];
+  stats?: SlideStatItem[];
+  checklistItems?: ChecklistItem[];
+  hideTitle?: boolean;
+  hideSubtitle?: boolean;
+  imageWidth?: string;
+  imageAlignment?: 'left' | 'center' | 'right';
 }
 
 export type ProcedureStatus = 'pendente' | 'aprovado' | 'ajustes_solicitados' | 'rascunho' | 'despublicado';
@@ -211,6 +258,8 @@ export interface Procedure {
   reviewFeedbacks?: ReviewFeedback[];
   signatures?: ProcedureSignatures;
   formatType?: ProcedureFormat;
+  checklistItems?: ChecklistItem[];
+  coverStats?: SlideStatItem[];
   isActive?: boolean;
   is_favorite?: boolean;
   created_at?: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Save,
   Minus,
@@ -15,8 +15,6 @@ import {
   Palette,
   FileDown,
   ClipboardPaste,
-  Circle,
-  Square,
   Type,
   MousePointer,
   Star,
@@ -33,6 +31,16 @@ import {
   CheckSquare,
   Award,
   Layers,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Italic,
+  Underline,
+  Smile,
+  Shapes,
+  Search,
+  X as XIcon,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -52,6 +60,9 @@ import type {
   IndicatorIconName,
   ProcedureStatus,
   ProcedureSignatures,
+  OperationalItem,
+  ChecklistItem,
+  SlideStatItem,
 } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
@@ -247,11 +258,52 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   const [systemVersion, setSystemVersion] = useState<SystemVersion | 'ambos'>(
     initialProcedure?.systemVersion || activeVersion
   );
-  const [menuId, setMenuId] = useState(initialProcedure?.menuId || (menus[0]?.id || 'cadastros'));
+  // ── RASCUNHO AUTOMÁTICO (PERSISTÊNCIA NO LOCALSTORAGE) ──
+  const draftStorageKey = `digifarma_draft_${initialProcedure?.id || 'new'}`;
+  const savedDraft = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [draftStorageKey]);
+
+  const [menuId] = useState(
+    savedDraft?.menuId || initialProcedure?.menuId || (menus[0]?.id || 'cadastros')
+  );
   const [submenuId] = useState(initialProcedure?.submenuId || '');
   const [author, setAuthor] = useState(
-    initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo Trevas'
+    savedDraft?.author || initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo Trevas'
   );
+
+  // Estatísticas Customizáveis da Capa Editorial
+  const defaultCoverStats: SlideStatItem[] = [
+    { id: 'stat-1', number: '1', unit: 'etapa', label: 'Roteiro operacional documentado' },
+    { id: 'stat-2', number: '100', unit: '%', label: 'Conformidade com Boas Práticas (BPF)' },
+    { id: 'stat-3', number: menus.find((m) => m.id === (savedDraft?.menuId || initialProcedure?.menuId || 'cadastros'))?.label || 'Cadastros', unit: '', label: 'Módulo integrado do sistema' },
+    { id: 'stat-4', number: author || 'Farmacêutico Responsável', unit: '', label: 'Responsável técnico / elaboração' },
+  ];
+  const [coverStats, setCoverStats] = useState<SlideStatItem[]>(
+    savedDraft?.coverStats || initialProcedure?.coverStats || defaultCoverStats
+  );
+
+  // Critérios Customizáveis do Checklist de Homologação
+  const defaultChecklistItems: ChecklistItem[] = [
+    { id: 'chk-1', title: 'Validação da Abertura de Tela & Módulo', note: 'Formulário carregado sem erros e com dados sincronizados.', checked: true },
+    { id: 'chk-2', title: 'Conferência de Campos Fiscais e Alíquotas', note: 'Tributação e parâmetros cadastrais homologados.', checked: true },
+    { id: 'chk-3', title: 'Gravação e Confirmação de Registro', note: 'Registro persistido e dados validados nas regras BPF.', checked: true },
+    { id: 'chk-4', title: 'Rastreabilidade e Dupla Checagem Farmacêutica', note: 'Auditoria de conformidade sanitária aprovada.', checked: true },
+  ];
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
+    savedDraft?.checklistItems || initialProcedure?.checklistItems || defaultChecklistItems
+  );
+
+  // Modais de Recursos Centralizados e Expansíveis (Formas, Emojis, Ícones, Dinâmicos)
+  const [activeResourceModal, setActiveResourceModal] = useState<'shapes' | 'emojis' | 'icons' | 'dynamic' | 'hands' | null>(null);
+  const [iconSearchQuery, setIconSearchQuery] = useState('');
+  const [emojiCategory, setEmojiCategory] = useState<'operacoes' | 'status' | 'farmacia' | 'setas'>('operacoes');
+  const [isDraftRestored, setIsDraftRestored] = useState(Boolean(savedDraft));
 
   // Etapas Operacionais (Passo a Passo)
   const initialSteps = initialProcedure?.blocks?.filter((b): b is StepBlock => b.type === 'step') || [];
@@ -362,6 +414,44 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
   // Slide Ativo no Modo Canva (0..N-1)
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+
+  // Efeito de Salvamento Automático do Rascunho (Não perde se mudar de tela)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const draftPayload = {
+          title,
+          subtitle,
+          systemVersion,
+          menuId,
+          author,
+          steps,
+          images,
+          callouts,
+          coverStats,
+          checklistItems,
+          signatures,
+          slidesConfig,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(draftStorageKey, JSON.stringify(draftPayload));
+      } catch (err) {
+        console.warn('Erro ao salvar rascunho automático:', err);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [title, subtitle, systemVersion, menuId, author, steps, images, callouts, coverStats, checklistItems, signatures, slidesConfig, draftStorageKey]);
+
+  const handleDiscardDraft = () => {
+    try {
+      localStorage.removeItem(draftStorageKey);
+      setIsDraftRestored(false);
+      showToast('Rascunho descartado! Recarregando dados originais...');
+      setTimeout(() => window.location.reload(), 300);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Menu popup para adicionar páginas
   const [showAddPageMenu, setShowAddPageMenu] = useState(false);
@@ -809,6 +899,74 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     );
   };
 
+  // Emojis e Símbolos
+  const addEmoji = (emojiChar: string, label = '') => {
+    const newId = `emoji-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'emoji',
+        emojiChar,
+        label,
+        x: 50,
+        y: 50,
+        size: 'md',
+        scale: 1.0,
+      },
+      `Emoji (${emojiChar}) adicionado à página atual!`
+    );
+  };
+
+  // Formas Customizadas (Pílula, Linha, Balão de fala, etc)
+  const addCustomShape = (
+    shapeType: 'rect' | 'circle' | 'pill' | 'line' | 'speech-bubble',
+    fillMode: IndicatorFillMode = 'outline',
+    color = '#ef4444',
+    label = ''
+  ) => {
+    const newId = `shape-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'shape',
+        shapeType,
+        fillMode,
+        color,
+        bgColor: fillMode === 'filled' ? color : 'transparent',
+        textColor: '#ffffff',
+        label,
+        x: 50,
+        y: 50,
+        size: 'md',
+        scale: 1.0,
+      },
+      `Forma geométrica (${shapeType}) adicionada!`
+    );
+  };
+
+  // Carimbo Oficial Homologado
+  const addStamp = (label = 'HOMOLOGADO BPF', color = '#10b981') => {
+    const newId = `stamp-${Date.now()}`;
+    pushIndicator(
+      {
+        id: newId,
+        type: 'stamp',
+        label,
+        color,
+        textColor: color,
+        bgColor: 'rgba(15, 23, 42, 0.85)',
+        fontFamily: "'Bebas Neue', Impact, sans-serif",
+        x: 50,
+        y: 50,
+        size: 'md',
+        scale: 1.0,
+      },
+      `Carimbo oficial (${label}) adicionado!`
+    );
+  };
+
+
+
   // Arraste Suave e Universal de Indicadores pelo Mouse (em qualquer slide, em Modo Canva ou PDF)
   const handleIndicatorMouseDown = (e: React.MouseEvent, indId: string, slideIdx?: number) => {
     e.stopPropagation();
@@ -1010,6 +1168,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       blocks,
       slidesConfig,
       signatures,
+      coverStats,
+      checklistItems,
       created_at: initialProcedure?.created_at || nowIso,
       updated_at: nowIso,
     };
@@ -1020,6 +1180,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       setSaving(true);
       const proc = constructProcedureToSave();
       await onSave(proc);
+      try { localStorage.removeItem(draftStorageKey); } catch {} 
       showToast(
         initialProcedure?.status === 'ajustes_solicitados'
           ? 'Procedimento reenviado para a Tela de Revisão com sucesso!'
@@ -1083,6 +1244,114 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       content = <SvgHand color={color} direction={ind.direction} size={size} glow={glow} />;
     } else if (ind.type === 'arrow') {
       content = <SvgArrow color={color} direction={ind.direction} size={size} glow={glow} />;
+        } else if (ind.type === 'emoji') {
+      const sz = size === 'sm' ? '1.5rem' : size === 'lg' ? '2.8rem' : size === 'xl' ? '3.8rem' : '2.2rem';
+      content = (
+        <div
+          style={{
+            fontSize: sz,
+            lineHeight: 1,
+            opacity,
+            filter: glowStyle ? `drop-shadow(${glowStyle})` : undefined,
+          }}
+        >
+          {ind.emojiChar || '⭐'}
+        </div>
+      );
+    } else if (ind.type === 'stamp') {
+      content = (
+        <div
+          style={{
+            border: `3px solid ${color}`,
+            borderRadius: '8px',
+            padding: '6px 14px',
+            color: ind.textColor || color,
+            fontFamily: ind.fontFamily || "'Bebas Neue', Impact, sans-serif",
+            fontSize: size === 'sm' ? '1rem' : size === 'lg' ? '1.5rem' : '1.25rem',
+            fontWeight: 900,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            opacity,
+            transform: 'rotate(-8deg)',
+            boxShadow: glowStyle || '0 4px 14px rgba(0,0,0,0.4)',
+            backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.6)',
+          }}
+        >
+          {ind.label || 'HOMOLOGADO BPF'}
+        </div>
+      );
+    } else if (ind.type === 'shape') {
+      const isFilled = ind.fillMode === 'filled';
+      const st = ind.shapeType || 'rect';
+      if (st === 'pill') {
+        content = (
+          <div
+            style={{
+              padding: '6px 16px',
+              borderRadius: '999px',
+              border: `2px solid ${color}`,
+              backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
+              color: ind.textColor || '#ffffff',
+              fontFamily: ind.fontFamily || 'inherit',
+              fontWeight: 800,
+              fontSize: '0.85rem',
+              boxShadow: glowStyle,
+              opacity,
+            }}
+          >
+            {ind.label || 'Destaque'}
+          </div>
+        );
+      } else if (st === 'line') {
+        content = (
+          <div
+            style={{
+              width: size === 'sm' ? '80px' : size === 'lg' ? '220px' : '140px',
+              height: '4px',
+              backgroundColor: color,
+              borderRadius: '2px',
+              boxShadow: glowStyle,
+              opacity,
+            }}
+          />
+        );
+      } else if (st === 'speech-bubble') {
+        content = (
+          <div
+            style={{
+              position: 'relative',
+              padding: '8px 14px',
+              backgroundColor: ind.bgColor || 'rgba(15, 23, 42, 0.95)',
+              border: `2px solid ${color}`,
+              borderRadius: '12px',
+              color: ind.textColor || '#ffffff',
+              fontFamily: ind.fontFamily || 'inherit',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              boxShadow: glowStyle || '0 4px 16px rgba(0,0,0,0.5)',
+              opacity,
+            }}
+          >
+            {ind.label || 'Atenção aqui!'}
+          </div>
+        );
+      } else {
+        const w = size === 'sm' ? 80 : size === 'lg' ? 160 : 120;
+        const h = size === 'sm' ? 40 : size === 'lg' ? 80 : 60;
+        content = (
+          <div
+            style={{
+              width: `${w}px`,
+              height: `${h}px`,
+              border: `3px solid ${color}`,
+              backgroundColor: isFilled ? (ind.bgColor || color) : 'transparent',
+              borderRadius: st === 'circle' ? '50%' : '8px',
+              boxShadow: glowStyle,
+              opacity,
+            }}
+          />
+        );
+      }
     } else if (ind.type === 'rect') {
       const isFilled = ind.fillMode === 'filled';
       const w = size === 'sm' ? 70 : size === 'lg' ? 150 : size === 'xl' ? 200 : 110;
@@ -1371,7 +1640,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 title="Clique para alternar versão (Digifarma V10 / Digifarma Clássico)"
                 style={{ cursor: 'pointer', userSelect: 'none' }}
               >
-                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'} ⇄
+                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
               </div>
             ) : (
               <div className="v10-badge">
@@ -1418,53 +1687,98 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </div>
             )}
 
+            {/* Estatísticas da Capa Customizáveis e Editáveis */}
             <div className="stats" style={{ marginTop: '28px' }}>
-              <div className="stat">
-                <div className="n">{steps.length || 1}<small>etapas</small></div>
-                <div className="l">Roteiro operacional documentado</div>
-              </div>
-              <div className="stat">
-                <div className="n">100<small>%</small></div>
-                <div className="l">Conformidade com Boas Práticas (BPF)</div>
-              </div>
-              <div className="stat">
-                {isInteractive ? (
-                  <div className="n" style={{ fontSize: '20px' }}>
-                    <select
-                      value={menuId}
-                      onChange={(e) => setMenuId(e.target.value)}
-                      className="canva-select-module"
+              {coverStats.map((st, sIndex) => (
+                <div key={st.id} className="stat canva-stat-card-editable">
+                  {isInteractive && (
+                    <button
+                      type="button"
+                      className="item-delete-btn no-print"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCoverStats((prev) => prev.filter((_, i) => i !== sIndex));
+                      }}
+                      title="Excluir este bloco de estatística"
                     >
-                      {menus.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
+                      ✕
+                    </button>
+                  )}
+                  <div className="stat-inputs-row">
+                    {isInteractive ? (
+                      <>
+                        <input
+                          type="text"
+                          className="stat-num-input"
+                          value={st.number}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCoverStats((prev) =>
+                              prev.map((item, i) => (i === sIndex ? { ...item, number: val } : item))
+                            );
+                          }}
+                          placeholder="100"
+                        />
+                        <input
+                          type="text"
+                          className="stat-unit-input"
+                          value={st.unit || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCoverStats((prev) =>
+                              prev.map((item, i) => (i === sIndex ? { ...item, unit: val } : item))
+                            );
+                          }}
+                          placeholder="%"
+                        />
+                      </>
+                    ) : (
+                      <div className="n">
+                        {st.number}
+                        {st.unit ? <small>{st.unit}</small> : null}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="n">{menus.find((m) => m.id === menuId)?.label || 'Cadastros'}</div>
-                )}
-                <div className="l">Módulo integrado do sistema</div>
-              </div>
-              <div className="stat">
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    value={author}
-                    onChange={(e) => {
-                      setAuthor(e.target.value);
-                      setSignatures((prev) => ({ ...prev, elaboratedByName: e.target.value }));
-                    }}
-                    className="canva-inline-author-input"
-                    placeholder="Autor / Responsável"
-                  />
-                ) : (
-                  <div className="n">{author}</div>
-                )}
-                <div className="l">Responsável técnico / elaboração</div>
-              </div>
+                  {isInteractive ? (
+                    <input
+                      type="text"
+                      className="stat-label-input"
+                      value={st.label}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCoverStats((prev) =>
+                          prev.map((item, i) => (i === sIndex ? { ...item, label: val } : item))
+                        );
+                      }}
+                      placeholder="Descrição da métrica..."
+                    />
+                  ) : (
+                    <div className="l">{st.label}</div>
+                  )}
+                </div>
+              ))}
             </div>
+
+            {isInteractive && (
+              <button
+                type="button"
+                className="btn-add-stat-mini no-print"
+                onClick={() =>
+                  setCoverStats((prev) => [
+                    ...prev,
+                    {
+                      id: `stat-${Date.now()}`,
+                      number: '1',
+                      unit: 'x',
+                      label: 'Nova Métrica / Indicador',
+                    },
+                  ])
+                }
+              >
+                <Plus size={13} />
+                <span>Adicionar Métrica / Estatística</span>
+              </button>
+            )}
           </div>
 
           {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
@@ -1527,148 +1841,246 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <p className="lead">{step.instruction || step.content}</p>
             )}
 
-            <div className="feature-split">
-              <div className="feature-left">
-                {/* Resultado Esperado */}
-                <div className="fitem">
-                  <div className="fico">✓</div>
-                  <div className="ftxt" style={{ flex: 1 }}>
-                    <h4>Resultado Esperado</h4>
-                    {isInteractive ? (
-                      <input
-                        type="text"
-                        className="canva-inline-fitem-input"
-                        value={step.expectedResult || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((s, idx) =>
-                              idx === stepIdx ? { ...s, expectedResult: val } : s
-                            )
-                          );
-                        }}
-                        placeholder="O que deve acontecer..."
-                      />
-                    ) : (
-                      <p>{step.expectedResult || 'Registro processado e confirmado.'}</p>
-                    )}
-                  </div>
-                </div>
+            {/* Itens Operacionais Dinâmicos & Customizáveis */}
+            {(() => {
+              const defaultOps: OperationalItem[] = [
+                { id: `op-${stepIdx}-1`, icon: '✓', title: 'Resultado Esperado', content: step.expectedResult || 'Registro processado e confirmado.', text: step.expectedResult || 'Registro processado e confirmado.', type: 'success' },
+                { id: `op-${stepIdx}-2`, icon: '💡', title: 'Dica de Agilidade', content: step.tips || 'Atalho F2 para busca rápida.', text: step.tips || 'Atalho F2 para busca rápida.', type: 'tip' },
+                { id: `op-${stepIdx}-3`, icon: '⚠️', title: 'Ponto Crítico', content: step.warnings || 'Valide a numeração do lote.', text: step.warnings || 'Valide a numeração do lote.', type: 'warning' },
+              ];
+              const currentOps: OperationalItem[] = step.operationalItems && step.operationalItems.length > 0
+                ? step.operationalItems
+                : defaultOps;
 
-                {/* Dica de Agilidade */}
-                <div className="fitem">
-                  <div className="fico">💡</div>
-                  <div className="ftxt" style={{ flex: 1 }}>
-                    <h4>Dica de Agilidade</h4>
-                    {isInteractive ? (
-                      <input
-                        type="text"
-                        className="canva-inline-fitem-input"
-                        value={step.tips || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((s, idx) =>
-                              idx === stepIdx ? { ...s, tips: val } : s
-                            )
-                          );
-                        }}
-                        placeholder="Atalhos do teclado..."
-                      />
-                    ) : (
-                      <p>{step.tips || 'Atalho F2 para busca rápida.'}</p>
-                    )}
-                  </div>
-                </div>
+              const updateStepOps = (newOps: OperationalItem[]) => {
+                setSteps((prev) =>
+                  prev.map((s, idx) => {
+                    if (idx !== stepIdx) return s;
+                    const res = newOps.find((o) => o.type === 'success' || o.title.toLowerCase().includes('resultado'))?.content || '';
+                    const tip = newOps.find((o) => o.type === 'tip' || o.title.toLowerCase().includes('dica'))?.content || '';
+                    const wrn = newOps.find((o) => o.type === 'warning' || o.title.toLowerCase().includes('crítico') || o.title.toLowerCase().includes('critico'))?.content || '';
+                    return {
+                      ...s,
+                      operationalItems: newOps,
+                      expectedResult: res,
+                      tips: tip,
+                      warnings: wrn,
+                    };
+                  })
+                );
+              };
 
-                {/* Ponto Crítico */}
-                <div className="fitem warning">
-                  <div className="fico">⚠️</div>
-                  <div className="ftxt" style={{ flex: 1 }}>
-                    <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                    {isInteractive ? (
-                      <input
-                        type="text"
-                        className="canva-inline-fitem-input"
-                        value={step.warnings || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((s, idx) =>
-                              idx === stepIdx ? { ...s, warnings: val } : s
-                            )
-                          );
-                        }}
-                        placeholder="Atenção especial para evitar erros..."
-                      />
-                    ) : (
-                      <p>{step.warnings || 'Valide a numeração do lote.'}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              return (
+                <div className="feature-split">
+                  <div className="feature-left">
+                    {currentOps.map((op, opIndex) => (
+                      <div
+                        key={op.id}
+                        className={`fitem ${op.type === 'warning' ? 'warning' : ''}`}
+                        style={{ position: 'relative' }}
+                      >
+                        {isInteractive && (
+                          <button
+                            type="button"
+                            className="item-delete-btn no-print"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const updated = currentOps.filter((_, i) => i !== opIndex);
+                              updateStepOps(updated);
+                            }}
+                            title="Excluir este item operacional"
+                          >
+                            ✕
+                          </button>
+                        )}
+                        <div
+                          className="fico"
+                          style={
+                            op.type === 'warning'
+                              ? { backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }
+                              : undefined
+                          }
+                        >
+                          {isInteractive ? (
+                            <input
+                              type="text"
+                              value={op.icon || '✓'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, icon: val } : item));
+                                updateStepOps(updated);
+                              }}
+                              style={{
+                                width: '28px',
+                                textAlign: 'center',
+                                background: 'transparent',
+                                border: 'none',
+                                fontWeight: 800,
+                                fontSize: '1rem',
+                                color: 'inherit',
+                                outline: 'none',
+                              }}
+                              title="Clique para editar o ícone/emoji"
+                            />
+                          ) : (
+                            <span>{op.icon || '✓'}</span>
+                          )}
+                        </div>
+                        <div className="ftxt" style={{ flex: 1, paddingRight: isInteractive ? '24px' : '0' }}>
+                          {isInteractive ? (
+                            <>
+                              <input
+                                type="text"
+                                className="canva-inline-head-input"
+                                style={{
+                                  fontSize: '0.92rem',
+                                  fontWeight: 800,
+                                  marginBottom: '3px',
+                                  color: op.type === 'warning' ? '#d97706' : undefined,
+                                }}
+                                value={op.title}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, title: val } : item));
+                                  updateStepOps(updated);
+                                }}
+                                placeholder="Título do item..."
+                              />
+                              <input
+                                type="text"
+                                className="canva-inline-fitem-input"
+                                value={op.text || op.content || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, text: val, content: val } : item));
+                                  updateStepOps(updated);
+                                }}
+                                placeholder="Instrução ou resultado..."
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <h4 style={op.type === 'warning' ? { color: '#d97706' } : undefined}>{op.title}</h4>
+                              <p>{op.text || op.content}</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
 
-              {/* Shotframe da Etapa */}
-              <div className="shotframe">
-                <div
-                  className={`frame ${isInteractive ? 'canva-interactive-frame' : ''}`}
-                  ref={isStage ? shotframeRef : undefined}
-                  onClick={isInteractive ? handleShotframeClick : undefined}
-                  title={isInteractive ? 'Clique para posicionar. Arraste qualquer forma com o mouse!' : undefined}
-                >
-                  {imgUrl ? (
-                    <img
-                      src={imgUrl}
-                      alt={step.title}
-                      className={isInteractive ? 'canva-step-img' : undefined}
-                      draggable={false}
-                    />
-                  ) : (
-                    <div
-                      className="canva-placeholder-drop"
-                      style={{ color: '#94a3b8', padding: '36px', textAlign: 'center', cursor: isInteractive ? 'pointer' : 'default' }}
-                      onClick={isInteractive ? () => handleManualUploadClick(stepIdx) : undefined}
-                    >
-                      <ImageIcon size={38} color="var(--red)" />
-                      <strong>Nenhuma imagem anexada</strong>
-                      <span>Cole um print com Ctrl+V ou clique para importar</span>
-                    </div>
-                  )}
-
-                  {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
-                </div>
-
-                {isInteractive && (
-                  <div className="shotframe-toolbar-bottom no-print">
-                    <button
-                      type="button"
-                      className="btn-shot-action"
-                      onClick={() => handleManualUploadClick(stepIdx)}
-                    >
-                      <Upload size={13} />
-                      <span>Importar Imagem</span>
-                    </button>
-
-                    {imgUrl && (
+                    {isInteractive && (
                       <button
                         type="button"
-                        className="btn-shot-action danger"
+                        className="canva-action-btn no-print"
+                        style={{ marginTop: '8px', alignSelf: 'flex-start' }}
                         onClick={() => {
-                          setImages((prev) => {
-                            const copy = { ...prev };
-                            delete copy[stepIdx];
-                            return copy;
-                          });
+                          const newOp: OperationalItem = {
+                            id: `op-${Date.now()}`,
+                            icon: '📌',
+                            title: 'Nova Instrução Operacional',
+                            content: 'Descreva a validação, regra ou dica correspondente.',
+                            text: 'Descreva a validação, regra ou dica correspondente.',
+                            type: 'info',
+                          };
+                          updateStepOps([...currentOps, newOp]);
                         }}
                       >
-                        <Trash2 size={13} />
-                        <span>Remover Foto</span>
+                        <Plus size={13} />
+                        <span>Adicionar Item Operacional</span>
                       </button>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
+
+                  {/* Shotframe da Etapa com controle de largura (50%, 65%, 80%, 100%) */}
+                  <div
+                    className="shotframe"
+                    style={{
+                      flex: step.imageWidth ? `0 0 ${step.imageWidth}` : undefined,
+                      maxWidth: step.imageWidth || undefined,
+                      width: step.imageWidth || undefined,
+                    }}
+                  >
+                    {isInteractive && (
+                      <div className="canva-shotframe-size-bar no-print">
+                        <span>Largura da Imagem:</span>
+                        {(['50%', '65%', '80%', '100%'] as const).map((w) => (
+                          <button
+                            key={w}
+                            type="button"
+                            className={`btn-size-preset ${(step.imageWidth || '65%') === w ? 'active' : ''}`}
+                            onClick={() => {
+                              setSteps((prev) =>
+                                prev.map((s, idx) => (idx === stepIdx ? { ...s, imageWidth: w } : s))
+                              );
+                            }}
+                          >
+                            {w}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <div
+                      className={`frame ${isInteractive ? 'canva-interactive-frame' : ''}`}
+                      ref={isStage ? shotframeRef : undefined}
+                      onClick={isInteractive ? handleShotframeClick : undefined}
+                      title={isInteractive ? 'Clique para posicionar. Arraste qualquer forma com o mouse!' : undefined}
+                    >
+                      {imgUrl ? (
+                        <img
+                          src={imgUrl}
+                          alt={step.title}
+                          className={isInteractive ? 'canva-step-img' : undefined}
+                          draggable={false}
+                        />
+                      ) : (
+                        <div
+                          className="canva-placeholder-drop"
+                          style={{ color: '#94a3b8', padding: '36px', textAlign: 'center', cursor: isInteractive ? 'pointer' : 'default' }}
+                          onClick={isInteractive ? () => handleManualUploadClick(stepIdx) : undefined}
+                        >
+                          <ImageIcon size={38} color="var(--red)" />
+                          <strong>Nenhuma imagem anexada</strong>
+                          <span>Cole um print com Ctrl+V ou clique para importar</span>
+                        </div>
+                      )}
+
+                      {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
+                    </div>
+
+                    {isInteractive && (
+                      <div className="shotframe-toolbar-bottom no-print">
+                        <button
+                          type="button"
+                          className="btn-shot-action"
+                          onClick={() => handleManualUploadClick(stepIdx)}
+                        >
+                          <Upload size={13} />
+                          <span>Importar Imagem</span>
+                        </button>
+
+                        {imgUrl && (
+                          <button
+                            type="button"
+                            className="btn-shot-action danger"
+                            onClick={() => {
+                              setImages((prev) => {
+                                const copy = { ...prev };
+                                delete copy[stepIdx];
+                                return copy;
+                              });
+                            }}
+                          >
+                            <Trash2 size={13} />
+                            <span>Remover Foto</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </section>
       );
@@ -1860,33 +2272,83 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             )}
 
             <div className="canva-checklist-preview" style={{ marginTop: '22px' }}>
-              {steps.map((s, i) => (
-                <div key={s.id} className="canva-check-row">
+              {checklistItems.map((chk, i) => (
+                <div key={chk.id} className="canva-check-row" style={{ position: 'relative' }}>
+                  {isInteractive && (
+                    <button
+                      type="button"
+                      className="item-delete-btn no-print"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChecklistItems((prev) => prev.filter((_, idx) => idx !== i));
+                      }}
+                      title="Excluir este critério de homologação"
+                    >
+                      ✕
+                    </button>
+                  )}
                   <div className="canva-check-circle">✓</div>
-                  <div style={{ flex: 1 }}>
-                    <strong>
-                      Etapa {(i + 1).toString().padStart(2, '0')}: {s.title}
-                    </strong>
+                  <div style={{ flex: 1, paddingRight: isInteractive ? '26px' : '0' }}>
                     {isInteractive ? (
-                      <input
-                        type="text"
-                        className="canva-inline-fitem-input"
-                        value={s.expectedResult || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((st, idx) => (idx === i ? { ...st, expectedResult: val } : st))
-                          );
-                        }}
-                        placeholder="Nota de validação da etapa..."
-                        style={{ marginTop: '2px', fontSize: '0.8rem' }}
-                      />
+                      <>
+                        <input
+                          type="text"
+                          className="canva-inline-head-input"
+                          style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '2px' }}
+                          value={chk.title}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setChecklistItems((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
+                            );
+                          }}
+                          placeholder="Critério de homologação..."
+                        />
+                        <input
+                          type="text"
+                          className="canva-inline-fitem-input"
+                          value={chk.note || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setChecklistItems((prev) =>
+                              prev.map((item, idx) => (idx === i ? { ...item, note: val } : item))
+                            );
+                          }}
+                          placeholder="Nota explicativa ou validação de conformidade..."
+                          style={{ fontSize: '0.8rem' }}
+                        />
+                      </>
                     ) : (
-                      <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
+                      <>
+                        <strong>{chk.title}</strong>
+                        {chk.note && <p>{chk.note}</p>}
+                      </>
                     )}
                   </div>
                 </div>
               ))}
+
+              {isInteractive && (
+                <button
+                  type="button"
+                  className="canva-action-btn no-print"
+                  style={{ marginTop: '12px' }}
+                  onClick={() =>
+                    setChecklistItems((prev) => [
+                      ...prev,
+                      {
+                        id: `chk-${Date.now()}`,
+                        title: `Item ${(prev.length + 1).toString().padStart(2, '0')}: Validação Operacional`,
+                        note: 'Conformidade conferida com o manual e normas BPF.',
+                        checked: true,
+                      },
+                    ])
+                  }
+                >
+                  <Plus size={13} />
+                  <span>Adicionar Item ao Checklist</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -2574,6 +3036,25 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
               </span>
               <span className="canva-path-text">{systemPath}</span>
+              {isDraftRestored && (
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  title="Clique para descartar alterações auto-salvas e voltar ao procedimento original"
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.18)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    color: '#60a5fa',
+                    borderRadius: '4px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Rascunho Ativo (✕ Descartar)
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2810,208 +3291,535 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           {/* Área Central: Visual Stage / Canvas do Slide Ativo */}
           <main className="canva-center-stage">
             {/* Barra de Ferramentas de Design do Canva (Mãozinhas, Setas, Formas, Textos, Ícones, Dropdown) */}
-            <div className="canva-design-tools">
-              {/* Mãozinhas */}
-              <div className="tool-group">
-                <span className="tool-label">Mãozinhas:</span>
+            {/* ── BARRA DE FORMATAÇÃO RICA DO STUDIO DIGIFARMA (ESTILO GOOGLE DOCS / PPT) ── */}
+            <div className="canva-doc-toolbar no-print">
+              {/* Botões Centrais de Recursos (Abrem Modais / Gavetas Limpas) */}
+              <div className="toolbar-group">
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addPointingHand('up')}
-                  title="Mãozinha Acima"
+                  className={`toolbar-btn ${activeResourceModal === 'shapes' ? 'active' : ''}`}
+                  onClick={() => setActiveResourceModal('shapes')}
+                  title="Abrir Galeria de Formas e Setas"
                 >
-                  <span className="emoji-tool">👆</span>
-                  <span>Acima</span>
+                  <Shapes size={14} color="#38bdf8" />
+                  <span>Formas &amp; Setas</span>
                 </button>
+
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addPointingHand('right')}
-                  title="Mãozinha Direita"
+                  className={`toolbar-btn ${activeResourceModal === 'emojis' ? 'active' : ''}`}
+                  onClick={() => setActiveResourceModal('emojis')}
+                  title="Abrir Galeria de Emojis e Símbolos Farmacêuticos"
                 >
-                  <span className="emoji-tool">👉</span>
-                  <span>Direita</span>
+                  <Smile size={14} color="#facc15" />
+                  <span>Emojis</span>
                 </button>
+
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addPointingHand('down')}
-                  title="Mãozinha Abaixo"
+                  className={`toolbar-btn ${activeResourceModal === 'icons' ? 'active' : ''}`}
+                  onClick={() => setActiveResourceModal('icons')}
+                  title="Abrir Ícones do Sistema"
                 >
-                  <span className="emoji-tool">👇</span>
-                  <span>Abaixo</span>
+                  <Sparkles size={14} color="#a855f7" />
+                  <span>Ícones</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`toolbar-btn ${activeResourceModal === 'dynamic' ? 'active' : ''}`}
+                  onClick={() => setActiveResourceModal('dynamic')}
+                  title="Abrir Recursos Dinâmicos (Dropdowns, Radar, Carimbo, GIFs)"
+                >
+                  <Zap size={14} color="#f97316" />
+                  <span>Dinâmicos</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`toolbar-btn ${activeResourceModal === 'hands' ? 'active' : ''}`}
+                  onClick={() => setActiveResourceModal('hands')}
+                  title="Mãozinhas Indicadoras"
+                >
+                  <span style={{ fontSize: '1rem' }}>👆</span>
+                  <span>Mãozinhas</span>
                 </button>
               </div>
 
-              {/* Setas */}
-              <div className="tool-group">
-                <span className="tool-label">Setas:</span>
+              <div className="toolbar-divider" />
+
+              {/* Controles Tipográficos Estilo Word / Docs */}
+              <div className="toolbar-group">
+                {/* Fonte */}
+                <select
+                  className="toolbar-select"
+                  value={selectedIndicator?.fontFamily || 'Inter, sans-serif'}
+                  onChange={(e) => updateSelectedIndicator({ fontFamily: e.target.value })}
+                  title="Família da Fonte"
+                >
+                  <option value="Inter, sans-serif">Inter</option>
+                  <option value="Outfit, sans-serif">Outfit</option>
+                  <option value="Roboto, sans-serif">Roboto</option>
+                  <option value="'Playfair Display', serif">Playfair</option>
+                  <option value="'Fira Code', monospace">Fira Code</option>
+                  <option value="'Bebas Neue', Impact, sans-serif">Bebas Neue</option>
+                </select>
+
+                {/* Negrito / Itálico / Sublinhado */}
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addArrow('right')}
-                  title="Seta Direita"
+                  className={`toolbar-btn ${selectedIndicator?.isBold ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ isBold: !selectedIndicator?.isBold })}
+                  title="Negrito"
                 >
-                  <ArrowRight size={13} color="var(--red)" />
-                  <span>Direita</span>
+                  <Bold size={13} />
                 </button>
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addArrow('down')}
-                  title="Seta Abaixo"
+                  className={`toolbar-btn ${selectedIndicator?.isItalic ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ isItalic: !selectedIndicator?.isItalic })}
+                  title="Itálico"
                 >
-                  <ArrowDown size={13} color="var(--red)" />
-                  <span>Abaixo</span>
+                  <Italic size={13} />
+                </button>
+                <button
+                  type="button"
+                  className={`toolbar-btn ${selectedIndicator?.isUnderline ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ isUnderline: !selectedIndicator?.isUnderline })}
+                  title="Sublinhado"
+                >
+                  <Underline size={13} />
                 </button>
               </div>
 
-              {/* Formas Geométricas */}
-              <div className="tool-group">
-                <span className="tool-label">Formas:</span>
+              <div className="toolbar-divider" />
+
+              {/* Alinhamento de Texto */}
+              <div className="toolbar-group">
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addRectangle('outline')}
-                  title="Moldura Vazada Neon"
+                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'left' ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ textAlign: 'left' })}
+                  title="Alinhar à Esquerda"
                 >
-                  <Square size={13} color="var(--red)" />
-                  <span>Moldura</span>
+                  <AlignLeft size={13} />
                 </button>
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addRectangle('filled')}
-                  title="Caixa Preenchida"
+                  className={`toolbar-btn ${(!selectedIndicator?.textAlign || selectedIndicator?.textAlign === 'center') ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ textAlign: 'center' })}
+                  title="Centralizar"
                 >
-                  <Square size={13} fill="var(--red)" color="var(--red)" />
-                  <span>Caixa</span>
+                  <AlignCenter size={13} />
                 </button>
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addCircle('outline')}
-                  title="Círculo Vazado"
+                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'right' ? 'active' : ''}`}
+                  onClick={() => updateSelectedIndicator({ textAlign: 'right' })}
+                  title="Alinhar à Direita"
                 >
-                  <Circle size={13} color="var(--red)" />
-                  <span>Círculo</span>
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addCircle('filled')}
-                  title="Bolinha Preenchida"
-                >
-                  <Circle size={13} fill="var(--red)" color="var(--red)" />
-                  <span>Bolinha</span>
+                  <AlignRight size={13} />
                 </button>
               </div>
 
-              {/* Textos & Badges */}
-              <div className="tool-group">
-                <span className="tool-label">Textos:</span>
+              <div className="toolbar-divider" />
+
+              {/* Cores: Texto, Fundo, Borda */}
+              <div className="toolbar-group">
+                <div
+                  className="toolbar-color-btn"
+                  title="Cor do Texto"
+                  style={{ backgroundColor: selectedIndicator?.textColor || '#ffffff' }}
+                >
+                  <Type size={12} color={selectedIndicator?.textColor === '#ffffff' ? '#000' : '#fff'} />
+                  <input
+                    type="color"
+                    value={selectedIndicator?.textColor && selectedIndicator.textColor.startsWith('#') ? selectedIndicator.textColor : '#ffffff'}
+                    onChange={(e) => updateSelectedIndicator({ textColor: e.target.value })}
+                  />
+                </div>
+
+                <div
+                  className="toolbar-color-btn"
+                  title="Cor de Fundo / Destaque"
+                  style={{ backgroundColor: selectedIndicator?.bgColor || '#0f172a' }}
+                >
+                  <div style={{ width: '8px', height: '8px', border: '1px solid #fff', borderRadius: '2px' }} />
+                  <input
+                    type="color"
+                    value={selectedIndicator?.bgColor && selectedIndicator.bgColor.startsWith('#') ? selectedIndicator.bgColor : '#0f172a'}
+                    onChange={(e) => updateSelectedIndicator({ bgColor: e.target.value })}
+                  />
+                </div>
+
+                <div
+                  className="toolbar-color-btn"
+                  title="Cor da Borda / Contorno"
+                  style={{ backgroundColor: selectedIndicator?.color || '#ef4444' }}
+                >
+                  <input
+                    type="color"
+                    value={selectedIndicator?.color && selectedIndicator.color.startsWith('#') ? selectedIndicator.color : '#ef4444'}
+                    onChange={(e) => updateSelectedIndicator({ color: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="toolbar-divider" />
+
+              {/* Escala */}
+              <div className="toolbar-group">
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addBadge()}
-                  title="Badge de Alerta"
+                  className="toolbar-btn"
+                  disabled={!selectedIndicator}
+                  onClick={() => {
+                    if (selectedIndicator) changeIndicatorScale(selectedIndicator.id, -0.15);
+                  }}
+                  title="Diminuir Escala (-15%)"
                 >
-                  <span className="badge-sample-tag">TAG</span>
-                  <span>Badge</span>
+                  <Minus size={12} />
                 </button>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, minWidth: '40px', textAlign: 'center', color: '#cbd5e1' }}>
+                  {selectedIndicator ? `${Math.round((selectedIndicator.scale ?? 1.0) * 100)}%` : '100%'}
+                </span>
                 <button
                   type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addTextBox()}
-                  title="Caixa de Texto Livre"
+                  className="toolbar-btn"
+                  disabled={!selectedIndicator}
+                  onClick={() => {
+                    if (selectedIndicator) changeIndicatorScale(selectedIndicator.id, 0.15);
+                  }}
+                  title="Aumentar Escala (+15%)"
                 >
-                  <Type size={13} />
-                  <span>Texto</span>
+                  <Plus size={12} />
                 </button>
               </div>
 
-              {/* Ícones */}
-              <div className="tool-group">
-                <span className="tool-label">Ícones:</span>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addIcon('target')}
-                  title="Ícone Alvo"
-                >
-                  <Target size={13} color="#f59e0b" />
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addIcon('cursor')}
-                  title="Ícone Cursor"
-                >
-                  <MousePointer size={13} color="#3b82f6" />
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addIcon('alert')}
-                  title="Ícone Alerta"
-                >
-                  <AlertTriangle size={13} color="#ef4444" />
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addIcon('star')}
-                  title="Ícone Estrela"
-                >
-                  <Star size={13} color="#eab308" fill="#eab308" />
-                </button>
-              </div>
-
-              {/* Recursos Interativos (Dropdown, Radar, GIF) */}
-              <div className="tool-group">
-                <span className="tool-label">Dinâmico:</span>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addDropdown()}
-                  title="Menu Suspenso (Dropdown Interativo no HTML)"
-                >
-                  <ChevronDown size={13} />
-                  <span>Menu Suspenso</span>
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addSpotlightBeacon()}
-                  title="Anel Radar Pulsante"
-                >
-                  <Circle size={13} color="var(--red)" />
-                  <span>Radar</span>
-                </button>
-                <button
-                  type="button"
-                  className="canva-tool-btn"
-                  onClick={() => addAnimatedGif()}
-                  title="Adicionar GIF animado"
-                >
-                  <Sparkles size={13} color="#f59e0b" />
-                  <span>GIF</span>
-                </button>
-              </div>
+              {/* Botão de Excluir Elemento Selecionado */}
+              {selectedIndicator && (
+                <div className="toolbar-group" style={{ marginLeft: '4px' }}>
+                  <button
+                    type="button"
+                    className="toolbar-btn danger"
+                    onClick={() => removeIndicator(selectedIndicator.id)}
+                    title="Excluir Elemento Selecionado (Atalho: Delete)"
+                  >
+                    <Trash2 size={13} />
+                    <span>Excluir</span>
+                  </button>
+                </div>
+              )}
 
               {/* Alternar Fundo do Slide */}
-              <div className="tool-group" style={{ marginLeft: 'auto' }}>
+              <div className="toolbar-group" style={{ marginLeft: 'auto' }}>
                 <button
                   type="button"
-                  className="canva-tool-btn"
+                  className="toolbar-btn"
                   onClick={toggleSlideTheme}
-                  title="Alternar entre fundo Escuro e Claro"
+                  title="Alternar fundo do slide (Escuro / Claro)"
                 >
                   <Palette size={13} />
                   <span>Alternar Fundo</span>
                 </button>
               </div>
             </div>
+
+            {/* ── MODAIS CENTRALIZADOS DE RECURSOS (FORMAS, EMOJIS, ÍCONES, DINÂMICOS, MÃOZINHAS) ── */}
+            {activeResourceModal && (
+              <div
+                className="canva-resource-modal-backdrop"
+                onClick={() => setActiveResourceModal(null)}
+              >
+                <div
+                  className="canva-resource-modal"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="canva-resource-modal-header">
+                    <h3>
+                      {activeResourceModal === 'shapes' && <><Shapes size={18} color="#38bdf8" /> Galeria de Formas &amp; Setas</>}
+                      {activeResourceModal === 'emojis' && <><Smile size={18} color="#facc15" /> Emojis &amp; Símbolos Operacionais</>}
+                      {activeResourceModal === 'icons' && <><Sparkles size={18} color="#a855f7" /> Ícones do Sistema Digifarma</>}
+                      {activeResourceModal === 'dynamic' && <><Zap size={18} color="#f97316" /> Recursos Dinâmicos &amp; Homologação</>}
+                      {activeResourceModal === 'hands' && <><span>👆</span> Mãozinhas Indicadoras</>}
+                    </h3>
+                    <button
+                      type="button"
+                      className="canva-resource-modal-close"
+                      onClick={() => setActiveResourceModal(null)}
+                      title="Fechar"
+                    >
+                      <XIcon size={18} />
+                    </button>
+                  </div>
+
+                  <div className="canva-resource-modal-body">
+                    {/* MODAL 1: FORMAS & SETAS */}
+                    {activeResourceModal === 'shapes' && (
+                      <div className="resource-items-grid">
+                        <div className="resource-item-card" onClick={() => { addRectangle('outline'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '48px', height: '28px', border: '2px solid #ef4444', borderRadius: '4px' }} />
+                          </div>
+                          <span className="item-label">Moldura Neon</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addRectangle('filled'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '48px', height: '28px', background: 'rgba(239,68,68,0.75)', border: '2px solid #ef4444', borderRadius: '4px' }} />
+                          </div>
+                          <span className="item-label">Caixa Preenchida</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addCustomShape('pill', 'filled', '#ef4444', 'Tag Destaque'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ padding: '3px 10px', background: '#ef4444', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 800 }}>Pílula</div>
+                          </div>
+                          <span className="item-label">Pílula / Tag</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addCircle('outline'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '32px', height: '32px', border: '2px solid #ef4444', borderRadius: '50%' }} />
+                          </div>
+                          <span className="item-label">Círculo Vazado</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addCircle('filled'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '32px', height: '32px', background: '#ef4444', borderRadius: '50%' }} />
+                          </div>
+                          <span className="item-label">Bolinha Marcador</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addCustomShape('line', 'filled', '#ef4444'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '54px', height: '4px', background: '#ef4444', borderRadius: '2px' }} />
+                          </div>
+                          <span className="item-label">Linha Divisória</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addCustomShape('speech-bubble', 'filled', '#ef4444', 'Atenção aqui!'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ padding: '4px 8px', background: '#1e293b', border: '1.5px solid #ef4444', borderRadius: '6px', fontSize: '0.68rem' }}>Balão 💬</div>
+                          </div>
+                          <span className="item-label">Balão de Fala</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addArrow('right'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <ArrowRight size={24} color="#ef4444" />
+                          </div>
+                          <span className="item-label">Seta Direita</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addArrow('down'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <ArrowDown size={24} color="#ef4444" />
+                          </div>
+                          <span className="item-label">Seta Abaixo</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addArrow('up'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <ArrowUp size={24} color="#ef4444" />
+                          </div>
+                          <span className="item-label">Seta Acima</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addArrow('left'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <ArrowLeft size={24} color="#ef4444" />
+                          </div>
+                          <span className="item-label">Seta Esquerda</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addTextBox(); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <Type size={22} color="#38bdf8" />
+                          </div>
+                          <span className="item-label">Caixa de Texto</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addBadge(); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.68rem', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>TAG</span>
+                          </div>
+                          <span className="item-label">Badge de Alerta</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MODAL 2: EMOJIS & SÍMBOLOS */}
+                    {activeResourceModal === 'emojis' && (
+                      <div>
+                        <div className="resource-category-tabs">
+                          <button
+                            type="button"
+                            className={`resource-cat-tab ${emojiCategory === 'operacoes' ? 'active' : ''}`}
+                            onClick={() => setEmojiCategory('operacoes')}
+                          >
+                            Operações &amp; Sistema
+                          </button>
+                          <button
+                            type="button"
+                            className={`resource-cat-tab ${emojiCategory === 'status' ? 'active' : ''}`}
+                            onClick={() => setEmojiCategory('status')}
+                          >
+                            Status &amp; Alertas
+                          </button>
+                          <button
+                            type="button"
+                            className={`resource-cat-tab ${emojiCategory === 'farmacia' ? 'active' : ''}`}
+                            onClick={() => setEmojiCategory('farmacia')}
+                          >
+                            Farmácia &amp; BPF
+                          </button>
+                          <button
+                            type="button"
+                            className={`resource-cat-tab ${emojiCategory === 'setas' ? 'active' : ''}`}
+                            onClick={() => setEmojiCategory('setas')}
+                          >
+                            Setas &amp; Números
+                          </button>
+                        </div>
+
+                        <div className="resource-items-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))' }}>
+                          {(emojiCategory === 'operacoes' ? [
+                            '💊', '💉', '🩺', '🧪', '🔬', '📋', '📦', '🛒', '🏷️', '🏢',
+                            '💻', '🖥️', '🖨️', '📱', '📊', '📈', '📄', '📁', '🔍', '🔎',
+                            '⌨️', '🖱️', '💾', '⚙️', '📂', '📑', '🧾', '💰', '💳', '💵'
+                          ] : emojiCategory === 'status' ? [
+                            '✅', '⚠️', '❌', '🚨', '💡', '⚡', '🛑', '⛔', '🔔', '🔒',
+                            '🔑', '🛡️', '⭐', '🌟', '🎯', '📌', '🏆', '💯', 'ℹ️', '❓',
+                            '🟢', '🟡', '🔴', '🔵', '🟣', '🟠', '✔️', '✖️', '❗️', '❕'
+                          ] : emojiCategory === 'farmacia' ? [
+                            '💊', '🩺', '🧪', '🧤', '😷', '🧼', '🌡️', '🏥', '⚕️', '📝',
+                            '📅', '⏰', '✍️', '🤝', '💼', '⚖️', '🏷️', '📦', '🚚', '🔐',
+                            '🧬', '🩸', '🩹', '🩻', '🧴', '🧾', '🔬', '🚑', '📊', '🥇'
+                          ] : [
+                            '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '🔄', '🔀', '⏩', '⏪',
+                            '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟',
+                            '👉', '👈', '👆', '👇', '🎯', '📍', '🚩', '🏁', '🔺', '🔻'
+                          ]).map((em) => (
+                            <div
+                              key={em}
+                              className="resource-item-card"
+                              onClick={() => {
+                                addEmoji(em);
+                                setActiveResourceModal(null);
+                              }}
+                              style={{ padding: '10px 4px' }}
+                            >
+                              <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{em}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MODAL 3: ÍCONES DO SISTEMA */}
+                    {activeResourceModal === 'icons' && (
+                      <div>
+                        <div style={{ marginBottom: '14px', position: 'relative' }}>
+                          <input
+                            type="text"
+                            placeholder="Buscar ícone (ex: alvo, check, alerta, cursor, estrela)..."
+                            value={iconSearchQuery}
+                            onChange={(e) => setIconSearchQuery(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px 10px 36px',
+                              background: '#1e293b',
+                              border: '1px solid #334155',
+                              borderRadius: '8px',
+                              color: '#fff',
+                              fontSize: '0.85rem',
+                              outline: 'none',
+                            }}
+                          />
+                          <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        </div>
+
+                        <div className="resource-items-grid">
+                          {[
+                            { name: 'target' as IndicatorIconName, label: 'Alvo', icon: <Target size={22} color="#f59e0b" /> },
+                            { name: 'cursor' as IndicatorIconName, label: 'Cursor', icon: <MousePointer size={22} color="#3b82f6" /> },
+                            { name: 'alert' as IndicatorIconName, label: 'Alerta', icon: <AlertTriangle size={22} color="#ef4444" /> },
+                            { name: 'star' as IndicatorIconName, label: 'Estrela', icon: <Star size={22} color="#eab308" fill="#eab308" /> },
+                            { name: 'check' as IndicatorIconName, label: 'Conferido', icon: <Check size={22} color="#10b981" /> },
+                            { name: 'info' as IndicatorIconName, label: 'Informação', icon: <Info size={22} color="#38bdf8" /> },
+                            { name: 'bolt' as IndicatorIconName, label: 'Raio / Ação', icon: <Zap size={22} color="#f59e0b" fill="#f59e0b" /> },
+                            { name: 'forbidden' as IndicatorIconName, label: 'Proibido', icon: <Ban size={22} color="#ef4444" /> },
+                            { name: 'lock' as IndicatorIconName, label: 'Segurança', icon: <Lock size={22} color="#10b981" /> },
+                          ]
+                            .filter((item) => !iconSearchQuery || item.label.toLowerCase().includes(iconSearchQuery.toLowerCase()))
+                            .map((item) => (
+                              <div
+                                key={item.name}
+                                className="resource-item-card"
+                                onClick={() => {
+                                  addIcon(item.name);
+                                  setActiveResourceModal(null);
+                                }}
+                              >
+                                <div className="item-preview">{item.icon}</div>
+                                <span className="item-label">{item.label}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MODAL 4: DINÂMICOS & HOMOLOGAÇÃO */}
+                    {activeResourceModal === 'dynamic' && (
+                      <div className="resource-items-grid">
+                        <div className="resource-item-card" onClick={() => { addDropdown(); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <ChevronDown size={24} color="#38bdf8" />
+                          </div>
+                          <span className="item-label">Menu Suspenso</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addSpotlightBeacon(); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #ef4444', background: 'rgba(239,68,68,0.3)' }} />
+                          </div>
+                          <span className="item-label">Radar Sonar</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addStamp('HOMOLOGADO BPF', '#10b981'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <Award size={24} color="#10b981" />
+                          </div>
+                          <span className="item-label">Carimbo BPF</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addStamp('AUDITADO QUALIDADE', '#3b82f6'); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <CheckSquare size={24} color="#3b82f6" />
+                          </div>
+                          <span className="item-label">Carimbo Auditoria</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addAnimatedGif(); setActiveResourceModal(null); }}>
+                          <div className="item-preview">
+                            <Sparkles size={24} color="#f59e0b" />
+                          </div>
+                          <span className="item-label">GIF Animado</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MODAL 5: MÃOZINHAS INDICADORAS */}
+                    {activeResourceModal === 'hands' && (
+                      <div className="resource-items-grid">
+                        <div className="resource-item-card" onClick={() => { addPointingHand('up', '#ef4444'); setActiveResourceModal(null); }}>
+                          <div className="item-preview"><span style={{ fontSize: '2rem' }}>👆</span></div>
+                          <span className="item-label">Apontar Acima</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addPointingHand('right', '#ef4444'); setActiveResourceModal(null); }}>
+                          <div className="item-preview"><span style={{ fontSize: '2rem' }}>👉</span></div>
+                          <span className="item-label">Apontar Direita</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addPointingHand('down', '#ef4444'); setActiveResourceModal(null); }}>
+                          <div className="item-preview"><span style={{ fontSize: '2rem' }}>👇</span></div>
+                          <span className="item-label">Apontar Abaixo</span>
+                        </div>
+                        <div className="resource-item-card" onClick={() => { addPointingHand('left', '#ef4444'); setActiveResourceModal(null); }}>
+                          <div className="item-preview"><span style={{ fontSize: '2rem' }}>👈</span></div>
+                          <span className="item-label">Apontar Esquerda</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Dica de Colagem Rápida Ctrl+V e Atalho Delete */}
             <div className="canva-paste-indicator">

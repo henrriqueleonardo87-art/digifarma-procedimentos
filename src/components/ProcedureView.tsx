@@ -104,9 +104,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
     return procedure.blocks.filter((b): b is CalloutBlock => b.type === 'callout');
   }, [procedure.blocks]);
 
-  const completedSteps = useMemo(() => {
-    return stepBlocks.filter((s) => s.completed).length;
-  }, [stepBlocks]);
+
 
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -790,40 +788,53 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             Digitalmente <b>fácil</b> · Homologado ISO 9001 &amp; Boas Práticas Farmacêuticas
           </div>
 
-          {/* Faixa de 4 Números / Estatísticas do Procedimento */}
-          <div className="stats">
-            <div className="stat">
-              <div className="n">
-                {stepBlocks.length || 1}
-                <small>etapas</small>
+          {/* Faixa de Números / Estatísticas do Procedimento (Dinâmica & Customizável) */}
+          {procedure.coverStats !== undefined ? (
+            procedure.coverStats.length > 0 && (
+              <div className="stats">
+                {procedure.coverStats.map((st) => (
+                  <div key={st.id} className="stat">
+                    <div className="n">
+                      {st.number}
+                      {st.unit ? <small>{st.unit}</small> : null}
+                    </div>
+                    <div className="l muted">{st.label}</div>
+                  </div>
+                ))}
               </div>
-              <div className="l muted">roteiro passo a passo documentado</div>
-            </div>
+            )
+          ) : (
+            <div className="stats">
+              <div className="stat">
+                <div className="n">
+                  {stepBlocks.length || 1}
+                  <small>etapas</small>
+                </div>
+                <div className="l muted">roteiro passo a passo documentado</div>
+              </div>
 
-            <div className="stat">
-              <div className="n">
-                {stepBlocks.length}
-                <small>itens</small>
+              <div className="stat">
+                <div className="n">
+                  100<small>%</small>
+                </div>
+                <div className="l muted">conformidade com regras fiscais e BPF</div>
               </div>
-              <div className="l muted">
-                {completedSteps}/{stepBlocks.length} itens checados ({stepBlocks.length > 0 ? Math.round((completedSteps / stepBlocks.length) * 100) : 100}%)
-              </div>
-            </div>
 
-            <div className="stat">
-              <div className="n">
-                100<small>%</small>
+              <div className="stat">
+                <div className="n" style={{ fontSize: 'clamp(20px, 3vw, 32px)' }}>
+                  {menuInfo.menuLabel}
+                </div>
+                <div className="l muted">módulo integrado do sistema ERP</div>
               </div>
-              <div className="l muted">conformidade com regras fiscais e BPF</div>
-            </div>
 
-            <div className="stat">
-              <div className="n" style={{ fontSize: 'clamp(20px, 3vw, 32px)' }}>
-                {menuInfo.menuLabel}
+              <div className="stat">
+                <div className="n" style={{ fontSize: 'clamp(18px, 2.5vw, 24px)' }}>
+                  {procedure.author || 'Farmacêutico Responsável'}
+                </div>
+                <div className="l muted">responsável técnico / elaboração</div>
               </div>
-              <div className="l muted">módulo integrado do sistema ERP</div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Indicadores Visuais da Capa */}
@@ -851,47 +862,76 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               {/* Layout Dividido: Instruções + Benefícios à esquerda, Screenshot à direita */}
               <div className="feature-split">
                 <div className="feature-list">
-                  {/* Resultado Esperado */}
-                  {step.expectedResult && (
-                    <div className="fitem">
-                      <div className="fico">
-                        <CheckCircle2 size={20} />
+                  {step.operationalItems && step.operationalItems.length > 0 ? (
+                    step.operationalItems.map((op) => (
+                      <div key={op.id} className={`fitem ${op.type === 'warning' ? 'warning' : ''}`}>
+                        <div
+                          className="fico"
+                          style={
+                            op.type === 'warning'
+                              ? { backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }
+                              : undefined
+                          }
+                        >
+                          {op.icon ? (
+                            <span style={{ fontSize: '1.05rem' }}>{op.icon}</span>
+                          ) : (
+                            <CheckCircle2 size={20} />
+                          )}
+                        </div>
+                        <div className="ftxt">
+                          <h4 style={op.type === 'warning' ? { color: '#d97706' } : undefined}>
+                            {op.title}
+                          </h4>
+                          <p>{op.text || (op as any).content || ''}</p>
+                        </div>
                       </div>
-                      <div className="ftxt">
-                        <h4>Resultado Esperado</h4>
-                        <p>
-                          {step.expectedResult} <b>Validado no ERP.</b>
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    ))
+                  ) : (
+                    <>
+                      {/* Resultado Esperado */}
+                      {step.expectedResult && (
+                        <div className="fitem">
+                          <div className="fico">
+                            <CheckCircle2 size={20} />
+                          </div>
+                          <div className="ftxt">
+                            <h4>Resultado Esperado</h4>
+                            <p>
+                              {step.expectedResult} <b>Validado no ERP.</b>
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Dica Operacional */}
-                  {step.tips && (
-                    <div className="fitem">
-                      <div className="fico">
-                        <Lightbulb size={20} />
-                      </div>
-                      <div className="ftxt">
-                        <h4>Dica de Agilidade</h4>
-                        <p>
-                          {step.tips} <b>Menos cliques.</b>
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                      {/* Dica Operacional */}
+                      {step.tips && (
+                        <div className="fitem">
+                          <div className="fico">
+                            <Lightbulb size={20} />
+                          </div>
+                          <div className="ftxt">
+                            <h4>Dica de Agilidade</h4>
+                            <p>
+                              {step.tips} <b>Menos cliques.</b>
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Alerta de Atenção */}
-                  {step.warnings && (
-                    <div className="fitem">
-                      <div className="fico" style={{ backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }}>
-                        <AlertTriangle size={20} />
-                      </div>
-                      <div className="ftxt">
-                        <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                        <p>{step.warnings}</p>
-                      </div>
-                    </div>
+                      {/* Alerta de Atenção */}
+                      {step.warnings && (
+                        <div className="fitem">
+                          <div className="fico" style={{ backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }}>
+                            <AlertTriangle size={20} />
+                          </div>
+                          <div className="ftxt">
+                            <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
+                            <p>{step.warnings}</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* Checklist Interativo do Passo */}
@@ -908,7 +948,14 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 </div>
 
                 {/* Captura de Tela no Padrão Shotframe com Glow da Apresentação */}
-                <div className="shotframe">
+                <div
+                  className="shotframe"
+                  style={
+                    step.imageWidth
+                      ? { flex: `0 0 ${step.imageWidth}`, maxWidth: step.imageWidth, width: step.imageWidth }
+                      : undefined
+                  }
+                >
                   <div className="glow" />
                   <span className="themetag">Tela Real do Digifarma</span>
                   <div
@@ -1005,33 +1052,47 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </p>
 
           <div className="why">
-            {stepBlocks.map((s, i) => (
-              <div key={s.id} className="row">
-                <div className="ck">✓</div>
-                <div>
-                  <b>
-                    Etapa {String(i + 1).padStart(2, '0')}: {s.title}
-                  </b>
-                  <span>
-                    {s.expectedResult || 'Procedimento verificado e aprovado pelo operador.'}
-                  </span>
+            {procedure.checklistItems && procedure.checklistItems.length > 0 ? (
+              procedure.checklistItems.map((chk, i) => (
+                <div key={chk.id || i} className="row">
+                  <div className="ck">✓</div>
+                  <div>
+                    <b>{chk.title}</b>
+                    {chk.note && <span>{chk.note}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
-            <div className="row">
-              <div className="ck">✓</div>
-              <div>
-                <b>Rastreabilidade &amp; Registro</b>
-                <span>Todos os dados e comprovantes foram devidamente arquivados no banco de dados.</span>
-              </div>
-            </div>
-            <div className="row">
-              <div className="ck">✓</div>
-              <div>
-                <b>Dupla Checagem Farmacêutica</b>
-                <span>Valores, lotes e rotas fiscais validados conforme a legislação sanitária.</span>
-              </div>
-            </div>
+              ))
+            ) : (
+              <>
+                {stepBlocks.map((s, i) => (
+                  <div key={s.id} className="row">
+                    <div className="ck">✓</div>
+                    <div>
+                      <b>
+                        Etapa {String(i + 1).padStart(2, '0')}: {s.title}
+                      </b>
+                      <span>
+                        {s.expectedResult || 'Procedimento verificado e aprovado pelo operador.'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="row">
+                  <div className="ck">✓</div>
+                  <div>
+                    <b>Rastreabilidade &amp; Registro</b>
+                    <span>Todos os dados e comprovantes foram devidamente arquivados no banco de dados.</span>
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="ck">✓</div>
+                  <div>
+                    <b>Dupla Checagem Farmacêutica</b>
+                    <span>Valores, lotes e rotas fiscais validados conforme a legislação sanitária.</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
         {getSlideIndicators(stepBlocks.length + 2).map(renderIndicatorViewItem)}

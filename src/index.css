@@ -11496,3 +11496,423 @@ input[type="checkbox"]:focus-visible,
 .pdf-capture-active .review-alert-banner {
   display: none !important;
 }
+
+/* ==========================================================================
+   MODAL PADRÃO & NOVO PROCEDIMENTO (CENTRALIZADO & BLUR)
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  background: rgba(10, 15, 29, 0.75) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.5rem !important;
+  overflow-y: auto !important;
+  animation: modalBackdropFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes modalBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.format-selector-modal {
+  position: relative !important;
+  margin: auto !important;
+  transform: scale(1) !important;
+  animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ==========================================================================
+   BARRA DE FORMATAÇÃO RICA DO STUDIO DIGIFARMA (ESTILO GOOGLE DOCS / PPT)
+   ========================================================================== */
+.canva-doc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  padding: 8px 16px;
+  overflow-x: auto;
+  z-index: 40;
+  user-select: none;
+  scrollbar-width: thin;
+}
+
+.canva-doc-toolbar .toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #334155;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.canva-doc-toolbar .toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.canva-doc-toolbar .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.canva-doc-toolbar .toolbar-btn:hover {
+  background: #334155;
+  border-color: #475569;
+  color: #ffffff;
+}
+
+.canva-doc-toolbar .toolbar-btn.active {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.canva-doc-toolbar .toolbar-btn.danger:hover {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #ffffff;
+}
+
+.canva-doc-toolbar .toolbar-select {
+  height: 32px;
+  border-radius: 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.canva-doc-toolbar .toolbar-color-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 2px solid #475569;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canva-doc-toolbar .toolbar-color-btn input[type="color"] {
+  position: absolute;
+  inset: -8px;
+  width: 48px;
+  height: 48px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   MODAIS DE RECURSOS (FORMAS, EMOJIS, ÍCONES, DINÂMICOS)
+   ========================================================================== */
+.canva-resource-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: modalBackdropFadeIn 0.15s ease;
+}
+
+.canva-resource-modal {
+  width: 100%;
+  max-width: 660px;
+  max-height: 85vh;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPopIn 0.2s ease;
+}
+
+.canva-resource-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #1e293b;
+  background: #1e293b;
+}
+
+.canva-resource-modal-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.canva-resource-modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.canva-resource-modal-close:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+.canva-resource-modal-body {
+  padding: 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.resource-category-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.resource-cat-tab {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resource-cat-tab:hover,
+.resource-cat-tab.active {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.resource-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 10px;
+}
+
+.resource-item-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.resource-item-card:hover {
+  background: #273549;
+  border-color: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.resource-item-card .item-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+
+.resource-item-card .item-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.resource-item-card:hover .item-label {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   BOTÕES DE EXCLUSÃO (X) E EDIÇÃO TOTAL DE ELEMENTOS NOS SLIDES
+   ========================================================================== */
+.item-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.item-delete-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.canva-stat-card-editable {
+  position: relative;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color 0.15s ease;
+}
+
+.canva-stat-card-editable:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.canva-stat-card-editable .stat-inputs-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.canva-stat-card-editable input.stat-num-input {
+  width: 90px;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dashed rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  outline: none;
+}
+
+.canva-stat-card-editable input.stat-unit-input {
+  width: 60px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.canva-stat-card-editable input.stat-label-input {
+  width: 100%;
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.btn-add-stat-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px dashed rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 10px;
+}
+
+.btn-add-stat-mini:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.canva-shotframe-size-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.btn-size-preset {
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-size-preset.active,
+.btn-size-preset:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
