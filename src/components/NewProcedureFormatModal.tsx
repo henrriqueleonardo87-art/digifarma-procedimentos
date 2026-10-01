@@ -200,15 +200,15 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
                 marginBottom: '4px',
               }}
             >
-              Auditoria &amp; ISO 9001
+              Impressão &amp; Homologação
             </span>
 
             <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
-              Documento PDF (POP)
+              PDF Oficial (A4)
             </h3>
 
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, flex: 1, margin: '0 0 16px 0' }}>
-              Formato folha A4 padrão de documento formal para fiscalização sanitária. Cabeçalho com tabela POP, passos numerados sem cortes e quadro de assinaturas.
+              Layout moderno com design visual idêntico ao HTML, ajustado com precisão milimétrica em A4 Paisagem, sem páginas em branco e sem corte de textos.
             </p>
 
             <button
@@ -293,7 +293,7 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
             </h3>
 
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, flex: 1, margin: '0 0 16px 0' }}>
-              Gera ambas as versões integradas: você tem o manual interativo na tela para treinamentos e o documento formal A4 pronto para impressão sem erros.
+              Manual completo e unificado: visualize com interatividade total em tela e gere impressões perfeitas em PDF moderno a qualquer momento.
             </p>
 
             <button

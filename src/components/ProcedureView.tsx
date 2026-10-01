@@ -24,11 +24,8 @@ import {
   Eye,
   EyeOff,
   ClipboardCheck,
-  Monitor,
-  FileText,
   MoreVertical,
 } from 'lucide-react';
-import { StandardPdfDocument } from './StandardPdfDocument';
 import type {
   Procedure,
   StepBlock,
@@ -113,16 +110,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  // Formato ativo: 'pdf' para Folha Oficial A4 normal, 'html' para Slides Interativos
-  const [viewMode, setViewMode] = useState<'html' | 'pdf'>(
-    procedure.formatType === 'pdf' ? 'pdf' : 'html'
-  );
 
-  useEffect(() => {
-    if (procedure.formatType) {
-      setViewMode(procedure.formatType === 'pdf' ? 'pdf' : 'html');
-    }
-  }, [procedure.id, procedure.formatType]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -139,14 +127,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   const isV10 = procedure.systemVersion === 'v10';
   const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
 
-  const handlePrint = (targetFmt?: 'pdf' | 'html') => {
-    if (targetFmt === 'pdf' && viewMode !== 'pdf') {
-      setViewMode('pdf');
-      setTimeout(() => {
-        window.print();
-      }, 200);
-      return;
-    }
+  const handlePrint = () => {
     const originalTitle = document.title;
     document.title = '';
     window.print();
@@ -523,27 +504,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </div>
         </div>
 
-        {/* Alternador Central de Formato: HTML Interativo vs Documento PDF */}
-        <div className="proc-format-segmented-control">
-          <button
-            type="button"
-            className={`segmented-tab ${viewMode === 'html' ? 'active' : ''}`}
-            onClick={() => setViewMode('html')}
-            title="Visualizar em Modo Slides Interativo"
-          >
-            <Monitor size={14} />
-            <span>HTML Interativo</span>
-          </button>
-          <button
-            type="button"
-            className={`segmented-tab ${viewMode === 'pdf' ? 'active' : ''}`}
-            onClick={() => setViewMode('pdf')}
-            title="Visualizar no Formato Oficial de Folha A4 para Impressão e PDF"
-          >
-            <FileText size={14} />
-            <span>Documento PDF (A4)</span>
-          </button>
-        </div>
+
 
         {/* Ações Primárias e Menu Secundário */}
         <div className="proc-action-right-group">
@@ -560,7 +521,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           <button
             type="button"
             className="btn-proc-primary-action print-cta"
-            onClick={() => handlePrint('pdf')}
+            onClick={handlePrint}
             title="Imprimir ou Salvar Documento Oficial em PDF"
           >
             <Printer size={15} />
@@ -769,16 +730,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       )}
 
-      {/* ── VISUALIZAÇÃO SELECIONADA: PDF PADRÃO OU SLIDES INTERATIVOS ── */}
-      {viewMode === 'pdf' ? (
-        <StandardPdfDocument
-          procedure={procedure}
-          onPrint={() => handlePrint('pdf')}
-          onExportHtml={() => downloadProcedureHtml(procedure)}
-        />
-      ) : (
-        <div className="interactive-slides-content">
-          {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
+      {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
       <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
           <div className="logo">
@@ -1114,9 +1066,6 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
         {getSlideIndicators(stepBlocks.length + 3).map(renderIndicatorViewItem)}
       </section>
-        </div>
-      )}
-
     </article>
   );
 };

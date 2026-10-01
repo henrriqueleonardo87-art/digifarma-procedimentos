@@ -56,7 +56,6 @@ import type {
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
-import { StandardPdfDocument } from './StandardPdfDocument';
 
 interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
@@ -2590,7 +2589,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             title="Modelo Oficial de Folha A4 para Impressão e PDF"
           >
             <FileText size={14} />
-            <span>Documento PDF (A4)</span>
+            <span>Preview de Impressão</span>
           </button>
         </div>
 
@@ -3024,40 +3023,37 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         </div>
       )}
 
-      {/* ── MODO 2: DOCUMENTO OFICIAL DE PDF (FOLHA A4 NORMAL PADRONIZADA) ── */}
+      {/* ── MODO 2: PREVIEW DE IMPRESSÃO DO MANUAL EM SLIDES ── */}
       {editorMode === 'pdf-preview' && (
-        <div className="pdf-doc-editor-container" style={{ padding: '2rem 1rem', display: 'flex', justifyContent: 'center' }}>
-          <StandardPdfDocument
-            procedure={constructProcedureToSave()}
-            isEditable={true}
-            onUpdateTitle={(val) => setTitle(val)}
-            onUpdateSubtitle={(val) => setSubtitle(val)}
-            onUpdateStep={(stepIdx, field, val) => {
-              setSteps((prev) =>
-                prev.map((s, idx) => {
-                  if (idx === stepIdx) {
-                    return { ...s, [field]: val };
-                  }
-                  return s;
-                })
-              );
-            }}
-            onPrint={handlePrintPdf}
-            onExportHtml={handleExportHtml}
-          />
+        <div className="canva-pdf-preview-container">
+          <div className="pdf-preview-hint no-print">
+            <span>
+              📄 <strong>Modo Preview de Impressão:</strong> Você está visualizando o layout final de impressão no padrão A4 Paisagem moderno. Todos os textos e elementos são editáveis diretamente nos slides!
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn secondary sm" onClick={handleExportHtml}>
+                <FileDown size={14} /> Exportar HTML
+              </button>
+              <button type="button" className="btn primary sm" onClick={handlePrintPdf}>
+                <Printer size={14} /> Imprimir / PDF
+              </button>
+            </div>
+          </div>
+
+          {selectedIndicator && (
+            <div style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
+              {renderPropertyBar()}
+            </div>
+          )}
+
+          {renderPresentationManual(true)}
         </div>
       )}
 
       {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM NO FORMATO A4 OFICIAL) ── */}
       {editorMode === 'canva' && (
         <div className="canva-print-mount-offscreen">
-          <StandardPdfDocument
-            procedure={constructProcedureToSave()}
-            isEditable={false}
-          />
-          <div style={{ display: 'none' }} aria-hidden="true">
-            {renderPresentationManual(false)}
-          </div>
+          {renderPresentationManual(false)}
         </div>
       )}
     </div>

@@ -4741,6 +4741,14 @@ h2.head {
   display: none !important;
 }
 
+/* ==========================================================================
+   CONFIGURAÇÃO DE IMPRESSÃO IMPECÁVEL EM A4 PAISAGEM (MODERNO IGUAL AO HTML)
+   ========================================================================== */
+@page {
+  size: 297mm 210mm;
+  margin: 0;
+}
+
 @media print {
   *, *::before, *::after {
     box-sizing: border-box !important;
@@ -4752,20 +4760,25 @@ h2.head {
     background: #000000 !important;
     color: #ffffff !important;
     width: 297mm !important;
-    height: auto !important;
+    height: 100% !important;
     min-height: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     overflow: visible !important;
   }
 
-  /* Ocultar elementos exclusivos da interface web */
+  /* Ocultar completamente da renderização qualquer elemento fora dos slides */
   .no-print,
+  .proc-action-bar-clean,
+  .proc-action-bar,
   .sidebar,
+  .app-sidebar,
   .global-header,
+  .main-header,
+  .header,
+  .nav,
   .ai-fab-button,
   .ai-mini-window,
-  .proc-action-bar,
   .sidebar-backdrop,
   #screen-help-btn,
   .canva-topbar,
@@ -4794,16 +4807,22 @@ h2.head {
   .canva-center-stage,
   .canva-mode-switcher,
   .canva-topbar-actions,
-  .canva-meta-pills {
+  .canva-meta-pills,
+  .dash-row-menu-container,
+  .proc-more-menu-container,
+  .pdf-doc-toolbar,
+  .standard-pdf-page-container {
     display: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    width: 0 !important;
     height: 0 !important;
-    max-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
   }
 
-  /* Impede criação de página fantasma no Chromium garantindo display block e remoção de min-height */
+  /* Root e wrappers sem margens/paddings que criem páginas fantasmas */
   #root,
   .app,
   .app-content,
@@ -4826,7 +4845,6 @@ h2.head {
     background: transparent !important;
   }
 
-  /* Remove qualquer padding ou margem de preview de tela na impressão */
   .canva-pdf-preview-container {
     padding: 0 !important;
     margin: 0 !important;
@@ -4837,7 +4855,6 @@ h2.head {
     height: auto !important;
   }
 
-  /* Oculta montagem offscreen se o preview de PDF já estiver no DOM */
   .canva-pdf-preview-container ~ .canva-print-mount-offscreen {
     display: none !important;
   }
@@ -4850,17 +4867,7 @@ h2.head {
     height: auto !important;
   }
 
-  /* Oculta qualquer elemento irmão que não seja slide dentro do container de manual */
-  .presentation-manual-root > :not(.slide) {
-    display: none !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* Slide ocupando exatamente 1 folha A4 paisagem (297mm x 209.5mm) com ZERO quebra ou página fantasma */
+  /* ── SLIDE INDIVIDUAL: 1 FOLHA EXATA A4 PAISAGEM (297mm x 209mm) ── */
   .canva-pdf-preview-container .slide,
   .canva-print-mount-offscreen .slide,
   .presentation-manual-root .slide,
@@ -4868,9 +4875,9 @@ h2.head {
     width: 297mm !important;
     min-width: 297mm !important;
     max-width: 297mm !important;
-    height: 209.5mm !important;
-    min-height: 209.5mm !important;
-    max-height: 209.5mm !important;
+    height: 209mm !important;
+    min-height: 209mm !important;
+    max-height: 209mm !important;
     margin: 0 !important;
     padding: 8mm 14mm !important;
     box-sizing: border-box !important;
@@ -4881,35 +4888,29 @@ h2.head {
     flex-direction: column !important;
     justify-content: flex-start !important;
     overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    page-break-before: auto !important;
-    break-before: auto !important;
-    page-break-after: auto !important;
-    break-after: auto !important;
   }
 
-  /* REGRA CRUCIAL: Quebra de página estritamente ENTRE slides consecutivos */
-  .slide + .slide {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-
-  /* Evita página em branco no início */
-  .slide:first-of-type,
-  .slide:first-child {
+  /* Evita página fantasma em branco no início */
+  .slide:first-child,
+  .slide:first-of-type {
     page-break-before: avoid !important;
     break-before: avoid !important;
     margin-top: 0 !important;
   }
 
-  /* Evita página em branco no final */
-  .slide:last-of-type,
-  .slide:last-child {
+  /* Evita página fantasma em branco no final */
+  .slide:last-child,
+  .slide:last-of-type {
     page-break-after: avoid !important;
     break-after: avoid !important;
+    margin-bottom: 0 !important;
   }
 
+  /* Conteúdo interno ocupando a área disponível sem estourar */
   .slide .inner {
     width: 100% !important;
     max-width: 100% !important;
@@ -4924,6 +4925,7 @@ h2.head {
     overflow: hidden !important;
   }
 
+  /* Cores temáticas dos slides (Dark/Light) */
   .slide.deep,
   .slide.dark {
     background-color: #000000 !important;
@@ -4939,101 +4941,89 @@ h2.head {
     print-color-adjust: exact !important;
   }
 
-  /* Tipografia Fixa e Robusta para Impressão (evita clamp() quebrando fontes no Chromium) */
+  /* Tipografia Moderna e Proporcional para A4 Paisagem */
   h1.display {
-    font-size: 26pt !important;
+    font-size: 24pt !important;
     line-height: 1.15 !important;
     letter-spacing: -0.02em !important;
-    margin: 0 0 8pt 0 !important;
-  }
-
-  h2.head {
-    font-size: 19pt !important;
-    line-height: 1.2 !important;
-    letter-spacing: -0.015em !important;
     margin: 0 0 6pt 0 !important;
   }
 
+  h2.head {
+    font-size: 17pt !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.015em !important;
+    margin: 0 0 4pt 0 !important;
+  }
+
   .lead {
-    font-size: 10.5pt !important;
+    font-size: 9.5pt !important;
     line-height: 1.35 !important;
-    max-width: 90% !important;
-    margin: 0 0 8pt 0 !important;
+    max-width: 95% !important;
+    margin: 0 0 6pt 0 !important;
   }
 
   .eyebrow {
-    font-size: 8.5pt !important;
-    letter-spacing: 0.12em !important;
-    margin-bottom: 6pt !important;
+    font-size: 8pt !important;
+    letter-spacing: 0.1em !important;
+    margin-bottom: 4pt !important;
   }
 
-  .stat {
-    background: #111318 !important;
-    padding: 8pt 10pt !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .stat .n {
-    font-size: 18pt !important;
-    line-height: 1.1 !important;
-  }
-
-  .stat .l {
-    font-size: 7.5pt !important;
-    line-height: 1.2 !important;
-  }
-
-  .slide.light .stat {
-    background: #f8fafc !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
+  /* Grid de Recursos (Passos Operacionais) */
   .feature-split {
     display: grid !important;
     grid-template-columns: 1fr 1.15fr !important;
-    gap: 14pt !important;
-    align-items: center !important;
-    max-height: 135mm !important;
+    gap: 12pt !important;
+    align-items: start !important;
+    max-height: 130mm !important;
     overflow: hidden !important;
   }
 
+  .flist {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4pt !important;
+  }
+
   .fitem {
-    padding: 5pt 8pt !important;
-    margin-bottom: 5pt !important;
-    border-radius: 5pt !important;
+    padding: 4pt 7pt !important;
+    margin-bottom: 3pt !important;
+    border-radius: 4pt !important;
   }
 
   .fitem .ftxt h4 {
-    font-size: 9pt !important;
-    margin: 0 0 2pt 0 !important;
+    font-size: 8.5pt !important;
+    margin: 0 0 1pt 0 !important;
   }
 
   .fitem .ftxt p {
-    font-size: 8pt !important;
+    font-size: 7.5pt !important;
     line-height: 1.25 !important;
+    margin: 0 !important;
   }
 
+  /* Screenshot Proporcional no Slide */
   .shotframe {
-    max-height: 130mm !important;
+    max-height: 125mm !important;
     overflow: hidden !important;
     background: transparent !important;
   }
 
   .shotframe .frame {
     box-shadow: none !important;
-    border: 1pt solid #cbd5e1 !important;
+    border: 1pt solid #334155 !important;
     position: relative !important;
     overflow: hidden !important;
-    max-height: 120mm !important;
+    max-height: 115mm !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    background: #0b0f19 !important;
+    border-radius: 6pt !important;
   }
 
   .shotframe .frame img {
-    max-height: 115mm !important;
+    max-height: 110mm !important;
     width: auto !important;
     max-width: 100% !important;
     object-fit: contain !important;
@@ -5049,27 +5039,64 @@ h2.head {
     display: none !important;
   }
 
-  .print-signatures-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 16pt !important;
-    margin-top: 20pt !important;
+  /* Slide BPF & Checklist */
+  .why {
+    gap: 5pt !important;
+    margin-top: 8pt !important;
   }
 
-  .canva-callouts-list {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+  .why .row {
+    padding: 5pt 8pt !important;
     gap: 8pt !important;
-    max-height: 130mm !important;
-    overflow: hidden !important;
+    font-size: 8pt !important;
+    border-radius: 4pt !important;
   }
 
+  .canva-callouts-list,
   .canva-checklist-preview {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 6pt !important;
-    max-height: 130mm !important;
+    max-height: 125mm !important;
     overflow: hidden !important;
+  }
+
+  /* Slide Homologação & Assinaturas */
+  .print-signatures-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 14pt !important;
+    margin-top: 16pt !important;
+  }
+
+  .print-sign-col {
+    text-align: center !important;
+    padding: 4pt !important;
+  }
+
+  .print-sign-title {
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .print-sign-line {
+    width: 80% !important;
+    height: 1pt !important;
+    background: #475569 !important;
+    margin: 20pt auto 6pt auto !important;
+  }
+
+  .print-sign-name {
+    font-size: 8.5pt !important;
+    font-weight: 700 !important;
+    display: block !important;
+  }
+
+  .print-sign-role {
+    font-size: 7pt !important;
+    color: #94a3b8 !important;
+    display: block !important;
   }
 }
 
@@ -11375,92 +11402,3 @@ input[type="checkbox"]:focus-visible,
 .pop-footer-brand b {
   color: #0f172a;
 }
-
-/* ==========================================================================
-   CONFIGURAÇÃO DE IMPRESSÃO IMPECÁVEL PARA O MODELO OFICIAL DE PDF (A4)
-   ========================================================================== */
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm 10mm 12mm 10mm;
-  }
-
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-    font-size: 11pt !important;
-  }
-
-  .no-print,
-  .proc-action-bar-clean,
-  .pdf-doc-toolbar,
-  .app-sidebar,
-  .main-header,
-  .header,
-  .sidebar,
-  .nav,
-  .canva-topbar,
-  .canva-thumbnails-rail,
-  .canva-design-tools,
-  .canva-paste-indicator,
-  .canva-element-property-bar,
-  .canva-toast-banner,
-  .canva-page-manager-modal,
-  .canva-resize-handle,
-  .canva-element-control-bubble,
-  .canva-stage-area,
-  .dash-row-menu-container,
-  .proc-more-menu-container {
-    display: none !important;
-  }
-
-  .standard-pdf-page-container {
-    padding: 0 !important;
-    background: #ffffff !important;
-    width: 100% !important;
-  }
-
-  .official-pop-sheet {
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    color: #000000 !important;
-    background: #ffffff !important;
-  }
-
-  .pop-header-table,
-  .pop-header-table td {
-    border-color: #000000 !important;
-  }
-
-  .pop-step-card {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    box-shadow: none !important;
-    border: 1px solid #94a3b8 !important;
-    margin-bottom: 12px !important;
-  }
-
-  .pop-step-screenshot-box {
-    background: transparent !important;
-    border: 1px solid #cbd5e1 !important;
-    padding: 4px !important;
-  }
-
-  .pop-step-screenshot-inner img {
-    max-height: 320px !important;
-  }
-
-  .pop-signatures-section {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    margin-top: 15px !important;
-  }
-
-  .pop-sign-box {
-    border: 1px solid #94a3b8 !important;
-  }
-}
-
