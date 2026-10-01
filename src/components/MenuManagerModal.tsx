@@ -148,14 +148,7 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
           {/* 1. Criar Novo Menu Principal */}
           <form
             onSubmit={handleAddMenu}
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-tertiary)',
-              padding: '0.85rem',
-              borderRadius: 'var(--radius-md)',
-            }}
+            className="menu-manager-add-form"
           >
             <input
               type="text"
@@ -163,13 +156,11 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
               placeholder="Novo Menu Principal (ex: Vendas, Fiscal...)"
               value={newMenuLabel}
               onChange={(e) => setNewMenuLabel(e.target.value)}
-              style={{ flex: 1 }}
             />
             <select
               className="form-select"
               value={newMenuIcon}
               onChange={(e) => setNewMenuIcon(e.target.value)}
-              style={{ width: '130px' }}
             >
               {AVAILABLE_ICONS.map((i) => (
                 <option key={i.name} value={i.name}>
@@ -177,7 +168,7 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
                 </option>
               ))}
             </select>
-            <button type="submit" className="btn btn-primary" style={{ padding: '0.6rem 0.9rem' }}>
+            <button type="submit" className="btn btn-primary btn-add-menu-submit">
               <Plus size={16} />
               Adicionar
             </button>
@@ -237,16 +228,7 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
 
                 {/* Formulário Inline de Adição de Submenu */}
                 {activeMenuForSubmenu === menu.id && (
-                  <div
-                    style={{
-                      padding: '0.6rem 1rem',
-                      backgroundColor: 'var(--primary-50)',
-                      display: 'flex',
-                      gap: '0.5rem',
-                      alignItems: 'center',
-                      borderBottom: '1px solid var(--border-subtle)',
-                    }}
-                  >
+                  <div className="submenu-inline-add-form">
                     <input
                       type="text"
                       className="form-input"

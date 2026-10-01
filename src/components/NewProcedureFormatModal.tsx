@@ -84,15 +84,7 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
         </div>
 
         {/* Grade de 3 Cards de Formato */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '1.25rem',
-            margin: '1.5rem 0',
-          }}
-          className="format-cards-grid"
-        >
+        <div className="format-cards-grid">
           {/* Card 1: HTML Interativo */}
           <div
             className="format-choice-card"
