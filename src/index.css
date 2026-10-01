@@ -4749,7 +4749,7 @@ h2.head {
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    background: #000000 !important;
+    background: transparent !important;
     color: #ffffff !important;
     width: 297mm !important;
     height: 100% !important;
@@ -4867,9 +4867,9 @@ h2.head {
     width: 297mm !important;
     min-width: 297mm !important;
     max-width: 297mm !important;
-    height: 209mm !important;
-    min-height: 209mm !important;
-    max-height: 209mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    max-height: 210mm !important;
     margin: 0 !important;
     padding: 8mm 14mm !important;
     box-sizing: border-box !important;
@@ -4918,15 +4918,25 @@ h2.head {
   }
 
   /* Cores temáticas dos slides (Dark/Light) */
-  .slide.deep,
-  .slide.dark {
-    background-color: #000000 !important;
+  .slide.deep {
+    background: radial-gradient(1200px 700px at 78% 12%, rgba(231, 76, 60, 0.16), transparent 60%), #131419 !important;
+    background-color: #131419 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .slide.dark,
+  .slide.cta {
+    background: #131419 !important;
+    background-color: #131419 !important;
     color: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   .slide.light {
+    background: #ffffff !important;
     background-color: #ffffff !important;
     color: #0f172a !important;
     -webkit-print-color-adjust: exact !important;
@@ -11434,15 +11444,51 @@ input[type="checkbox"]:focus-visible,
   aspect-ratio: auto !important;
 }
 
-.pdf-capture-active .slide.deep,
-.pdf-capture-active .slide.dark {
-  background-color: #000000 !important;
+.pdf-capture-active .slide.deep {
+  background: radial-gradient(1200px 700px at 78% 12%, rgba(231, 76, 60, 0.16), transparent 60%), #131419 !important;
+  background-color: #131419 !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-active .slide.dark,
+.pdf-capture-active .slide.cta {
+  background: #131419 !important;
+  background-color: #131419 !important;
   color: #ffffff !important;
 }
 
 .pdf-capture-active .slide.light {
+  background: #ffffff !important;
   background-color: #ffffff !important;
   color: #0f172a !important;
+}
+
+.pdf-capture-active .shotframe {
+  max-height: 440px !important;
+  padding: 6px 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.pdf-capture-active .shotframe .frame {
+  max-height: 420px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+.pdf-capture-active .shotframe .frame img {
+  max-height: 400px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+}
+
+.pdf-capture-active .shotframe .glow {
+  display: none !important;
 }
 
 .pdf-capture-active .no-print,

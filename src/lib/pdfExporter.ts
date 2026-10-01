@@ -44,6 +44,11 @@ export async function exportProcedurePdf(
 
   const finalFilename = options?.filename || `${titleSafe}.pdf`;
 
+  // Salva posição original de scroll para garantir que a captura não sofra com deslocamentos
+  const originalScrollX = window.scrollX;
+  const originalScrollY = window.scrollY;
+  window.scrollTo(0, 0);
+
   // Aplica classe de captura temporária para eliminar bordas arredondadas e margens de tela
   container.classList.add('pdf-capture-active');
 
@@ -70,19 +75,35 @@ export async function exportProcedurePdf(
         pdf.addPage('a4', 'landscape');
       }
 
-      // Determina a cor de fundo nativa do slide
+      // Garante que todas as imagens deste slide estejam carregadas antes da captura
+      const slideImages = Array.from(slide.querySelectorAll<HTMLImageElement>('img'));
+      if (slideImages.length > 0) {
+        await Promise.all(
+          slideImages.map((img) => {
+            if (img.complete) return Promise.resolve(true);
+            return new Promise((resolve) => {
+              img.onload = () => resolve(true);
+              img.onerror = () => resolve(false);
+              setTimeout(() => resolve(false), 1500);
+            });
+          })
+        );
+      }
+
+      // Determina a cor de fundo nativa do slide (#131419 para escuro, #ffffff para claro)
       const isDark =
         slide.classList.contains('deep') ||
         slide.classList.contains('dark') ||
         slide.classList.contains('cover') ||
         slide.classList.contains('cta');
 
-      const bgColor = isDark ? '#000000' : '#ffffff';
+      const bgColor = isDark ? '#131419' : '#ffffff';
 
       // Renderiza o slide isoladamente em alta definição Retina 2x
       const canvas = await html2canvas(slide, {
         scale: 2, // 2x Retina para textos e ícones super nítidos
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: bgColor,
         scrollX: 0,
@@ -105,5 +126,6 @@ export async function exportProcedurePdf(
   } finally {
     // Remove a classe temporária e restaura o layout normal da tela
     container.classList.remove('pdf-capture-active');
+    window.scrollTo(originalScrollX, originalScrollY);
   }
 }
