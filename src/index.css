@@ -11407,3 +11407,46 @@ input[type="checkbox"]:focus-visible,
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================================
+   ESTILOS DE CAPTURA DIRETA DE PDF FULL-BLEED (ZERO MARGENS BRANCAS)
+   ========================================================================== */
+.pdf-capture-active {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.pdf-capture-active .slide {
+  width: 1123px !important;
+  max-width: 1123px !important;
+  min-width: 1123px !important;
+  height: 794px !important;
+  max-height: 794px !important;
+  min-height: 794px !important;
+  margin: 0 !important;
+  padding: 36px 48px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  aspect-ratio: auto !important;
+}
+
+.pdf-capture-active .slide.deep,
+.pdf-capture-active .slide.dark {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-active .slide.light {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.pdf-capture-active .no-print,
+.pdf-capture-active .proc-action-bar-clean,
+.pdf-capture-active .review-alert-banner {
+  display: none !important;
+}
