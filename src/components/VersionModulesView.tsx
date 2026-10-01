@@ -507,7 +507,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 Nenhum módulo configurado para o {versionName}
               </h3>
               <p style={{ color: '#94a3b8', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 16px' }}>
-                Você pode criar e organizar os módulos e rotinas desta versão acessando "Personalizar" no menu lateral.
+                Você pode criar e organizar os módulos e rotinas desta versão acessando "Módulos" no menu lateral.
               </p>
               {onOpenConfig && (
                 <button
@@ -517,7 +517,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                   style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Sliders size={14} />
-                  <span>Personalizar Menus Agora</span>
+                  <span>Gerenciar Módulos Agora</span>
                 </button>
               )}
             </div>

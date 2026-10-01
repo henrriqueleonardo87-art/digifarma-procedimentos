@@ -12,7 +12,8 @@ import { VersionModulesView } from './components/VersionModulesView';
 import { ReviewView } from './components/ReviewView';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
-import type { Procedure, SystemMenu } from './types/procedure';
+import { NewProcedureFormatModal } from './components/NewProcedureFormatModal';
+import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
 import {
@@ -216,7 +217,24 @@ export function App() {
     setAutoPrintActive(false);
   };
 
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
+  const [pendingNewProcParams, setPendingNewProcParams] = useState<{
+    category?: string;
+    menuId?: string;
+    version?: 'v10' | 'r78';
+  } | null>(null);
+
   const handleNewProcedure = (defaultCategory?: string, defaultMenuId?: string, forceVersion?: 'v10' | 'r78') => {
+    setPendingNewProcParams({ category: defaultCategory, menuId: defaultMenuId, version: forceVersion });
+    setIsFormatModalOpen(true);
+  };
+
+  const handleSelectProcedureFormat = (format: ProcedureFormat) => {
+    setIsFormatModalOpen(false);
+    const forceVersion = pendingNewProcParams?.version;
+    const defaultCategory = pendingNewProcParams?.category;
+    const defaultMenuId = pendingNewProcParams?.menuId;
+
     const effectiveVersion = forceVersion || (currentView === 'r78' ? 'r78' : 'v10');
     const isR78 = effectiveVersion === 'r78';
     const cat = defaultCategory || 'Vendas';
@@ -224,22 +242,28 @@ export function App() {
     const newProc: Procedure = {
       id: `proc-${Date.now()}`,
       title: 'Novo Procedimento Operacional Padrão',
-      subtitle: 'Descrição sumária da rotina e diretrizes BPF',
+      subtitle: 'Descrição sumária da rotina e diretrizes de conformidade BPF',
       category: cat,
       systemVersion: isR78 ? 'classico' : 'v10',
       menuId: mId,
       submenuId: 'rotina',
       systemPath: `${isR78 ? 'Digifarma Clássico' : 'Digifarma V10'} ➔ ${cat}`,
       status: 'pendente',
-      author: 'Farmacêutico Responsável',
-      tags: ['BPF', isR78 ? 'Clássico' : 'V10'],
+      author: currentUser?.name || currentUser?.username || 'Farmacêutico Responsável',
+      formatType: format,
+      tags: ['BPF', isR78 ? 'Clássico' : 'V10', format.toUpperCase()],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       blocks: [
         {
           id: `step-${Date.now()}-1`,
           type: 'step',
-          content: 'Acessar o módulo correspondente e conferir os dados antes de validar a operação.',
+          title: 'Acesso à Rotina no Digifarma',
+          content: 'Navegue pelo menu lateral e selecione o módulo correspondente.',
+          instruction: 'Acesse o sistema com suas credenciais homologadas e abra o formulário principal.',
+          expectedResult: 'Janela da rotina carregada em tela única com campos desbloqueados.',
+          tips: 'Use a tecla F2 para busca rápida de registros.',
+          warnings: 'Confirme se o turno do caixa ou o lote do produto estão abertos antes de continuar.',
           completed: false,
         },
       ],
@@ -557,6 +581,14 @@ export function App() {
           }}
         />
       )}
+
+      {/* Modal de Escolha de Formato do Procedimento (HTML, PDF, Ambos) */}
+      <NewProcedureFormatModal
+        isOpen={isFormatModalOpen}
+        onClose={() => setIsFormatModalOpen(false)}
+        onSelectFormat={handleSelectProcedureFormat}
+        targetVersion={pendingNewProcParams?.version === 'r78' ? 'classico' : 'v10'}
+      />
     </div>
   );
 }

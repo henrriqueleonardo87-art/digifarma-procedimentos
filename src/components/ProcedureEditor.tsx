@@ -7,7 +7,6 @@ import {
   Trash2,
   Upload,
   Printer,
-  Eye,
   Sparkles,
   ArrowUp,
   ArrowDown,
@@ -57,6 +56,7 @@ import type {
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
+import { StandardPdfDocument } from './StandardPdfDocument';
 
 interface ProcedureEditorProps {
   initialProcedure?: Procedure | null;
@@ -232,7 +232,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   currentUser,
 }) => {
   // Modo de visualização: 'canva' (Studio Visual com Design) ou 'pdf-preview' (Editor de Folhas A4 Reais)
-  const [editorMode, setEditorMode] = useState<'canva' | 'pdf-preview'>('canva');
+  const [editorMode, setEditorMode] = useState<'canva' | 'pdf-preview'>(
+    initialProcedure?.formatType === 'pdf' ? 'pdf-preview' : 'canva'
+  );
 
   // Metadados Gerais
   const [title, setTitle] = useState(initialProcedure?.title || 'Novo Procedimento Operacional Padrão');
@@ -983,7 +985,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         ? `Ajustes operacionais realizados e reenviado para revisão por ${currentUser?.name || 'Autor'}`
         : initialProcedure
         ? `Atualização completa via Studio Canva por ${currentUser?.name || 'Gestor'}`
-        : `Elaboração via Studio Canva por ${currentUser?.name || 'Gestor'} (aguardando revisão)`,
+        : `Elaboração via Studio Digifarma por ${currentUser?.name || 'Gestor'} (aguardando revisão)`,
     };
 
     // Todo POP novo ou com ajustes solicitados fica com status 'pendente' até aprovação oficial
@@ -999,6 +1001,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       submenuId,
       systemPath,
       author,
+      formatType: initialProcedure?.formatType || 'both',
       updatedBy: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
       status: nextStatus,
       rejectionReason: isResubmission ? undefined : initialProcedure?.rejectionReason,
@@ -2568,24 +2571,26 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           </div>
         </div>
 
-        {/* Alternador de Modos: Studio Canva vs PDF Embutido */}
+        {/* Alternador de Modos: Studio Digifarma vs Documento PDF A4 */}
         <div className="canva-mode-switcher">
           <button
             type="button"
             className={`canva-mode-btn ${editorMode === 'canva' ? 'active' : ''}`}
             onClick={() => setEditorMode('canva')}
+            title="Editor Visual Interativo com Formas, Ícones e Indicadores"
           >
             <Palette size={14} />
-            <span>Studio Canva</span>
+            <span>Studio Digifarma</span>
           </button>
 
           <button
             type="button"
             className={`canva-mode-btn ${editorMode === 'pdf-preview' ? 'active' : ''}`}
             onClick={() => setEditorMode('pdf-preview')}
+            title="Modelo Oficial de Folha A4 para Impressão e PDF"
           >
-            <Eye size={14} />
-            <span>Editor de PDF Embutido</span>
+            <FileText size={14} />
+            <span>Documento PDF (A4)</span>
           </button>
         </div>
 
@@ -3019,37 +3024,40 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         </div>
       )}
 
-      {/* ── MODO 2: EDITOR DE PDF EMBUTIDO (PÁGINAS EM TEMPO REAL) ── */}
+      {/* ── MODO 2: DOCUMENTO OFICIAL DE PDF (FOLHA A4 NORMAL PADRONIZADA) ── */}
       {editorMode === 'pdf-preview' && (
-        <div className="canva-pdf-preview-container">
-          <div className="pdf-preview-hint no-print">
-            <span>
-              📄 <strong>Modo Editor de PDF Embutido:</strong> Você está visualizando o layout final de impressão no padrão 16:9 Widescreen de slides. Todos os textos são editáveis diretamente nas páginas!
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="btn secondary sm" onClick={handleExportHtml}>
-                <FileDown size={14} /> Exportar HTML
-              </button>
-              <button type="button" className="btn primary sm" onClick={handlePrintPdf}>
-                <Printer size={14} /> Imprimir / PDF
-              </button>
-            </div>
-          </div>
-
-          {selectedIndicator && (
-            <div style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
-              {renderPropertyBar()}
-            </div>
-          )}
-
-          {renderPresentationManual(true)}
+        <div className="pdf-doc-editor-container" style={{ padding: '2rem 1rem', display: 'flex', justifyContent: 'center' }}>
+          <StandardPdfDocument
+            procedure={constructProcedureToSave()}
+            isEditable={true}
+            onUpdateTitle={(val) => setTitle(val)}
+            onUpdateSubtitle={(val) => setSubtitle(val)}
+            onUpdateStep={(stepIdx, field, val) => {
+              setSteps((prev) =>
+                prev.map((s, idx) => {
+                  if (idx === stepIdx) {
+                    return { ...s, [field]: val };
+                  }
+                  return s;
+                })
+              );
+            }}
+            onPrint={handlePrintPdf}
+            onExportHtml={handleExportHtml}
+          />
         </div>
       )}
 
-      {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM) ── */}
+      {/* ── DOCUMENTO OFICIAL DE IMPRESSÃO (SEMPRE MONTADO NO DOM NO FORMATO A4 OFICIAL) ── */}
       {editorMode === 'canva' && (
         <div className="canva-print-mount-offscreen">
-          {renderPresentationManual(false)}
+          <StandardPdfDocument
+            procedure={constructProcedureToSave()}
+            isEditable={false}
+          />
+          <div style={{ display: 'none' }} aria-hidden="true">
+            {renderPresentationManual(false)}
+          </div>
         </div>
       )}
     </div>

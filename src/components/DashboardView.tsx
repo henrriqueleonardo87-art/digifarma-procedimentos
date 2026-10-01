@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Layers,
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
   FileX,
   ClipboardCheck,
   Ban,
+  MoreVertical,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -122,6 +123,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [totalProcedures]);
 
   const [statusFilter, setStatusFilter] = useState<'todos' | 'publicados' | 'revisao' | 'inativos'>('todos');
+  const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = () => setActiveRowMenuId(null);
+    if (activeRowMenuId) {
+      window.addEventListener('click', handleGlobalClick);
+      return () => window.removeEventListener('click', handleGlobalClick);
+    }
+  }, [activeRowMenuId]);
 
   // Contagens por status
   const publishedCount = useMemo(() => {
@@ -560,99 +570,140 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         className="proc-cell-actions"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        {/* Botão Abrir Minimalista */}
                         <button
                           type="button"
-                          className="btn-cell-action"
+                          className="btn-dash-action open"
                           onClick={() => onSelectProcedure(proc.id, false)}
-                          title="Abrir procedimento em slides"
+                          title="Abrir procedimento"
                         >
                           <span>Abrir</span>
-                          <ArrowRight size={11} />
+                          <ArrowRight size={12} />
                         </button>
 
+                        {/* Botão Editar Discreto */}
                         {onEdit && (
                           <button
                             type="button"
-                            className="btn-cell-action"
+                            className="btn-dash-action icon-only"
                             onClick={() => onEdit(proc)}
-                            title="Editar no Canva Studio"
+                            title="Editar no Studio Digifarma"
                           >
-                            <Edit3 size={11} />
+                            <Edit3 size={13} />
                           </button>
                         )}
 
+                        {/* Botão Imprimir / PDF Discreto */}
                         <button
                           type="button"
-                          className="btn-cell-action print"
+                          className="btn-dash-action icon-only"
                           onClick={() => onSelectProcedure(proc.id, true)}
-                          title="Gerar PDF em A4 Paisagem"
+                          title="Imprimir ou gerar PDF Oficial (A4)"
                         >
-                          <Printer size={12} />
+                          <Printer size={13} />
                         </button>
 
-                        {/* Publicar se não estiver aprovado */}
-                        {proc.status !== 'aprovado' && onPublish && (
+                        {/* Dropdown Menu Minimalista para Ações Secundárias */}
+                        <div className="dash-row-menu-container">
                           <button
                             type="button"
-                            className="btn-cell-action success"
-                            onClick={() => onPublish(proc.id)}
-                            title="Publicar procedimento diretamente"
+                            className={`btn-dash-action icon-only ${activeRowMenuId === proc.id ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRowMenuId(activeRowMenuId === proc.id ? null : proc.id);
+                            }}
+                            title="Mais opções e homologação"
+                            aria-label="Mais opções"
                           >
-                            <CheckCircle2 size={12} color="#10b981" />
+                            <MoreVertical size={13} />
                           </button>
-                        )}
 
-                        {/* Despublicar se estiver aprovado */}
-                        {proc.status === 'aprovado' && onUnpublish && (
-                          <button
-                            type="button"
-                            className="btn-cell-action"
-                            onClick={() => onUnpublish(proc.id)}
-                            title="Despublicar procedimento"
-                          >
-                            <FileX size={12} />
-                          </button>
-                        )}
+                          {activeRowMenuId === proc.id && (
+                            <div className="dash-row-dropdown-popover" onClick={(e) => e.stopPropagation()}>
+                              {proc.status !== 'aprovado' && onPublish && (
+                                <button
+                                  type="button"
+                                  className="dash-dropdown-item success"
+                                  onClick={() => {
+                                    setActiveRowMenuId(null);
+                                    onPublish(proc.id);
+                                  }}
+                                >
+                                  <CheckCircle2 size={13} color="#10b981" />
+                                  <span>Publicar</span>
+                                </button>
+                              )}
 
-                        {/* Mandar para Revisão */}
-                        {proc.status !== 'pendente' && onSendToReview && (
-                          <button
-                            type="button"
-                            className="btn-cell-action"
-                            onClick={() => onSendToReview(proc.id)}
-                            title="Enviar para homologação na tela de Revisões"
-                          >
-                            <ClipboardCheck size={12} />
-                          </button>
-                        )}
+                              {proc.status === 'aprovado' && onUnpublish && (
+                                <button
+                                  type="button"
+                                  className="dash-dropdown-item"
+                                  onClick={() => {
+                                    setActiveRowMenuId(null);
+                                    onUnpublish(proc.id);
+                                  }}
+                                >
+                                  <FileX size={13} />
+                                  <span>Despublicar</span>
+                                </button>
+                              )}
 
-                        {/* Inativar / Reativar (não apaga) */}
-                        {onToggleActive && (
-                          <button
-                            type="button"
-                            className="btn-cell-action"
-                            onClick={() => onToggleActive(proc.id)}
-                            title={proc.isActive === false ? 'Reativar procedimento' : 'Inativar procedimento (não apaga)'}
-                          >
-                            {proc.isActive === false ? (
-                              <Eye size={12} color="#10b981" />
-                            ) : (
-                              <EyeOff size={12} color="#94a3b8" />
-                            )}
-                          </button>
-                        )}
+                              {proc.status !== 'pendente' && onSendToReview && (
+                                <button
+                                  type="button"
+                                  className="dash-dropdown-item"
+                                  onClick={() => {
+                                    setActiveRowMenuId(null);
+                                    onSendToReview(proc.id);
+                                  }}
+                                >
+                                  <ClipboardCheck size={13} />
+                                  <span>Mandar p/ Revisão</span>
+                                </button>
+                              )}
 
-                        {/* Apagar de vez */}
-                        {onDelete && (
-                          <button
-                            type="button"
-                            className="btn-cell-action danger"
-                            onClick={() => onDelete(proc)}
-                            title="Excluir procedimento definitivamente"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
+                              {onToggleActive && (
+                                <button
+                                  type="button"
+                                  className="dash-dropdown-item"
+                                  onClick={() => {
+                                    setActiveRowMenuId(null);
+                                    onToggleActive(proc.id);
+                                  }}
+                                >
+                                  {proc.isActive === false ? (
+                                    <>
+                                      <Eye size={13} color="#10b981" />
+                                      <span>Reativar</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <EyeOff size={13} color="#94a3b8" />
+                                      <span>Inativar</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              {onDelete && (
+                                <>
+                                  <div className="dash-dropdown-divider" />
+                                  <button
+                                    type="button"
+                                    className="dash-dropdown-item danger"
+                                    onClick={() => {
+                                      setActiveRowMenuId(null);
+                                      onDelete(proc);
+                                    }}
+                                  >
+                                    <Trash2 size={13} color="#ef4444" />
+                                    <span>Excluir</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

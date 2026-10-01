@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Edit3,
   Printer,
@@ -24,7 +24,11 @@ import {
   Eye,
   EyeOff,
   ClipboardCheck,
+  Monitor,
+  FileText,
+  MoreVertical,
 } from 'lucide-react';
+import { StandardPdfDocument } from './StandardPdfDocument';
 import type {
   Procedure,
   StepBlock,
@@ -106,11 +110,43 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   }, [stepBlocks]);
 
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Formato ativo: 'pdf' para Folha Oficial A4 normal, 'html' para Slides Interativos
+  const [viewMode, setViewMode] = useState<'html' | 'pdf'>(
+    procedure.formatType === 'pdf' ? 'pdf' : 'html'
+  );
+
+  useEffect(() => {
+    if (procedure.formatType) {
+      setViewMode(procedure.formatType === 'pdf' ? 'pdf' : 'html');
+    }
+  }, [procedure.id, procedure.formatType]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    if (isMoreMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isMoreMenuOpen]);
 
   const isV10 = procedure.systemVersion === 'v10';
   const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
 
-  const handlePrint = () => {
+  const handlePrint = (targetFmt?: 'pdf' | 'html') => {
+    if (targetFmt === 'pdf' && viewMode !== 'pdf') {
+      setViewMode('pdf');
+      setTimeout(() => {
+        window.print();
+      }, 200);
+      return;
+    }
     const originalTitle = document.title;
     document.title = '';
     window.print();
@@ -447,113 +483,75 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
   return (
     <article className="presentation-manual-root" id="printable-procedure">
-      {/* ── BARRA FIXA DE AÇÕES DO POP (NÃO APARECE NA IMPRESSÃO) ── */}
-      <div className="proc-action-bar no-print">
-        {onBack && (
-          <button type="button" className="btn-proc-action" onClick={onBack}>
-            <ArrowLeft size={15} />
-            <span>Voltar</span>
-          </button>
-        )}
-
-        <div className="proc-action-center">
-          <span className={`version-pill ${isV10 ? 'v10' : 'classico'}`}>
-            {versionTag}
-          </span>
-          {procedure.isActive === false ? (
-            <span className="proc-status-pill inactive" title="Procedimento Inativo">
-              🚫 Inativo
-            </span>
-          ) : procedure.status === 'aprovado' ? (
-            <span className="proc-status-pill approved" title="Procedimento Homologado e Publicado">
-              ✓ Publicado
-            </span>
-          ) : procedure.status === 'pendente' ? (
-            <span className="proc-status-pill pending" title="Aguardando homologação em Revisões">
-              ⏳ Em Revisão
-            </span>
-          ) : procedure.status === 'ajustes_solicitados' ? (
-            <span className="proc-status-pill adjustments" title="Ajustes Solicitados pelo Revisor">
-              ⚠️ Ajustes Solicitados
-            </span>
-          ) : procedure.status === 'despublicado' ? (
-            <span className="proc-status-pill unpublished" title="Procedimento Despublicado">
-              📄 Despublicado
-            </span>
-          ) : null}
-          <span className="proc-action-title">{procedure.title}</span>
-          {procedure.systemPath && (
-            <span className="proc-action-path">{procedure.systemPath}</span>
+      {/* ── BARRA FIXA DE AÇÕES DO POP (MODERNA, LIMPA & DESPOLUÍDA) ── */}
+      <div className="proc-action-bar-clean no-print">
+        <div className="proc-action-left-group">
+          {onBack && (
+            <button type="button" className="btn-proc-back" onClick={onBack} title="Voltar para a listagem">
+              <ArrowLeft size={16} />
+              <span>Voltar</span>
+            </button>
           )}
+
+          <div className="proc-action-header-info">
+            <div className="proc-action-meta-row">
+              <span className={`version-pill-compact ${isV10 ? 'v10' : 'classico'}`}>
+                {versionTag}
+              </span>
+              {procedure.isActive === false ? (
+                <span className="proc-status-pill-clean inactive">🚫 Inativo</span>
+              ) : procedure.status === 'aprovado' ? (
+                <span className="proc-status-pill-clean approved">✓ Publicado</span>
+              ) : procedure.status === 'pendente' ? (
+                <span className="proc-status-pill-clean pending">⏳ Em Revisão</span>
+              ) : procedure.status === 'ajustes_solicitados' ? (
+                <span className="proc-status-pill-clean adjustments">⚠️ Ajustes Solicitados</span>
+              ) : procedure.status === 'despublicado' ? (
+                <span className="proc-status-pill-clean unpublished">📄 Despublicado</span>
+              ) : null}
+
+              {procedure.systemPath && (
+                <span className="proc-action-breadcrumb-text" title={procedure.systemPath}>
+                  {procedure.systemPath}
+                </span>
+              )}
+            </div>
+
+            <h1 className="proc-action-heading-title" title={procedure.title}>
+              {procedure.title}
+            </h1>
+          </div>
         </div>
 
-        <div className="proc-action-right">
-          {/* Publicar diretamente */}
-          {procedure.status !== 'aprovado' && onPublish && (
-            <button
-              type="button"
-              className="btn-proc-action primary-success"
-              onClick={onPublish}
-              title="Publicar procedimento diretamente"
-            >
-              <CheckCircle2 size={15} />
-              <span>Publicar</span>
-            </button>
-          )}
-
-          {/* Despublicar */}
-          {procedure.status === 'aprovado' && onUnpublish && (
-            <button
-              type="button"
-              className="btn-proc-action"
-              onClick={onUnpublish}
-              title="Despublicar procedimento (remover de circulação)"
-            >
-              <FileX size={15} />
-              <span>Despublicar</span>
-            </button>
-          )}
-
-          {/* Mandar para Revisão a qualquer momento */}
-          {procedure.status !== 'pendente' && onSendToReview && (
-            <button
-              type="button"
-              className="btn-proc-action"
-              onClick={onSendToReview}
-              title="Enviar este procedimento para homologação na tela de Revisões"
-            >
-              <ClipboardCheck size={15} />
-              <span>Mandar p/ Revisão</span>
-            </button>
-          )}
-
-          {/* Inativar / Reativar sem apagar */}
-          {onToggleActive && (
-            <button
-              type="button"
-              className={`btn-proc-action ${procedure.isActive === false ? 'reactivate' : 'inactivate'}`}
-              onClick={onToggleActive}
-              title={procedure.isActive === false ? 'Reativar procedimento' : 'Inativar procedimento (não apaga)'}
-            >
-              {procedure.isActive === false ? (
-                <>
-                  <Eye size={15} />
-                  <span>Reativar</span>
-                </>
-              ) : (
-                <>
-                  <EyeOff size={15} />
-                  <span>Inativar</span>
-                </>
-              )}
-            </button>
-          )}
-
+        {/* Alternador Central de Formato: HTML Interativo vs Documento PDF */}
+        <div className="proc-format-segmented-control">
           <button
             type="button"
-            className="btn-proc-action"
+            className={`segmented-tab ${viewMode === 'html' ? 'active' : ''}`}
+            onClick={() => setViewMode('html')}
+            title="Visualizar em Modo Slides Interativo"
+          >
+            <Monitor size={14} />
+            <span>HTML Interativo</span>
+          </button>
+          <button
+            type="button"
+            className={`segmented-tab ${viewMode === 'pdf' ? 'active' : ''}`}
+            onClick={() => setViewMode('pdf')}
+            title="Visualizar no Formato Oficial de Folha A4 para Impressão e PDF"
+          >
+            <FileText size={14} />
+            <span>Documento PDF (A4)</span>
+          </button>
+        </div>
+
+        {/* Ações Primárias e Menu Secundário */}
+        <div className="proc-action-right-group">
+          <button
+            type="button"
+            className="btn-proc-primary-action"
             onClick={onEdit}
-            title="Editar conteúdo, passos e imagens no Canva Studio"
+            title="Editar procedimento no Studio Digifarma"
           >
             <Edit3 size={15} />
             <span>Editar</span>
@@ -561,42 +559,137 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
           <button
             type="button"
-            className="btn-proc-action"
-            onClick={() => setIsTimelineOpen(true)}
-            title="Ver linha do tempo e histórico de alterações"
-          >
-            <History size={15} color="var(--red)" />
-            <span>Histórico</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-proc-action"
-            onClick={() => downloadProcedureHtml(procedure)}
-            title="Baixar arquivo HTML dinâmico com animações e GIFs"
-          >
-            <FileDown size={15} />
-            <span>HTML</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-proc-action primary"
-            onClick={handlePrint}
-            title="Imprimir ou gerar PDF oficial em A4 Paisagem"
+            className="btn-proc-primary-action print-cta"
+            onClick={() => handlePrint('pdf')}
+            title="Imprimir ou Salvar Documento Oficial em PDF"
           >
             <Printer size={15} />
             <span>Imprimir PDF</span>
           </button>
 
-          <button
-            type="button"
-            className="btn-proc-action danger"
-            onClick={onDelete}
-            title="Apagar procedimento definitivamente"
-          >
-            <Trash2 size={15} />
-          </button>
+          {/* Dropdown Menu com Mais Opções */}
+          <div className="proc-more-menu-container" ref={moreMenuRef}>
+            <button
+              type="button"
+              className={`btn-proc-more-trigger ${isMoreMenuOpen ? 'open' : ''}`}
+              onClick={() => setIsMoreMenuOpen((v) => !v)}
+              title="Mais opções do procedimento"
+              aria-label="Mais opções"
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {isMoreMenuOpen && (
+              <div className="proc-more-menu-popover">
+                {procedure.status !== 'aprovado' && onPublish && (
+                  <button
+                    type="button"
+                    className="proc-menu-item success"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      onPublish();
+                    }}
+                  >
+                    <CheckCircle2 size={15} color="#10b981" />
+                    <span>Publicar Oficialmente</span>
+                  </button>
+                )}
+
+                {procedure.status === 'aprovado' && onUnpublish && (
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      onUnpublish();
+                    }}
+                  >
+                    <FileX size={15} />
+                    <span>Despublicar (Tirar do Ar)</span>
+                  </button>
+                )}
+
+                {procedure.status !== 'pendente' && onSendToReview && (
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      onSendToReview();
+                    }}
+                  >
+                    <ClipboardCheck size={15} />
+                    <span>Mandar p/ Revisão</span>
+                  </button>
+                )}
+
+                {onToggleActive && (
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      onToggleActive();
+                    }}
+                  >
+                    {procedure.isActive === false ? (
+                      <>
+                        <Eye size={15} color="#10b981" />
+                        <span>Reativar Procedimento</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff size={15} color="#ef4444" />
+                        <span>Inativar (Não Apaga)</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="proc-menu-item"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    downloadProcedureHtml(procedure);
+                  }}
+                  title="Baixar arquivo HTML individual dinâmico"
+                >
+                  <FileDown size={15} />
+                  <span>Baixar Arquivo HTML</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="proc-menu-item"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    setIsTimelineOpen(true);
+                  }}
+                >
+                  <History size={15} />
+                  <span>Linha do Tempo / Histórico</span>
+                </button>
+
+                {onDelete && (
+                  <>
+                    <div className="proc-menu-divider" />
+                    <button
+                      type="button"
+                      className="proc-menu-item danger"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        onDelete();
+                      }}
+                    >
+                      <Trash2 size={15} color="#ef4444" />
+                      <span>Excluir Definitivamente</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -676,7 +769,16 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       )}
 
-      {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
+      {/* ── VISUALIZAÇÃO SELECIONADA: PDF PADRÃO OU SLIDES INTERATIVOS ── */}
+      {viewMode === 'pdf' ? (
+        <StandardPdfDocument
+          procedure={procedure}
+          onPrint={() => handlePrint('pdf')}
+          onExportHtml={() => downloadProcedureHtml(procedure)}
+        />
+      ) : (
+        <div className="interactive-slides-content">
+          {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
       <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
           <div className="logo">
@@ -1012,6 +1114,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
         {getSlideIndicators(stepBlocks.length + 3).map(renderIndicatorViewItem)}
       </section>
+        </div>
+      )}
+
     </article>
   );
 };

@@ -386,7 +386,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
 
       <div className="settings-page-title-box">
         <h1 className="settings-page-title">
-          {onlyMenus ? 'Personalizar Módulos e Rotinas' : 'Configurações do Digifarma'}
+          {onlyMenus ? 'Módulos e Rotinas do Sistema' : 'Configurações do Digifarma'}
         </h1>
         <p className="settings-page-subtitle">
           {onlyMenus

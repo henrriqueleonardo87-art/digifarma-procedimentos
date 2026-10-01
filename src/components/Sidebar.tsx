@@ -173,12 +173,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'personalize' ? 'active' : ''}`}
           onClick={() => handleNavClick('personalize')}
-          title="Personalizar Módulos, Rotinas e Menus"
+          title="Gerenciar Módulos, Rotinas e Menus"
         >
           <span className="ic">
             <Sliders size={18} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Personalizar</span>}
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Módulos</span>}
         </button>
       </div>
 

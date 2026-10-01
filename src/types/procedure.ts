@@ -186,6 +186,8 @@ export interface ProcedureSignatures {
   slogan?: string;
 }
 
+export type ProcedureFormat = 'html' | 'pdf' | 'both';
+
 export interface Procedure {
   id: string;
   title: string;
@@ -208,6 +210,7 @@ export interface Procedure {
   reviewedAt?: string;
   reviewFeedbacks?: ReviewFeedback[];
   signatures?: ProcedureSignatures;
+  formatType?: ProcedureFormat;
   isActive?: boolean;
   is_favorite?: boolean;
   created_at?: string;
