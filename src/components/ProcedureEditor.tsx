@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
+  Minus,
   ArrowLeft,
   Plus,
   Trash2,
@@ -51,6 +52,7 @@ import type {
   IndicatorSize,
   IndicatorIconName,
   ProcedureStatus,
+  ProcedureSignatures,
 } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { uploadProcedureImage } from '../lib/supabase';
@@ -240,7 +242,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   const [systemPath] = useState(
     initialProcedure?.systemPath || 'Digifarma V10 ➔ Treinamento Operacional'
   );
-  const [systemVersion] = useState<SystemVersion | 'ambos'>(
+  const [systemVersion, setSystemVersion] = useState<SystemVersion | 'ambos'>(
     initialProcedure?.systemVersion || activeVersion
   );
   const [menuId, setMenuId] = useState(initialProcedure?.menuId || (menus[0]?.id || 'cadastros'));
@@ -338,6 +340,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
     return defaultSlides;
   };
+
+  // Assinaturas e Homologação Oficial (Editáveis em tela e impressas no PDF)
+  const [signatures, setSignatures] = useState<ProcedureSignatures>(() => ({
+    elaboratedByTitle: initialProcedure?.signatures?.elaboratedByTitle || 'ELABORADO POR',
+    elaboratedByName: initialProcedure?.signatures?.elaboratedByName || initialProcedure?.author || author || 'Leonardo Henrique B. Trevas',
+    elaboratedByRole: initialProcedure?.signatures?.elaboratedByRole || 'Digifarma Sistemas',
+    reviewedByTitle: initialProcedure?.signatures?.reviewedByTitle || 'REVISADO POR',
+    reviewedByName: initialProcedure?.signatures?.reviewedByName || 'Garantia da Qualidade (BPF)',
+    reviewedByRole: initialProcedure?.signatures?.reviewedByRole || 'Controle de Procedimentos',
+    approvedByTitle: initialProcedure?.signatures?.approvedByTitle || 'APROVADO POR',
+    approvedByName: initialProcedure?.signatures?.approvedByName || 'Leonardo Henrique B. Trevas',
+    approvedByRole: initialProcedure?.signatures?.approvedByRole || 'Responsável Técnico / Gestor',
+    companyName: initialProcedure?.signatures?.companyName || 'Digifarma Sistemas LTDA',
+    slogan: initialProcedure?.signatures?.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas',
+  }));
 
   const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(initializeSlides);
 
@@ -451,12 +468,56 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           (activeEl as HTMLElement).isContentEditable);
 
       if (isTyping) return;
+      if (!selectedIndicatorId) return;
 
+      // Exclusão imediata por Delete ou Backspace
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedIndicatorId) {
-          e.preventDefault();
-          removeIndicator(selectedIndicatorId);
-        }
+        e.preventDefault();
+        removeIndicator(selectedIndicatorId);
+        return;
+      }
+
+      // Escala rápida pelo teclado (+ / -)
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        changeIndicatorScale(selectedIndicatorId, 0.1);
+        return;
+      }
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        changeIndicatorScale(selectedIndicatorId, -0.1);
+        return;
+      }
+
+      // Movimentação milimétrica por setas direcionais (Shift para salto maior)
+      const step = e.shiftKey ? 5 : 1;
+      let dx = 0;
+      let dy = 0;
+      if (e.key === 'ArrowUp') dy = -step;
+      else if (e.key === 'ArrowDown') dy = step;
+      else if (e.key === 'ArrowLeft') dx = -step;
+      else if (e.key === 'ArrowRight') dx = step;
+
+      if (dx !== 0 || dy !== 0) {
+        e.preventDefault();
+        setSlidesConfig((prev) =>
+          prev.map((slide, idx) =>
+            idx === safeActiveSlideIndex
+              ? {
+                  ...slide,
+                  indicators: (slide.indicators || []).map((ind) =>
+                    ind.id === selectedIndicatorId
+                      ? {
+                          ...ind,
+                          x: Math.max(1, Math.min(99, ind.x + dx)),
+                          y: Math.max(1, Math.min(99, ind.y + dy)),
+                        }
+                      : ind
+                  ),
+                }
+              : slide
+          )
+        );
       }
     };
 
@@ -501,10 +562,30 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     );
   };
 
-  const removeIndicator = (indId: string) => {
+  const changeIndicatorScale = (indId: string, delta: number, slideIdx?: number) => {
+    const targetIdx = typeof slideIdx === 'number' ? slideIdx : safeActiveSlideIndex;
     setSlidesConfig((prev) =>
       prev.map((slide, idx) =>
-        idx === safeActiveSlideIndex
+        idx === targetIdx
+          ? {
+              ...slide,
+              indicators: (slide.indicators || []).map((ind) => {
+                if (ind.id !== indId) return ind;
+                const currentScale = ind.scale ?? 1.0;
+                const newScale = Math.max(0.3, Math.min(3.0, Number((currentScale + delta).toFixed(2))));
+                return { ...ind, scale: newScale };
+              }),
+            }
+          : slide
+      )
+    );
+  };
+
+  const removeIndicator = (indId: string, slideIdx?: number) => {
+    const targetIdx = typeof slideIdx === 'number' ? slideIdx : safeActiveSlideIndex;
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === targetIdx
           ? {
               ...slide,
               indicators: (slide.indicators || []).filter((ind) => ind.id !== indId),
@@ -726,22 +807,30 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     );
   };
 
-  // Arraste Suave de Indicadores pelo Mouse
-  const handleIndicatorMouseDown = (e: React.MouseEvent, indId: string) => {
+  // Arraste Suave e Universal de Indicadores pelo Mouse (em qualquer slide, em Modo Canva ou PDF)
+  const handleIndicatorMouseDown = (e: React.MouseEvent, indId: string, slideIdx?: number) => {
     e.stopPropagation();
     setSelectedIndicatorId(indId);
 
-    const frame = shotframeRef.current;
-    if (!frame) return;
+    const targetSlideIdx = typeof slideIdx === 'number' ? slideIdx : safeActiveSlideIndex;
+    if (targetSlideIdx !== safeActiveSlideIndex) {
+      setActiveSlideIndex(targetSlideIdx);
+    }
+
+    const targetEl = e.currentTarget as HTMLElement;
+    const container = targetEl.closest('.canva-interactive-frame') ||
+                      targetEl.closest('.frame') ||
+                      targetEl.closest('.slide');
+    if (!container) return;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const rect = frame.getBoundingClientRect();
-      const x = Math.max(2, Math.min(98, Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100)));
-      const y = Math.max(2, Math.min(98, Math.round(((moveEvent.clientY - rect.top) / rect.height) * 100)));
+      const rect = container.getBoundingClientRect();
+      const x = Math.max(1, Math.min(99, Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100)));
+      const y = Math.max(1, Math.min(99, Math.round(((moveEvent.clientY - rect.top) / rect.height) * 100)));
 
       setSlidesConfig((prev) =>
         prev.map((slide, idx) =>
-          idx === safeActiveSlideIndex
+          idx === targetSlideIdx
             ? {
                 ...slide,
                 indicators: (slide.indicators || []).map((ind) =>
@@ -917,6 +1006,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico', systemCategory, 'BPF'],
       blocks,
       slidesConfig,
+      signatures,
       created_at: initialProcedure?.created_at || nowIso,
       updated_at: nowIso,
     };
@@ -960,7 +1050,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   // ─────────────────────────────────────────────────────────────
   const renderIndicatorItem = (
     ind: SlideIndicator,
-    isInteractive: boolean = false
+    isInteractive: boolean = false,
+    slideIdx?: number
   ) => {
     const isSelected = selectedIndicatorId === ind.id;
     const color = ind.color || '#ef4444';
@@ -1166,12 +1257,53 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           zIndex: isSelected ? 35 : 20,
           userSelect: 'none',
         }}
-        onMouseDown={isInteractive ? (e) => handleIndicatorMouseDown(e, ind.id) : undefined}
+        onMouseDown={isInteractive ? (e) => handleIndicatorMouseDown(e, ind.id, slideIdx) : undefined}
         onClick={isInteractive ? (e) => {
           e.stopPropagation();
           setSelectedIndicatorId(ind.id);
+          if (typeof slideIdx === 'number') {
+            setActiveSlideIndex(slideIdx);
+          }
         } : undefined}
       >
+        {/* Controle flutuante de escala e exclusão diretamente no elemento selecionado */}
+        {isSelected && isInteractive && (
+          <div
+            className="canva-element-control-bubble no-print"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="canva-control-btn"
+              title="Diminuir tamanho (Atalho: -)"
+              onClick={() => changeIndicatorScale(ind.id, -0.1, slideIdx)}
+            >
+              <Minus size={11} />
+            </button>
+            <span className="canva-control-badge">
+              {Math.round((ind.scale ?? 1.0) * 100)}%
+            </span>
+            <button
+              type="button"
+              className="canva-control-btn"
+              title="Aumentar tamanho (Atalho: +)"
+              onClick={() => changeIndicatorScale(ind.id, 0.1, slideIdx)}
+            >
+              <Plus size={11} />
+            </button>
+            <div className="canva-control-divider" />
+            <button
+              type="button"
+              className="canva-control-btn danger"
+              title="Remover elemento (Atalho: Del)"
+              onClick={() => removeIndicator(ind.id, slideIdx)}
+            >
+              <Trash2 size={11} />
+            </button>
+          </div>
+        )}
+
         {/* Botão de exclusão "X" diretamente no elemento para remoção imediata */}
         {isInteractive && (
           <button
@@ -1179,7 +1311,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             className="indicator-corner-delete-btn no-print"
             onClick={(e) => {
               e.stopPropagation();
-              removeIndicator(ind.id);
+              removeIndicator(ind.id, slideIdx);
             }}
             title="Remover este elemento da tela"
           >
@@ -1202,6 +1334,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   ) => {
     const isDark = slide.bgTheme === 'deep' || slide.bgTheme === 'dark';
     const indicators = slide.indicators || [];
+    const isInteractive = isStage || isEditable;
 
     // TIPO 1: CAPA EDITORIAL
     if (slide.slideType === 'cover') {
@@ -1209,8 +1342,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <section
           key={slide.id || `slide-${slideIdx}`}
           className={`slide deep cover ${isStage ? 'canva-slide-canvas' : ''}`}
-          ref={isStage ? shotframeRef : undefined}
-          onClick={isStage ? handleShotframeClick : undefined}
+          onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
           style={{ position: 'relative' }}
         >
           <div className="inner">
@@ -1218,11 +1350,26 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <span className="a">Digi</span>
               <span className="b">farma</span>
             </div>
-            <div className="v10-badge">
-              {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
-            </div>
 
-            {isStage ? (
+            {isInteractive ? (
+              <div
+                className="v10-badge"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSystemVersion(systemVersion === 'v10' ? 'classico' : 'v10');
+                }}
+                title="Clique para alternar versão (Digifarma V10 / Digifarma Clássico)"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'} ⇄
+              </div>
+            ) : (
+              <div className="v10-badge">
+                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
+              </div>
+            )}
+
+            {isInteractive ? (
               <input
                 type="text"
                 className="canva-inline-display-input"
@@ -1231,17 +1378,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 placeholder="Título Principal do Manual..."
               />
             ) : (
-              <h1
-                className="display"
-                contentEditable={isEditable}
-                suppressContentEditableWarning
-                onBlur={(e) => setTitle(e.currentTarget.textContent || title)}
-              >
-                {title}
-              </h1>
+              <h1 className="display">{title}</h1>
             )}
 
-            {isStage ? (
+            {isInteractive ? (
               <textarea
                 className="canva-inline-lead-input"
                 value={subtitle}
@@ -1250,17 +1390,25 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 rows={2}
               />
             ) : (
-              <p
-                className="lead"
-                contentEditable={isEditable}
-                suppressContentEditableWarning
-                onBlur={(e) => setSubtitle(e.currentTarget.textContent || subtitle)}
-              >
-                {subtitle}
-              </p>
+              <p className="lead">{subtitle}</p>
             )}
 
-            <div className="stats" style={{ marginTop: '36px' }}>
+            {isInteractive ? (
+              <input
+                type="text"
+                className="canva-inline-fitem-input"
+                style={{ width: '100%', marginTop: '8px', fontSize: '0.82rem', color: '#94a3b8' }}
+                value={signatures.slogan || ''}
+                onChange={(e) => setSignatures((prev) => ({ ...prev, slogan: e.target.value }))}
+                placeholder="Slogan / Certificação BPF (Ex: Digitalmente fácil · Homologado ISO 9001)..."
+              />
+            ) : (
+              <div className="slogan muted" style={{ marginTop: '8px' }}>
+                {signatures.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas'}
+              </div>
+            )}
+
+            <div className="stats" style={{ marginTop: '28px' }}>
               <div className="stat">
                 <div className="n">{steps.length || 1}<small>etapas</small></div>
                 <div className="l">Roteiro operacional documentado</div>
@@ -1270,7 +1418,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <div className="l">Conformidade com Boas Práticas (BPF)</div>
               </div>
               <div className="stat">
-                {isStage ? (
+                {isInteractive ? (
                   <div className="n" style={{ fontSize: '20px' }}>
                     <select
                       value={menuId}
@@ -1290,11 +1438,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <div className="l">Módulo integrado do sistema</div>
               </div>
               <div className="stat">
-                {isStage ? (
+                {isInteractive ? (
                   <input
                     type="text"
                     value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
+                    onChange={(e) => {
+                      setAuthor(e.target.value);
+                      setSignatures((prev) => ({ ...prev, elaboratedByName: e.target.value }));
+                    }}
                     className="canva-inline-author-input"
                     placeholder="Autor / Responsável"
                   />
@@ -1306,7 +1457,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             </div>
           </div>
 
-          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
         </section>
       );
     }
@@ -1322,13 +1473,15 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <section
           key={slide.id || `slide-${slideIdx}`}
           className={`slide ${isDark ? 'deep' : 'light'} step-slide ${isStage ? 'canva-slide-canvas' : ''}`}
+          onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
+          style={{ position: 'relative' }}
         >
           <div className="inner">
             <p className="eyebrow">
               <span>ETAPA {stepNum}</span> · Roteiro Passo a Passo
             </p>
 
-            {isStage ? (
+            {isInteractive ? (
               <input
                 type="text"
                 className="canva-inline-head-input"
@@ -1342,22 +1495,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 placeholder="Título da Etapa..."
               />
             ) : (
-              <h2
-                className="head"
-                contentEditable={isEditable}
-                suppressContentEditableWarning
-                onBlur={(e) => {
-                  const val = e.currentTarget.textContent || step.title;
-                  setSteps((prev) =>
-                    prev.map((s, sIdx) => (sIdx === stepIdx ? { ...s, title: val } : s))
-                  );
-                }}
-              >
-                {step.title}
-              </h2>
+              <h2 className="head">{step.title}</h2>
             )}
 
-            {isStage ? (
+            {isInteractive ? (
               <textarea
                 className="canva-inline-lead-input light"
                 value={step.instruction || step.content}
@@ -1373,21 +1514,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 rows={2}
               />
             ) : (
-              <p
-                className="lead"
-                contentEditable={isEditable}
-                suppressContentEditableWarning
-                onBlur={(e) => {
-                  const val = e.currentTarget.textContent || step.instruction || step.content || '';
-                  setSteps((prev) =>
-                    prev.map((s, sIdx) =>
-                      sIdx === stepIdx ? { ...s, instruction: val, content: val } : s
-                    )
-                  );
-                }}
-              >
-                {step.instruction || step.content}
-              </p>
+              <p className="lead">{step.instruction || step.content}</p>
             )}
 
             <div className="feature-split">
@@ -1397,7 +1524,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   <div className="fico">✓</div>
                   <div className="ftxt" style={{ flex: 1 }}>
                     <h4>Resultado Esperado</h4>
-                    {isStage ? (
+                    {isInteractive ? (
                       <input
                         type="text"
                         className="canva-inline-fitem-input"
@@ -1423,7 +1550,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   <div className="fico">💡</div>
                   <div className="ftxt" style={{ flex: 1 }}>
                     <h4>Dica de Agilidade</h4>
-                    {isStage ? (
+                    {isInteractive ? (
                       <input
                         type="text"
                         className="canva-inline-fitem-input"
@@ -1449,7 +1576,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   <div className="fico">⚠️</div>
                   <div className="ftxt" style={{ flex: 1 }}>
                     <h4 style={{ color: '#d97706' }}>Ponto Crítico</h4>
-                    {isStage ? (
+                    {isInteractive ? (
                       <input
                         type="text"
                         className="canva-inline-fitem-input"
@@ -1474,38 +1601,42 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {/* Shotframe da Etapa */}
               <div className="shotframe">
                 <div
-                  className={`frame ${isStage ? 'canva-interactive-frame' : ''}`}
+                  className={`frame ${isInteractive ? 'canva-interactive-frame' : ''}`}
                   ref={isStage ? shotframeRef : undefined}
-                  onClick={isStage ? handleShotframeClick : undefined}
-                  title={isStage ? 'Clique na imagem para posicionar. Arraste qualquer forma com o mouse!' : undefined}
+                  onClick={isInteractive ? handleShotframeClick : undefined}
+                  title={isInteractive ? 'Clique para posicionar. Arraste qualquer forma com o mouse!' : undefined}
                 >
                   {imgUrl ? (
                     <img
                       src={imgUrl}
                       alt={step.title}
-                      className={isStage ? 'canva-step-img' : undefined}
+                      className={isInteractive ? 'canva-step-img' : undefined}
                       draggable={false}
                     />
                   ) : (
-                    <div className="canva-placeholder-drop" style={{ color: '#94a3b8', padding: '36px', textAlign: 'center' }}>
+                    <div
+                      className="canva-placeholder-drop"
+                      style={{ color: '#94a3b8', padding: '36px', textAlign: 'center', cursor: isInteractive ? 'pointer' : 'default' }}
+                      onClick={isInteractive ? () => handleManualUploadClick(stepIdx) : undefined}
+                    >
                       <ImageIcon size={38} color="var(--red)" />
                       <strong>Nenhuma imagem anexada</strong>
-                      <span>Cole um print com Ctrl+V ou use o botão abaixo</span>
+                      <span>Cole um print com Ctrl+V ou clique para importar</span>
                     </div>
                   )}
 
-                  {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+                  {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
                 </div>
 
-                {isStage && (
-                  <div className="shotframe-toolbar-bottom">
+                {isInteractive && (
+                  <div className="shotframe-toolbar-bottom no-print">
                     <button
                       type="button"
                       className="btn-shot-action"
                       onClick={() => handleManualUploadClick(stepIdx)}
                     >
                       <Upload size={13} />
-                      <span>Importar Arquivo</span>
+                      <span>Importar Imagem</span>
                     </button>
 
                     {imgUrl && (
@@ -1539,41 +1670,82 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <section
           key={slide.id || `slide-${slideIdx}`}
           className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
-          ref={isStage ? shotframeRef : undefined}
-          onClick={isStage ? handleShotframeClick : undefined}
+          onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
           style={{ position: 'relative' }}
         >
           <div className="inner">
             <p className="eyebrow">
               <span>BPF</span> · Boas Práticas &amp; Diretrizes
             </p>
-            <h2 className="head">Orientações de Segurança &amp; Auditoria</h2>
-            <p className="lead">
-              Recomendações técnicas homologadas para garantia da qualidade operacional.
-            </p>
 
-            <div className="canva-callouts-list" style={{ marginTop: '28px' }}>
+            {isInteractive ? (
+              <input
+                type="text"
+                className="canva-inline-head-input"
+                value={slide.title || 'Orientações de Segurança & Auditoria'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, title: val } : s))
+                  );
+                }}
+                placeholder="Título da Página BPF..."
+              />
+            ) : (
+              <h2 className="head">{slide.title || 'Orientações de Segurança & Auditoria'}</h2>
+            )}
+
+            {isInteractive ? (
+              <textarea
+                className="canva-inline-lead-input light"
+                value={slide.subtitle || 'Recomendações técnicas homologadas para garantia da qualidade operacional.'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, subtitle: val } : s))
+                  );
+                }}
+                placeholder="Subtítulo da página..."
+                rows={2}
+              />
+            ) : (
+              <p className="lead">
+                {slide.subtitle || 'Recomendações técnicas homologadas para garantia da qualidade operacional.'}
+              </p>
+            )}
+
+            <div className="canva-callouts-list" style={{ marginTop: '24px' }}>
               {callouts.map((c, i) => (
-                <div key={c.id} className="fitem" style={{ marginBottom: '16px' }}>
+                <div key={c.id} className="fitem" style={{ marginBottom: '14px', position: 'relative' }}>
                   <div className="fico">
                     <Info size={22} color="var(--red)" />
                   </div>
                   <div className="ftxt" style={{ flex: 1 }}>
-                    {isStage ? (
+                    {isInteractive ? (
                       <>
-                        <input
-                          type="text"
-                          className="canva-inline-head-input"
-                          style={{ fontSize: '1.05rem', marginBottom: '4px' }}
-                          value={c.title || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCallouts((prev) =>
-                              prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
-                            );
-                          }}
-                          placeholder="Título da Diretriz..."
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <input
+                            type="text"
+                            className="canva-inline-head-input"
+                            style={{ fontSize: '1.02rem', marginBottom: '4px', flex: 1 }}
+                            value={c.title || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCallouts((prev) =>
+                                prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
+                              );
+                            }}
+                            placeholder="Título da Diretriz..."
+                          />
+                          <button
+                            type="button"
+                            className="canva-control-btn danger no-print"
+                            onClick={() => setCallouts((prev) => prev.filter((_, idx) => idx !== i))}
+                            title="Remover esta diretriz"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                         <textarea
                           className="canva-inline-lead-input light"
                           value={c.content}
@@ -1583,45 +1755,46 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                               prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
                             );
                           }}
-                          placeholder="Texto explicativo da norma sanitária..."
+                          placeholder="Texto explicativo da norma..."
                           rows={2}
                         />
                       </>
                     ) : (
                       <>
-                        <h4
-                          contentEditable={isEditable}
-                          suppressContentEditableWarning
-                          onBlur={(e) => {
-                            const val = e.currentTarget.textContent || c.title || '';
-                            setCallouts((prev) =>
-                              prev.map((item, idx) => (idx === i ? { ...item, title: val } : item))
-                            );
-                          }}
-                        >
-                          {c.title}
-                        </h4>
-                        <p
-                          contentEditable={isEditable}
-                          suppressContentEditableWarning
-                          onBlur={(e) => {
-                            const val = e.currentTarget.textContent || c.content;
-                            setCallouts((prev) =>
-                              prev.map((item, idx) => (idx === i ? { ...item, content: val } : item))
-                            );
-                          }}
-                        >
-                          {c.content}
-                        </p>
+                        <h4>{c.title}</h4>
+                        <p>{c.content}</p>
                       </>
                     )}
                   </div>
                 </div>
               ))}
+
+              {isInteractive && (
+                <button
+                  type="button"
+                  className="canva-action-btn no-print"
+                  style={{ marginTop: '8px', alignSelf: 'flex-start' }}
+                  onClick={() =>
+                    setCallouts((prev) => [
+                      ...prev,
+                      {
+                        id: `callout-${Date.now()}`,
+                        type: 'callout',
+                        calloutType: 'warning',
+                        title: 'Nova Diretriz de Segurança Operacional',
+                        content: 'Descreva a orientação regulatória e de qualidade necessária.',
+                      },
+                    ])
+                  }
+                >
+                  <Plus size={13} />
+                  <span>Adicionar Diretriz BPF</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
         </section>
       );
     }
@@ -1632,35 +1805,82 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <section
           key={slide.id || `slide-${slideIdx}`}
           className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
-          ref={isStage ? shotframeRef : undefined}
-          onClick={isStage ? handleShotframeClick : undefined}
+          onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
           style={{ position: 'relative' }}
         >
           <div className="inner">
             <p className="eyebrow">
               <span>CHECKLIST</span> · Homologação
             </p>
-            <h2 className="head">Checklist de Auditoria Operacional</h2>
-            <p className="lead">
-              Validação obrigatória de cada uma das {steps.length} etapas cadastradas.
-            </p>
 
-            <div className="canva-checklist-preview" style={{ marginTop: '24px' }}>
+            {isInteractive ? (
+              <input
+                type="text"
+                className="canva-inline-head-input"
+                value={slide.title || 'Checklist de Auditoria Operacional'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, title: val } : s))
+                  );
+                }}
+                placeholder="Título do Checklist..."
+              />
+            ) : (
+              <h2 className="head">{slide.title || 'Checklist de Auditoria Operacional'}</h2>
+            )}
+
+            {isInteractive ? (
+              <textarea
+                className="canva-inline-lead-input light"
+                value={slide.subtitle || `Validação obrigatória de cada uma das ${steps.length} etapas cadastradas.`}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, subtitle: val } : s))
+                  );
+                }}
+                placeholder="Subtítulo do checklist..."
+                rows={2}
+              />
+            ) : (
+              <p className="lead">
+                {slide.subtitle || `Validação obrigatória de cada uma das ${steps.length} etapas cadastradas.`}
+              </p>
+            )}
+
+            <div className="canva-checklist-preview" style={{ marginTop: '22px' }}>
               {steps.map((s, i) => (
                 <div key={s.id} className="canva-check-row">
                   <div className="canva-check-circle">✓</div>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <strong>
                       Etapa {(i + 1).toString().padStart(2, '0')}: {s.title}
                     </strong>
-                    <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
+                    {isInteractive ? (
+                      <input
+                        type="text"
+                        className="canva-inline-fitem-input"
+                        value={s.expectedResult || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSteps((prev) =>
+                            prev.map((st, idx) => (idx === i ? { ...st, expectedResult: val } : st))
+                          );
+                        }}
+                        placeholder="Nota de validação da etapa..."
+                        style={{ marginTop: '2px', fontSize: '0.8rem' }}
+                      />
+                    ) : (
+                      <p>{s.expectedResult || 'Validação de tela confirmada.'}</p>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
         </section>
       );
     }
@@ -1671,8 +1891,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
         <section
           key={slide.id || `slide-${slideIdx}`}
           className={`slide deep ${isStage ? 'canva-slide-canvas' : ''}`}
-          ref={isStage ? shotframeRef : undefined}
-          onClick={isStage ? handleShotframeClick : undefined}
+          onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
           style={{ position: 'relative' }}
         >
           <div className="inner">
@@ -1681,55 +1900,172 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <span className="b">farma</span>
             </div>
             <div className="v10-badge">HOMOLOGAÇÃO OFICIAL</div>
-            <h1 className="display" style={{ fontSize: '38px' }}>
-              Controle da Qualidade &amp; BPF
-            </h1>
-            <p className="lead">
-              Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.
-            </p>
 
-            <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
+            {isInteractive ? (
+              <input
+                type="text"
+                className="canva-inline-display-input"
+                style={{ fontSize: '32px', marginBottom: '8px' }}
+                value={slide.title || 'Controle da Qualidade & BPF'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, title: val } : s))
+                  );
+                }}
+                placeholder="Título da Homologação..."
+              />
+            ) : (
+              <h1 className="display" style={{ fontSize: '32px' }}>
+                {slide.title || 'Controle da Qualidade & BPF'}
+              </h1>
+            )}
+
+            {isInteractive ? (
+              <textarea
+                className="canva-inline-lead-input"
+                value={slide.subtitle || 'Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSlidesConfig((prev) =>
+                    prev.map((s, idx) => (idx === slideIdx ? { ...s, subtitle: val } : s))
+                  );
+                }}
+                rows={2}
+              />
+            ) : (
+              <p className="lead">
+                {slide.subtitle || 'Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.'}
+              </p>
+            )}
+
+            <div className="print-signatures-grid" style={{ marginTop: '36px' }}>
+              {/* Box 1: Elaborado */}
               <div className="print-sign-col">
-                <span className="print-sign-title">ELABORADO POR</span>
-                <div className="print-sign-line"></div>
-                {isStage ? (
+                {isInteractive ? (
                   <input
                     type="text"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
+                    value={signatures.elaboratedByTitle || 'ELABORADO POR'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, elaboratedByTitle: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-title">{signatures.elaboratedByTitle || 'ELABORADO POR'}</span>
+                )}
+                <div className="print-sign-line"></div>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    value={signatures.elaboratedByName || author || ''}
+                    onChange={(e) => {
+                      setAuthor(e.target.value);
+                      setSignatures((prev) => ({ ...prev, elaboratedByName: e.target.value }));
+                    }}
                     className="canva-inline-sign-input"
                     placeholder="Nome do Elaborador"
                   />
                 ) : (
-                  <span
-                    className="print-sign-name"
-                    contentEditable={isEditable}
-                    suppressContentEditableWarning
-                    onBlur={(e) => setAuthor(e.currentTarget.textContent || author)}
-                  >
-                    {author}
+                  <span className="print-sign-name">
+                    {signatures.elaboratedByName || author || 'Leonardo Henrique B. Trevas'}
                   </span>
                 )}
-                <span className="print-sign-role">Digifarma Sistemas</span>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
+                    value={signatures.elaboratedByRole || 'Digifarma Sistemas'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, elaboratedByRole: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-role">{signatures.elaboratedByRole || 'Digifarma Sistemas'}</span>
+                )}
               </div>
 
+              {/* Box 2: Revisado */}
               <div className="print-sign-col">
-                <span className="print-sign-title">REVISADO POR</span>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
+                    value={signatures.reviewedByTitle || 'REVISADO POR'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByTitle: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-title">{signatures.reviewedByTitle || 'REVISADO POR'}</span>
+                )}
                 <div className="print-sign-line"></div>
-                <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
-                <span className="print-sign-role">Controle de Procedimentos</span>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    value={signatures.reviewedByName || 'Garantia da Qualidade (BPF)'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByName: e.target.value }))}
+                    className="canva-inline-sign-input"
+                    placeholder="Nome do Revisor"
+                  />
+                ) : (
+                  <span className="print-sign-name">
+                    {signatures.reviewedByName || 'Garantia da Qualidade (BPF)'}
+                  </span>
+                )}
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
+                    value={signatures.reviewedByRole || 'Controle de Procedimentos'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByRole: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-role">{signatures.reviewedByRole || 'Controle de Procedimentos'}</span>
+                )}
               </div>
 
+              {/* Box 3: Aprovado */}
               <div className="print-sign-col">
-                <span className="print-sign-title">APROVADO POR</span>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
+                    value={signatures.approvedByTitle || 'APROVADO POR'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByTitle: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-title">{signatures.approvedByTitle || 'APROVADO POR'}</span>
+                )}
                 <div className="print-sign-line"></div>
-                <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
-                <span className="print-sign-role">Responsável Técnico / Gestor</span>
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    value={signatures.approvedByName || 'Leonardo Henrique B. Trevas'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByName: e.target.value }))}
+                    className="canva-inline-sign-input"
+                    placeholder="Nome do Aprovador"
+                  />
+                ) : (
+                  <span className="print-sign-name">
+                    {signatures.approvedByName || 'Leonardo Henrique B. Trevas'}
+                  </span>
+                )}
+                {isInteractive ? (
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
+                    value={signatures.approvedByRole || 'Responsável Técnico / Gestor'}
+                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByRole: e.target.value }))}
+                  />
+                ) : (
+                  <span className="print-sign-role">{signatures.approvedByRole || 'Responsável Técnico / Gestor'}</span>
+                )}
               </div>
             </div>
           </div>
 
-          {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+          {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
         </section>
       );
     }
@@ -1739,15 +2075,14 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       <section
         key={slide.id || `slide-${slideIdx}`}
         className={`slide ${isDark ? 'deep' : 'light'} ${isStage ? 'canva-slide-canvas' : ''}`}
-        ref={isStage ? shotframeRef : undefined}
-        onClick={isStage ? handleShotframeClick : undefined}
+        onClick={isInteractive ? () => setActiveSlideIndex(slideIdx) : undefined}
         style={{ position: 'relative' }}
       >
         <div className="inner">
           <p className="eyebrow">
             <span>PÁGINA LIVRE</span> · Conteúdo Adicional
           </p>
-          {isStage ? (
+          {isInteractive ? (
             <input
               type="text"
               className="canva-inline-head-input"
@@ -1764,7 +2099,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             <h2 className="head">{slide.title || 'Página de Conteúdo Livre'}</h2>
           )}
 
-          {isStage ? (
+          {isInteractive ? (
             <textarea
               className="canva-inline-lead-input light"
               value={slide.subtitle || ''}
@@ -1782,7 +2117,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           )}
         </div>
 
-        {indicators.map((ind) => renderIndicatorItem(ind, isStage))}
+        {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
       </section>
     );
   };
@@ -1816,6 +2151,369 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       default:
         return `Página ${idx + 1}`;
     }
+  };
+
+  // Barra Flutuante de Propriedades do Elemento Selecionado (Modo Canva & Modo PDF)
+  const renderPropertyBar = () => {
+    if (!selectedIndicator) return null;
+    return (
+    <div className="canva-element-property-bar no-print">
+                    <div className="prop-bar-label">
+                      <span>
+                        Propriedades: <strong>{selectedIndicator.type.toUpperCase()}</strong>
+                      </span>
+                    </div>
+    
+                    {/* ESCALA LIVRE: AUMENTAR / DIMINUIR QUALQUER RECURSO */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Escala:</span>
+                      <div className="prop-btn-group">
+                        <button
+                          type="button"
+                          className="prop-btn-mini"
+                          onClick={() => {
+                            const cur = selectedIndicator.scale ?? 1.0;
+                            updateSelectedIndicator({ scale: Math.max(0.3, Number((cur - 0.15).toFixed(2))) });
+                          }}
+                          title="Diminuir tamanho (-15%)"
+                        >
+                          -
+                        </button>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '0 4px', minWidth: '38px', textAlign: 'center' }}>
+                          {Math.round((selectedIndicator.scale ?? 1.0) * 100)}%
+                        </span>
+                        <button
+                          type="button"
+                          className="prop-btn-mini"
+                          onClick={() => {
+                            const cur = selectedIndicator.scale ?? 1.0;
+                            updateSelectedIndicator({ scale: Math.min(3.0, Number((cur + 0.15).toFixed(2))) });
+                          }}
+                          title="Aumentar tamanho (+15%)"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          className="prop-btn-mini"
+                          onClick={() => updateSelectedIndicator({ scale: 1.0 })}
+                          title="Resetar escala para 100%"
+                        >
+                          100%
+                        </button>
+                      </div>
+                    </div>
+    
+                    {/* Tipografia / Família de Fonte */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Fonte:</span>
+                      <select
+                        className="prop-font-select"
+                        value={selectedIndicator.fontFamily || 'Inter, sans-serif'}
+                        onChange={(e) => updateSelectedIndicator({ fontFamily: e.target.value })}
+                      >
+                        <option value="Inter, sans-serif">Inter (Moderno)</option>
+                        <option value="Outfit, sans-serif">Outfit (Tech)</option>
+                        <option value="Roboto, sans-serif">Roboto (Clássico)</option>
+                        <option value="'Playfair Display', serif">Playfair (Elegante)</option>
+                        <option value="'Fira Code', monospace">Fira Code (Mono)</option>
+                        <option value="'Bebas Neue', sans-serif">Bebas Neue (Manchete)</option>
+                        <option value="'Nunito', sans-serif">Nunito (Arredondado)</option>
+                      </select>
+                    </div>
+    
+                    {/* Cor do Texto */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Texto:</span>
+                      <div className="prop-color-swatches">
+                        {[
+                          { label: 'Branco', hex: '#ffffff' },
+                          { label: 'Preto', hex: '#0f172a' },
+                          { label: 'Vermelho', hex: '#ef4444' },
+                          { label: 'Amarelo', hex: '#f59e0b' },
+                          { label: 'Verde', hex: '#10b981' },
+                          { label: 'Azul', hex: '#3b82f6' },
+                        ].map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            className={`prop-color-dot ${selectedIndicator.textColor === c.hex ? 'active' : ''}`}
+                            style={{ backgroundColor: c.hex }}
+                            onClick={() => updateSelectedIndicator({ textColor: c.hex })}
+                            title={`Cor do Texto: ${c.label}`}
+                          />
+                        ))}
+                        <div className="prop-color-input-wrapper" title="Personalizar cor do texto">
+                          <input
+                            type="color"
+                            className="prop-color-native-input"
+                            value={selectedIndicator.textColor && selectedIndicator.textColor.startsWith('#') ? selectedIndicator.textColor : '#ffffff'}
+                            onChange={(e) => updateSelectedIndicator({ textColor: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+    
+                    {/* Cor do Fundo da Caixa */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Fundo:</span>
+                      <div className="prop-color-swatches">
+                        {[
+                          { label: 'Escuro', hex: '#0f172a' },
+                          { label: 'Preto', hex: '#000000' },
+                          { label: 'Branco', hex: '#ffffff' },
+                          { label: 'Vermelho', hex: '#ef4444' },
+                          { label: 'Azul', hex: '#3b82f6' },
+                          { label: 'Transparente', hex: 'transparent' },
+                        ].map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            className={`prop-color-dot ${selectedIndicator.bgColor === c.hex ? 'active' : ''}`}
+                            style={{
+                              backgroundColor: c.hex === 'transparent' ? 'transparent' : c.hex,
+                              border: c.hex === 'transparent' ? '2px dashed #94a3b8' : undefined,
+                            }}
+                            onClick={() => updateSelectedIndicator({ bgColor: c.hex })}
+                            title={`Cor do Fundo: ${c.label}`}
+                          />
+                        ))}
+                        <div className="prop-color-input-wrapper" title="Personalizar cor de fundo">
+                          <input
+                            type="color"
+                            className="prop-color-native-input"
+                            value={selectedIndicator.bgColor && selectedIndicator.bgColor.startsWith('#') ? selectedIndicator.bgColor : '#0f172a'}
+                            onChange={(e) => updateSelectedIndicator({ bgColor: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+    
+                    {/* Cor Principal / Borda / Destaque */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Borda:</span>
+                      <div className="prop-color-swatches">
+                        {[
+                          { label: 'Vermelho', hex: '#ef4444' },
+                          { label: 'Amarelo', hex: '#f59e0b' },
+                          { label: 'Verde', hex: '#10b981' },
+                          { label: 'Azul', hex: '#3b82f6' },
+                          { label: 'Ciano', hex: '#06b6d4' },
+                          { label: 'Roxo', hex: '#a855f7' },
+                          { label: 'Branco', hex: '#ffffff' },
+                          { label: 'Preto', hex: '#000000' },
+                        ].map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            className={`prop-color-dot ${selectedIndicator.color === c.hex ? 'active' : ''}`}
+                            style={{ backgroundColor: c.hex }}
+                            onClick={() => updateSelectedIndicator({ color: c.hex })}
+                            title={c.label}
+                          />
+                        ))}
+                        <div className="prop-color-input-wrapper" title="Personalizar cor principal">
+                          <input
+                            type="color"
+                            className="prop-color-native-input"
+                            value={selectedIndicator.color && selectedIndicator.color.startsWith('#') ? selectedIndicator.color : '#ef4444'}
+                            onChange={(e) => updateSelectedIndicator({ color: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+    
+                    {/* Opacidade / Transparência */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Opacidade:</span>
+                      <div className="prop-btn-group">
+                        {[1.0, 0.75, 0.5, 0.25].map((op) => (
+                          <button
+                            key={op}
+                            type="button"
+                            className={`prop-btn-mini ${(selectedIndicator.opacity ?? 1.0) === op ? 'active' : ''}`}
+                            onClick={() => updateSelectedIndicator({ opacity: op })}
+                          >
+                            {Math.round(op * 100)}%
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+    
+                    {/* Brilho / Glow */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Brilho:</span>
+                      <div className="prop-btn-group">
+                        {[
+                          { id: 'none', label: 'Sem' },
+                          { id: 'soft', label: 'Suave' },
+                          { id: 'neon', label: 'Neon' },
+                        ].map((g) => (
+                          <button
+                            key={g.id}
+                            type="button"
+                            className={`prop-btn-mini ${(selectedIndicator.glow ?? 'none') === g.id ? 'active' : ''}`}
+                            onClick={() => updateSelectedIndicator({ glow: g.id as any })}
+                          >
+                            {g.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+    
+                    {/* Tamanho */}
+                    <div className="prop-bar-group">
+                      <span className="prop-group-title">Tam:</span>
+                      <div className="prop-btn-group">
+                        {(['sm', 'md', 'lg', 'xl'] as IndicatorSize[]).map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            className={`prop-btn-mini ${(selectedIndicator.size ?? 'md') === sz ? 'active' : ''}`}
+                            onClick={() => updateSelectedIndicator({ size: sz })}
+                          >
+                            {sz.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+    
+                    {/* Direção (se mãozinha ou seta) */}
+                    {(selectedIndicator.type === 'hand' || selectedIndicator.type === 'arrow') && (
+                      <div className="prop-bar-group">
+                        <span className="prop-group-title">Direção:</span>
+                        <div className="prop-btn-group">
+                          {[
+                            { dir: 'up', icon: '⬆️' },
+                            { dir: 'right', icon: '➡️' },
+                            { dir: 'down', icon: '⬇️' },
+                            { dir: 'left', icon: '⬅️' },
+                          ].map((d) => (
+                            <button
+                              key={d.dir}
+                              type="button"
+                              className={`prop-btn-mini ${selectedIndicator.direction === d.dir ? 'active' : ''}`}
+                              onClick={() => updateSelectedIndicator({ direction: d.dir as any })}
+                            >
+                              {d.icon}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+    
+                    {/* Estilo Vazado vs Preenchido */}
+                    {(selectedIndicator.type === 'rect' || selectedIndicator.type === 'circle') && (
+                      <div className="prop-bar-group">
+                        <span className="prop-group-title">Preenchimento:</span>
+                        <div className="prop-btn-group">
+                          <button
+                            type="button"
+                            className={`prop-btn-mini ${(selectedIndicator.fillMode ?? 'outline') === 'outline' ? 'active' : ''}`}
+                            onClick={() => updateSelectedIndicator({ fillMode: 'outline' })}
+                          >
+                            Vazado
+                          </button>
+                          <button
+                            type="button"
+                            className={`prop-btn-mini ${selectedIndicator.fillMode === 'filled' ? 'active' : ''}`}
+                            onClick={() => updateSelectedIndicator({ fillMode: 'filled' })}
+                          >
+                            Preenchido
+                          </button>
+                        </div>
+                      </div>
+                    )}
+    
+                    {/* Edição de Texto In-Place */}
+                    {(selectedIndicator.type === 'badge' ||
+                      selectedIndicator.type === 'text' ||
+                      selectedIndicator.type === 'dropdown') && (
+                      <div className="prop-bar-group" style={{ flex: 1, minWidth: '160px' }}>
+                        <input
+                          type="text"
+                          className="prop-text-input"
+                          value={selectedIndicator.label || ''}
+                          onChange={(e) => updateSelectedIndicator({ label: e.target.value })}
+                          placeholder="Texto do elemento..."
+                        />
+                      </div>
+                    )}
+    
+                    {/* Botão de Excluir Imediato */}
+                    <div className="prop-bar-actions">
+                      <button
+                        type="button"
+                        className="prop-btn-delete"
+                        onClick={() => removeIndicator(selectedIndicator.id)}
+                        title="Remover elemento da tela (ou tecle Delete)"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remover</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="prop-btn-close"
+                        onClick={() => setSelectedIndicatorId(null)}
+                        title="Fechar propriedades"
+                      >
+                        ✕
+                      </button>
+                    </div>
+    
+                    {/* Gerenciador de Opções do Menu Suspenso */}
+                    {selectedIndicator.type === 'dropdown' && (
+                      <div className="prop-dropdown-manager">
+                        <div className="prop-dropdown-manager-header">
+                          <span>Opções do Menu Suspenso ({selectedIndicator.dropdownOptions?.length || 0}):</span>
+                          <button
+                            type="button"
+                            className="btn-add-dropdown-opt"
+                            onClick={() => {
+                              const currentOpts = selectedIndicator.dropdownOptions || [];
+                              const newOpt = {
+                                id: `opt-${Date.now()}`,
+                                text: `Opção ${(currentOpts.length + 1).toString().padStart(2, '0')}`,
+                              };
+                              updateSelectedIndicator({ dropdownOptions: [...currentOpts, newOpt] });
+                            }}
+                          >
+                            <Plus size={11} /> Adicionar Opção
+                          </button>
+                        </div>
+                        <div className="prop-dropdown-options-list">
+                          {(selectedIndicator.dropdownOptions || []).map((opt, optIdx) => (
+                            <div key={opt.id} className="prop-dropdown-option-row">
+                              <input
+                                type="text"
+                                value={opt.text}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = (selectedIndicator.dropdownOptions || []).map((o, idx) =>
+                                    idx === optIdx ? { ...o, text: val } : o
+                                  );
+                                  updateSelectedIndicator({ dropdownOptions: updated });
+                                }}
+                                placeholder="Texto da opção..."
+                              />
+                              <button
+                                type="button"
+                                className="btn-remove-dropdown-opt"
+                                onClick={() => {
+                                  const updated = (selectedIndicator.dropdownOptions || []).filter((_, idx) => idx !== optIdx);
+                                  updateSelectedIndicator({ dropdownOptions: updated });
+                                }}
+                                title="Remover opção"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+    );
   };
 
   return (
@@ -2311,365 +3009,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </span>
             </div>
 
-            {/* ── BARRA FLUTUANTE DE PROPRIEDADES DO ELEMENTO SELECIONADO ── */}
-            {selectedIndicator && (
-              <div className="canva-element-property-bar no-print">
-                <div className="prop-bar-label">
-                  <span>
-                    Propriedades: <strong>{selectedIndicator.type.toUpperCase()}</strong>
-                  </span>
-                </div>
-
-                {/* ESCALA LIVRE: AUMENTAR / DIMINUIR QUALQUER RECURSO */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Escala:</span>
-                  <div className="prop-btn-group">
-                    <button
-                      type="button"
-                      className="prop-btn-mini"
-                      onClick={() => {
-                        const cur = selectedIndicator.scale ?? 1.0;
-                        updateSelectedIndicator({ scale: Math.max(0.3, Number((cur - 0.15).toFixed(2))) });
-                      }}
-                      title="Diminuir tamanho (-15%)"
-                    >
-                      -
-                    </button>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '0 4px', minWidth: '38px', textAlign: 'center' }}>
-                      {Math.round((selectedIndicator.scale ?? 1.0) * 100)}%
-                    </span>
-                    <button
-                      type="button"
-                      className="prop-btn-mini"
-                      onClick={() => {
-                        const cur = selectedIndicator.scale ?? 1.0;
-                        updateSelectedIndicator({ scale: Math.min(3.0, Number((cur + 0.15).toFixed(2))) });
-                      }}
-                      title="Aumentar tamanho (+15%)"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      className="prop-btn-mini"
-                      onClick={() => updateSelectedIndicator({ scale: 1.0 })}
-                      title="Resetar escala para 100%"
-                    >
-                      100%
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tipografia / Família de Fonte */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Fonte:</span>
-                  <select
-                    className="prop-font-select"
-                    value={selectedIndicator.fontFamily || 'Inter, sans-serif'}
-                    onChange={(e) => updateSelectedIndicator({ fontFamily: e.target.value })}
-                  >
-                    <option value="Inter, sans-serif">Inter (Moderno)</option>
-                    <option value="Outfit, sans-serif">Outfit (Tech)</option>
-                    <option value="Roboto, sans-serif">Roboto (Clássico)</option>
-                    <option value="'Playfair Display', serif">Playfair (Elegante)</option>
-                    <option value="'Fira Code', monospace">Fira Code (Mono)</option>
-                    <option value="'Bebas Neue', sans-serif">Bebas Neue (Manchete)</option>
-                    <option value="'Nunito', sans-serif">Nunito (Arredondado)</option>
-                  </select>
-                </div>
-
-                {/* Cor do Texto */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Texto:</span>
-                  <div className="prop-color-swatches">
-                    {[
-                      { label: 'Branco', hex: '#ffffff' },
-                      { label: 'Preto', hex: '#0f172a' },
-                      { label: 'Vermelho', hex: '#ef4444' },
-                      { label: 'Amarelo', hex: '#f59e0b' },
-                      { label: 'Verde', hex: '#10b981' },
-                      { label: 'Azul', hex: '#3b82f6' },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        className={`prop-color-dot ${selectedIndicator.textColor === c.hex ? 'active' : ''}`}
-                        style={{ backgroundColor: c.hex }}
-                        onClick={() => updateSelectedIndicator({ textColor: c.hex })}
-                        title={`Cor do Texto: ${c.label}`}
-                      />
-                    ))}
-                    <div className="prop-color-input-wrapper" title="Personalizar cor do texto">
-                      <input
-                        type="color"
-                        className="prop-color-native-input"
-                        value={selectedIndicator.textColor && selectedIndicator.textColor.startsWith('#') ? selectedIndicator.textColor : '#ffffff'}
-                        onChange={(e) => updateSelectedIndicator({ textColor: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cor do Fundo da Caixa */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Fundo:</span>
-                  <div className="prop-color-swatches">
-                    {[
-                      { label: 'Escuro', hex: '#0f172a' },
-                      { label: 'Preto', hex: '#000000' },
-                      { label: 'Branco', hex: '#ffffff' },
-                      { label: 'Vermelho', hex: '#ef4444' },
-                      { label: 'Azul', hex: '#3b82f6' },
-                      { label: 'Transparente', hex: 'transparent' },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        className={`prop-color-dot ${selectedIndicator.bgColor === c.hex ? 'active' : ''}`}
-                        style={{
-                          backgroundColor: c.hex === 'transparent' ? 'transparent' : c.hex,
-                          border: c.hex === 'transparent' ? '2px dashed #94a3b8' : undefined,
-                        }}
-                        onClick={() => updateSelectedIndicator({ bgColor: c.hex })}
-                        title={`Cor do Fundo: ${c.label}`}
-                      />
-                    ))}
-                    <div className="prop-color-input-wrapper" title="Personalizar cor de fundo">
-                      <input
-                        type="color"
-                        className="prop-color-native-input"
-                        value={selectedIndicator.bgColor && selectedIndicator.bgColor.startsWith('#') ? selectedIndicator.bgColor : '#0f172a'}
-                        onChange={(e) => updateSelectedIndicator({ bgColor: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cor Principal / Borda / Destaque */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Borda:</span>
-                  <div className="prop-color-swatches">
-                    {[
-                      { label: 'Vermelho', hex: '#ef4444' },
-                      { label: 'Amarelo', hex: '#f59e0b' },
-                      { label: 'Verde', hex: '#10b981' },
-                      { label: 'Azul', hex: '#3b82f6' },
-                      { label: 'Ciano', hex: '#06b6d4' },
-                      { label: 'Roxo', hex: '#a855f7' },
-                      { label: 'Branco', hex: '#ffffff' },
-                      { label: 'Preto', hex: '#000000' },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        className={`prop-color-dot ${selectedIndicator.color === c.hex ? 'active' : ''}`}
-                        style={{ backgroundColor: c.hex }}
-                        onClick={() => updateSelectedIndicator({ color: c.hex })}
-                        title={c.label}
-                      />
-                    ))}
-                    <div className="prop-color-input-wrapper" title="Personalizar cor principal">
-                      <input
-                        type="color"
-                        className="prop-color-native-input"
-                        value={selectedIndicator.color && selectedIndicator.color.startsWith('#') ? selectedIndicator.color : '#ef4444'}
-                        onChange={(e) => updateSelectedIndicator({ color: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Opacidade / Transparência */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Opacidade:</span>
-                  <div className="prop-btn-group">
-                    {[1.0, 0.75, 0.5, 0.25].map((op) => (
-                      <button
-                        key={op}
-                        type="button"
-                        className={`prop-btn-mini ${(selectedIndicator.opacity ?? 1.0) === op ? 'active' : ''}`}
-                        onClick={() => updateSelectedIndicator({ opacity: op })}
-                      >
-                        {Math.round(op * 100)}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Brilho / Glow */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Brilho:</span>
-                  <div className="prop-btn-group">
-                    {[
-                      { id: 'none', label: 'Sem' },
-                      { id: 'soft', label: 'Suave' },
-                      { id: 'neon', label: 'Neon' },
-                    ].map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        className={`prop-btn-mini ${(selectedIndicator.glow ?? 'none') === g.id ? 'active' : ''}`}
-                        onClick={() => updateSelectedIndicator({ glow: g.id as any })}
-                      >
-                        {g.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tamanho */}
-                <div className="prop-bar-group">
-                  <span className="prop-group-title">Tam:</span>
-                  <div className="prop-btn-group">
-                    {(['sm', 'md', 'lg', 'xl'] as IndicatorSize[]).map((sz) => (
-                      <button
-                        key={sz}
-                        type="button"
-                        className={`prop-btn-mini ${(selectedIndicator.size ?? 'md') === sz ? 'active' : ''}`}
-                        onClick={() => updateSelectedIndicator({ size: sz })}
-                      >
-                        {sz.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Direção (se mãozinha ou seta) */}
-                {(selectedIndicator.type === 'hand' || selectedIndicator.type === 'arrow') && (
-                  <div className="prop-bar-group">
-                    <span className="prop-group-title">Direção:</span>
-                    <div className="prop-btn-group">
-                      {[
-                        { dir: 'up', icon: '⬆️' },
-                        { dir: 'right', icon: '➡️' },
-                        { dir: 'down', icon: '⬇️' },
-                        { dir: 'left', icon: '⬅️' },
-                      ].map((d) => (
-                        <button
-                          key={d.dir}
-                          type="button"
-                          className={`prop-btn-mini ${selectedIndicator.direction === d.dir ? 'active' : ''}`}
-                          onClick={() => updateSelectedIndicator({ direction: d.dir as any })}
-                        >
-                          {d.icon}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Estilo Vazado vs Preenchido */}
-                {(selectedIndicator.type === 'rect' || selectedIndicator.type === 'circle') && (
-                  <div className="prop-bar-group">
-                    <span className="prop-group-title">Preenchimento:</span>
-                    <div className="prop-btn-group">
-                      <button
-                        type="button"
-                        className={`prop-btn-mini ${(selectedIndicator.fillMode ?? 'outline') === 'outline' ? 'active' : ''}`}
-                        onClick={() => updateSelectedIndicator({ fillMode: 'outline' })}
-                      >
-                        Vazado
-                      </button>
-                      <button
-                        type="button"
-                        className={`prop-btn-mini ${selectedIndicator.fillMode === 'filled' ? 'active' : ''}`}
-                        onClick={() => updateSelectedIndicator({ fillMode: 'filled' })}
-                      >
-                        Preenchido
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Edição de Texto In-Place */}
-                {(selectedIndicator.type === 'badge' ||
-                  selectedIndicator.type === 'text' ||
-                  selectedIndicator.type === 'dropdown') && (
-                  <div className="prop-bar-group" style={{ flex: 1, minWidth: '160px' }}>
-                    <input
-                      type="text"
-                      className="prop-text-input"
-                      value={selectedIndicator.label || ''}
-                      onChange={(e) => updateSelectedIndicator({ label: e.target.value })}
-                      placeholder="Texto do elemento..."
-                    />
-                  </div>
-                )}
-
-                {/* Botão de Excluir Imediato */}
-                <div className="prop-bar-actions">
-                  <button
-                    type="button"
-                    className="prop-btn-delete"
-                    onClick={() => removeIndicator(selectedIndicator.id)}
-                    title="Remover elemento da tela (ou tecle Delete)"
-                  >
-                    <Trash2 size={13} />
-                    <span>Remover</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="prop-btn-close"
-                    onClick={() => setSelectedIndicatorId(null)}
-                    title="Fechar propriedades"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Gerenciador de Opções do Menu Suspenso */}
-                {selectedIndicator.type === 'dropdown' && (
-                  <div className="prop-dropdown-manager">
-                    <div className="prop-dropdown-manager-header">
-                      <span>Opções do Menu Suspenso ({selectedIndicator.dropdownOptions?.length || 0}):</span>
-                      <button
-                        type="button"
-                        className="btn-add-dropdown-opt"
-                        onClick={() => {
-                          const currentOpts = selectedIndicator.dropdownOptions || [];
-                          const newOpt = {
-                            id: `opt-${Date.now()}`,
-                            text: `Opção ${(currentOpts.length + 1).toString().padStart(2, '0')}`,
-                          };
-                          updateSelectedIndicator({ dropdownOptions: [...currentOpts, newOpt] });
-                        }}
-                      >
-                        <Plus size={11} /> Adicionar Opção
-                      </button>
-                    </div>
-                    <div className="prop-dropdown-options-list">
-                      {(selectedIndicator.dropdownOptions || []).map((opt, optIdx) => (
-                        <div key={opt.id} className="prop-dropdown-option-row">
-                          <input
-                            type="text"
-                            value={opt.text}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const updated = (selectedIndicator.dropdownOptions || []).map((o, idx) =>
-                                idx === optIdx ? { ...o, text: val } : o
-                              );
-                              updateSelectedIndicator({ dropdownOptions: updated });
-                            }}
-                            placeholder="Texto da opção..."
-                          />
-                          <button
-                            type="button"
-                            className="btn-remove-dropdown-opt"
-                            onClick={() => {
-                              const updated = (selectedIndicator.dropdownOptions || []).filter((_, idx) => idx !== optIdx);
-                              updateSelectedIndicator({ dropdownOptions: updated });
-                            }}
-                            title="Remover opção"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {renderPropertyBar()}
 
             {/* Visual Canvas do Slide Ativo */}
             <div className="canva-slide-viewport">
@@ -2695,6 +3035,12 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               </button>
             </div>
           </div>
+
+          {selectedIndicator && (
+            <div style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
+              {renderPropertyBar()}
+            </div>
+          )}
 
           {renderPresentationManual(true)}
         </div>

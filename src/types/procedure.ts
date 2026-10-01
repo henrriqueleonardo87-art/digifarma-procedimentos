@@ -172,6 +172,20 @@ export interface ReviewFeedback {
   createdAt: string;
 }
 
+export interface ProcedureSignatures {
+  elaboratedByTitle?: string;
+  elaboratedByName?: string;
+  elaboratedByRole?: string;
+  reviewedByTitle?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string;
+  approvedByTitle?: string;
+  approvedByName?: string;
+  approvedByRole?: string;
+  companyName?: string;
+  slogan?: string;
+}
+
 export interface Procedure {
   id: string;
   title: string;
@@ -193,6 +207,7 @@ export interface Procedure {
   reviewedBy?: string;
   reviewedAt?: string;
   reviewFeedbacks?: ReviewFeedback[];
+  signatures?: ProcedureSignatures;
   isActive?: boolean;
   is_favorite?: boolean;
   created_at?: string;

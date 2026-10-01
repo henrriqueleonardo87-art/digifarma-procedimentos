@@ -967,29 +967,47 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           {/* Bloco Oficial de Assinaturas */}
           <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
             <div className="print-sign-col">
-              <span className="print-sign-title">ELABORADO POR</span>
+              <span className="print-sign-title">
+                {procedure.signatures?.elaboratedByTitle || 'ELABORADO POR'}
+              </span>
               <div className="print-sign-line" />
-              <span className="print-sign-name">Farmacêutico / Analista de Processos</span>
-              <span className="print-sign-role">Digifarma Sistemas</span>
+              <span className="print-sign-name">
+                {procedure.signatures?.elaboratedByName || procedure.author || 'Farmacêutico / Analista de Processos'}
+              </span>
+              <span className="print-sign-role">
+                {procedure.signatures?.elaboratedByRole || 'Digifarma Sistemas'}
+              </span>
             </div>
 
             <div className="print-sign-col">
-              <span className="print-sign-title">REVISADO POR</span>
+              <span className="print-sign-title">
+                {procedure.signatures?.reviewedByTitle || 'REVISADO POR'}
+              </span>
               <div className="print-sign-line" />
-              <span className="print-sign-name">Garantia da Qualidade (BPF)</span>
-              <span className="print-sign-role">Controle de Procedimentos</span>
+              <span className="print-sign-name">
+                {procedure.signatures?.reviewedByName || procedure.reviewedBy || 'Garantia da Qualidade (BPF)'}
+              </span>
+              <span className="print-sign-role">
+                {procedure.signatures?.reviewedByRole || 'Controle de Procedimentos'}
+              </span>
             </div>
 
             <div className="print-sign-col">
-              <span className="print-sign-title">APROVADO POR</span>
+              <span className="print-sign-title">
+                {procedure.signatures?.approvedByTitle || 'APROVADO POR'}
+              </span>
               <div className="print-sign-line" />
-              <span className="print-sign-name">Leonardo Henrique B. Trevas</span>
-              <span className="print-sign-role">Responsável Técnico / Gestor</span>
+              <span className="print-sign-name">
+                {procedure.signatures?.approvedByName || 'Leonardo Henrique B. Trevas'}
+              </span>
+              <span className="print-sign-role">
+                {procedure.signatures?.approvedByRole || 'Responsável Técnico / Gestor'}
+              </span>
             </div>
           </div>
 
           <div className="contact" style={{ marginTop: '48px' }}>
-            <b>Digifarma Sistemas LTDA</b> · Digitalmente <b style={{ color: 'var(--red)' }}>fácil</b>
+            <b>{procedure.signatures?.companyName || 'Digifarma Sistemas LTDA'}</b> · {procedure.signatures?.slogan || <>Digitalmente <b style={{ color: 'var(--red)' }}>fácil</b></>}
           </div>
         </div>
         {getSlideIndicators(stepBlocks.length + 3).map(renderIndicatorViewItem)}
