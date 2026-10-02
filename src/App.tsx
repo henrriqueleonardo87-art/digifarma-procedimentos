@@ -394,7 +394,7 @@ export function App() {
       )}
 
       {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "OLÁ, PESSOA" ── */}
-      <div className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isEditing ? 'is-editing-mode' : ''}`}>
         <Navbar
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -408,7 +408,7 @@ export function App() {
           }}
         />
 
-        <main className="main" id="main">
+        <main className={`main ${isEditing ? 'editing-main' : ''}`} id="main">
           {loading ? (
             <div className="empty-state">
               <Loader2 size={36} className="animate-spin" color="var(--primary-500)" />

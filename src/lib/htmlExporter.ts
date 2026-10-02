@@ -834,38 +834,48 @@ export function generateProcedureHtml(procedure: Procedure): string {
         <div class="logo">
           <span class="a">Digi</span><span class="b">farma</span>
         </div>
-        <div class="v10-badge">HOMOLOGAÇÃO TÉCNICA OFICIAL</div>
-        <h1 class="display" style="font-size:38px;">Controle de Qualidade &amp; BPF</h1>
-        <p class="lead">
-          Procedimento homologado e integrado à base de conhecimento do Digifarma ERP. Válido para auditorias de processos e treinamento de equipe.
-        </p>
+        ${!procedure.signatures?.hideBadge ? `<div class="v10-badge">${procedure.signatures?.badge || 'HOMOLOGAÇÃO TÉCNICA OFICIAL'}</div>` : ''}
+        ${!procedure.signatures?.hideTitle ? `<h1 class="display" style="font-size:38px;">${procedure.signatures?.title || 'Controle de Qualidade & BPF'}</h1>` : ''}
+        ${!procedure.signatures?.hideSubtitle ? `<p class="lead">${procedure.signatures?.subtitle || 'Procedimento homologado e integrado à base de conhecimento do Digifarma ERP. Válido para auditorias de processos e treinamento de equipe.'}</p>` : ''}
+        ${!procedure.signatures?.hideDate && procedure.signatures?.validationDate ? `<p class="lead" style="font-size:13px;color:#10b981;margin-top:4px;">${procedure.signatures.validationDate}</p>` : ''}
 
-        <div class="print-signatures-grid">
-          <div class="print-sign-col">
-            <span class="print-sign-title">ELABORADO POR</span>
-            <div class="print-sign-line"></div>
-            <span class="print-sign-name">${procedure.author || 'Analista de Processos'}</span>
-            <span class="print-sign-role">Digifarma Sistemas</span>
-          </div>
-
-          <div class="print-sign-col">
-            <span class="print-sign-title">REVISADO POR</span>
-            <div class="print-sign-line"></div>
-            <span class="print-sign-name">Garantia da Qualidade (BPF)</span>
-            <span class="print-sign-role">Controle de Procedimentos</span>
-          </div>
-
-          <div class="print-sign-col">
-            <span class="print-sign-title">APROVADO POR</span>
-            <div class="print-sign-line"></div>
-            <span class="print-sign-name">Leonardo Henrique B. Trevas</span>
-            <span class="print-sign-role">Responsável Técnico / Gestor</span>
-          </div>
+        <div class="print-signatures-grid" style="grid-template-columns: repeat(${procedure.signatures?.columns?.length || 3}, 1fr);">
+          ${(procedure.signatures?.columns && procedure.signatures.columns.length > 0
+            ? procedure.signatures.columns
+            : [
+                {
+                  id: 'col-1',
+                  title: procedure.signatures?.elaboratedByTitle || 'ELABORADO POR',
+                  name: procedure.signatures?.elaboratedByName || procedure.author || 'Analista de Processos',
+                  role: procedure.signatures?.elaboratedByRole || 'Digifarma Sistemas',
+                },
+                {
+                  id: 'col-2',
+                  title: procedure.signatures?.reviewedByTitle || 'REVISADO POR',
+                  name: procedure.signatures?.reviewedByName || procedure.reviewedBy || 'Garantia da Qualidade (BPF)',
+                  role: procedure.signatures?.reviewedByRole || 'Controle de Procedimentos',
+                },
+                {
+                  id: 'col-3',
+                  title: procedure.signatures?.approvedByTitle || 'APROVADO POR',
+                  name: procedure.signatures?.approvedByName || 'Leonardo Henrique B. Trevas',
+                  role: procedure.signatures?.approvedByRole || 'Responsável Técnico / Gestor',
+                },
+              ]
+          ).map(col => `
+            <div class="print-sign-col">
+              <span class="print-sign-title">${col.title}</span>
+              <div class="print-sign-line"></div>
+              <span class="print-sign-name">${col.name}</span>
+              <span class="print-sign-role">${col.role}</span>
+              ${col.date ? `<span class="print-sign-date" style="font-size:11px;color:#94a3b8;margin-top:4px;display:block;">${col.date}</span>` : ''}
+            </div>
+          `).join('')}
         </div>
       </div>
 
       <div style="font-size:13px;color:#94a3b8;margin-top:36px;">
-        Digifarma Sistemas LTDA · Digitalmente fácil
+        ${procedure.signatures?.companyName || 'Digifarma Sistemas LTDA'} · ${procedure.signatures?.slogan || 'Digitalmente fácil'}
       </div>
     </div>
   </section>

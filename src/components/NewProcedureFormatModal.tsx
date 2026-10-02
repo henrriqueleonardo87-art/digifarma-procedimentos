@@ -20,45 +20,46 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
   const versionName = targetVersion === 'classico' ? 'Digifarma Clássico' : 'Digifarma V10';
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop new-pop-backdrop" onClick={onClose}>
       <div
         className="format-selector-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
+          background: '#161a24',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
           borderRadius: '16px',
           width: '100%',
-          maxWidth: '820px',
-          padding: '2rem',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35)',
+          maxWidth: '680px',
+          padding: '1.4rem 1.6rem',
+          boxShadow: '0 25px 60px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06)',
           animation: 'modalFadeIn 0.2s ease',
+          color: '#f1f5f9',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.1rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span
                 style={{
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   fontWeight: 800,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
-                  padding: '3px 8px',
+                  padding: '2px 8px',
                   borderRadius: '6px',
-                  background: 'var(--bg-tertiary)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border)',
+                  background: '#222938',
+                  color: '#e2e8f0',
+                  border: '1px solid #334155',
                 }}
               >
                 {versionName}
               </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>• Novo Procedimento</span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>• Novo Procedimento</span>
             </div>
-            <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
               Escolha o Formato do Procedimento
             </h2>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '6px 0 0 0' }}>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
               Defina como você deseja estruturar e utilizar este manual operacional:
             </p>
           </div>
@@ -67,9 +68,9 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
             type="button"
             onClick={onClose}
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
+              background: '#222938',
+              border: '1px solid #334155',
+              color: '#94a3b8',
               cursor: 'pointer',
               padding: '6px',
               borderRadius: '8px',
@@ -79,21 +80,21 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
             }}
             title="Fechar"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Grade de 3 Cards de Formato */}
+        {/* Grade de 3 Cards Compactos de Formato */}
         <div className="format-cards-grid">
           {/* Card 1: HTML Interativo */}
           <div
             className="format-choice-card"
             onClick={() => onSelectFormat('html')}
             style={{
-              background: 'var(--bg-tertiary)',
-              border: '2px solid var(--border)',
-              borderRadius: '14px',
-              padding: '1.35rem 1.15rem',
+              background: '#1d2332',
+              border: '1.5px solid #2d374d',
+              borderRadius: '12px',
+              padding: '1rem 0.95rem',
               display: 'flex',
               flexDirection: 'column',
               cursor: 'pointer',
@@ -103,50 +104,50 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
           >
             <div
               style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                background: 'rgba(59, 130, 246, 0.12)',
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                background: 'rgba(59, 130, 246, 0.15)',
                 color: '#3b82f6',
                 display: 'grid',
                 placeItems: 'center',
-                marginBottom: '1rem',
+                marginBottom: '0.65rem',
               }}
             >
-              <Monitor size={22} />
+              <Monitor size={18} />
             </div>
 
             <span
               style={{
-                fontSize: '0.68rem',
+                fontSize: '0.64rem',
                 fontWeight: 800,
-                color: '#3b82f6',
+                color: '#60a5fa',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                marginBottom: '4px',
+                marginBottom: '2px',
               }}
             >
               Treinamento em Tela
             </span>
 
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 6px 0', color: '#ffffff' }}>
               HTML Interativo
             </h3>
 
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, flex: 1, margin: '0 0 16px 0' }}>
-              Roteiro dinâmico com navegação em tela, mãozinhas indicadoras, radar sonar, menus suspensos e exportação de arquivo HTML independente.
+            <p style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4, flex: 1, margin: '0 0 12px 0' }}>
+              Navegação interativa, mãozinhas indicadoras, radar sonar, menus suspensos e exportação HTML.
             </p>
 
             <button
               type="button"
               className="btn secondary sm"
-              style={{ width: '100%', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: '100%', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', padding: '6px 8px' }}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectFormat('html');
               }}
             >
-              <Sparkles size={13} />
+              <Sparkles size={12} />
               <span>Criar em HTML</span>
             </button>
           </div>
@@ -156,10 +157,10 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
             className="format-choice-card"
             onClick={() => onSelectFormat('pdf')}
             style={{
-              background: 'var(--bg-tertiary)',
-              border: '2px solid var(--border)',
-              borderRadius: '14px',
-              padding: '1.35rem 1.15rem',
+              background: '#1d2332',
+              border: '1.5px solid #2d374d',
+              borderRadius: '12px',
+              padding: '1rem 0.95rem',
               display: 'flex',
               flexDirection: 'column',
               cursor: 'pointer',
@@ -169,50 +170,50 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
           >
             <div
               style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                background: 'rgba(231, 76, 60, 0.12)',
-                color: 'var(--red)',
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
                 display: 'grid',
                 placeItems: 'center',
-                marginBottom: '1rem',
+                marginBottom: '0.65rem',
               }}
             >
-              <FileText size={22} />
+              <FileText size={18} />
             </div>
 
             <span
               style={{
-                fontSize: '0.68rem',
+                fontSize: '0.64rem',
                 fontWeight: 800,
-                color: 'var(--red)',
+                color: '#f87171',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                marginBottom: '4px',
+                marginBottom: '2px',
               }}
             >
               Impressão &amp; Homologação
             </span>
 
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 6px 0', color: '#ffffff' }}>
               PDF Oficial (A4)
             </h3>
 
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, flex: 1, margin: '0 0 16px 0' }}>
-              Layout moderno com design visual idêntico ao HTML, ajustado com precisão milimétrica em A4 Paisagem, sem páginas em branco e sem corte de textos.
+            <p style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4, flex: 1, margin: '0 0 12px 0' }}>
+              Design A4 Paisagem moderno full-bleed, sem páginas em branco e sem corte de textos.
             </p>
 
             <button
               type="button"
               className="btn secondary sm"
-              style={{ width: '100%', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: '100%', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', padding: '6px 8px' }}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectFormat('pdf');
               }}
             >
-              <Printer size={13} />
+              <Printer size={12} />
               <span>Criar em PDF</span>
             </button>
           </div>
@@ -222,28 +223,28 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
             className="format-choice-card featured"
             onClick={() => onSelectFormat('both')}
             style={{
-              background: 'var(--bg-tertiary)',
-              border: '2px solid var(--red)',
-              borderRadius: '14px',
-              padding: '1.35rem 1.15rem',
+              background: '#1d2332',
+              border: '1.5px solid var(--red)',
+              borderRadius: '12px',
+              padding: '1rem 0.95rem',
               display: 'flex',
               flexDirection: 'column',
               cursor: 'pointer',
               transition: 'all 0.18s ease',
               position: 'relative',
-              boxShadow: '0 4px 16px rgba(231, 76, 60, 0.15)',
+              boxShadow: '0 4px 16px rgba(239, 68, 68, 0.2)',
             }}
           >
             <div
               style={{
                 position: 'absolute',
-                top: '-10px',
-                right: '14px',
+                top: '-9px',
+                right: '12px',
                 background: 'var(--red)',
                 color: '#fff',
-                fontSize: '0.64rem',
+                fontSize: '0.6rem',
                 fontWeight: 800,
-                padding: '2px 8px',
+                padding: '2px 7px',
                 borderRadius: '999px',
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
@@ -254,57 +255,57 @@ export const NewProcedureFormatModal: React.FC<NewProcedureFormatModalProps> = (
 
             <div
               style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                background: 'rgba(16, 185, 129, 0.12)',
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                background: 'rgba(16, 185, 129, 0.15)',
                 color: '#10b981',
                 display: 'grid',
                 placeItems: 'center',
-                marginBottom: '1rem',
+                marginBottom: '0.65rem',
               }}
             >
-              <Layers size={22} />
+              <Layers size={18} />
             </div>
 
             <span
               style={{
-                fontSize: '0.68rem',
+                fontSize: '0.64rem',
                 fontWeight: 800,
-                color: '#10b981',
+                color: '#34d399',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                marginBottom: '4px',
+                marginBottom: '2px',
               }}
             >
               Versão Completa
             </span>
 
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 6px 0', color: '#ffffff' }}>
               Ambos (HTML + PDF)
             </h3>
 
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, flex: 1, margin: '0 0 16px 0' }}>
-              Manual completo e unificado: visualize com interatividade total em tela e gere impressões perfeitas em PDF moderno a qualquer momento.
+            <p style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4, flex: 1, margin: '0 0 12px 0' }}>
+              Interatividade total em tela e impressões perfeitas em PDF moderno para auditorias.
             </p>
 
             <button
               type="button"
               className="btn primary sm"
-              style={{ width: '100%', justifyContent: 'center', fontWeight: 800 }}
+              style={{ width: '100%', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', padding: '6px 8px' }}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectFormat('both');
               }}
             >
-              <CheckCircle2 size={13} />
+              <CheckCircle2 size={12} />
               <span>Criar Completo</span>
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-          <button type="button" className="btn secondary sm" onClick={onClose}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #2d374d', paddingTop: '0.85rem' }}>
+          <button type="button" className="btn secondary sm" style={{ fontSize: '0.78rem' }} onClick={onClose}>
             Cancelar
           </button>
         </div>

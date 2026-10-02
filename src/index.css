@@ -6332,6 +6332,62 @@ input[type="checkbox"]:focus-visible,
   color: #64748b;
 }
 
+/* Card de Procedimento Clean e Não Poluído */
+.proc-card-clean {
+  align-items: stretch !important;
+  text-align: left !important;
+  padding: 1.25rem 1.15rem 1.1rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.proc-clean-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.65rem;
+}
+
+.proc-clean-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.proc-reviewer-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.proc-reviewer-tag strong {
+  color: #34d399;
+}
+
+.image-card-subtitle-clean {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  margin: 0 0 14px 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .image-card-count-badge {
   font-size: 0.65rem;
   font-weight: 700;
@@ -8356,6 +8412,34 @@ input[type="checkbox"]:focus-visible,
 }
 
 /* ── 4. STUDIO CANVA: LAYOUT GERAL & TOPBAR ── */
+/* Quando estiver no Modo de Edição / Studio Canva: remove padding arbitrário e zera overflow */
+.editing-main,
+.app-content.is-editing-mode .main {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+}
+
+.app-content.is-editing-mode {
+  overflow: hidden !important;
+  max-width: calc(100% - 250px) !important;
+  min-width: 0 !important;
+}
+
+.app-content.sidebar-collapsed.is-editing-mode {
+  max-width: calc(100% - 72px) !important;
+}
+
+/* Sidebar deve ter z-index superior para NUNCA ser sobreposta pela tela de edição */
+.sidebar {
+  z-index: 65 !important;
+}
+
 .canva-studio-root {
   display: flex;
   flex-direction: column;
@@ -8363,6 +8447,11 @@ input[type="checkbox"]:focus-visible,
   background: var(--bg-primary);
   color: var(--text-primary);
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .canva-topbar {
@@ -8375,8 +8464,10 @@ input[type="checkbox"]:focus-visible,
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 25;
   backdrop-filter: blur(8px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .canva-topbar-left {
@@ -8860,12 +8951,12 @@ input[type="checkbox"]:focus-visible,
 
 .canva-slide-canvas {
   width: 100%;
-  max-width: 1100px;
-  min-height: 620px;
+  max-width: min(100%, 1020px);
+  min-height: 560px;
   border-radius: 12px;
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
   box-sizing: border-box;
-  padding: 44px 52px;
+  padding: 32px 36px;
   position: relative;
   transition: all 0.25s ease;
 }

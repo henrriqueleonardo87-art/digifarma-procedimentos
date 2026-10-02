@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
   MoreVertical,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -767,6 +768,21 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       )}
 
+      {/* Selo Oficial de Homologação e Responsável pela Liberação */}
+      {(procedure.status === 'aprovado' || !procedure.status) && (
+        <div className="homologation-status-bar no-print" style={{ margin: '12px auto 16px', maxWidth: '1120px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ShieldCheck size={20} color="#10b981" />
+            <span style={{ fontSize: '0.84rem', color: '#f1f5f9' }}>
+              Procedimento <strong>Homologado e Publicado</strong> oficialmente no repositório
+            </span>
+          </div>
+          <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: 700 }}>
+            ✓ Liberado por: <u>{procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}</u>
+          </span>
+        </div>
+      )}
+
       {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
       <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
@@ -785,7 +801,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </p>
 
           <div className="slogan muted">
-            Digitalmente <b>fácil</b> · Homologado ISO 9001 &amp; Boas Práticas Farmacêuticas
+            {procedure.signatures?.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas'}
           </div>
 
           {/* Faixa de Números / Estatísticas do Procedimento (Dinâmica & Customizável) */}
@@ -1109,55 +1125,70 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             </span>
           </div>
 
-          <p className="big">
-            Homologação Técnica &amp;<br />
-            <b>Controle de Qualidade</b>.
-          </p>
-
-          <p className="lead muted" style={{ maxWidth: '58ch' }}>
-            Procedimento Operacional Padrão aprovado segundo as diretrizes de Boas Práticas Farmacêuticas (RDC ANVISA) e normas de gestão da qualidade ISO 9001.
-          </p>
-
-          {/* Bloco Oficial de Assinaturas */}
-          <div className="print-signatures-grid" style={{ marginTop: '48px' }}>
-            <div className="print-sign-col">
-              <span className="print-sign-title">
-                {procedure.signatures?.elaboratedByTitle || 'ELABORADO POR'}
-              </span>
-              <div className="print-sign-line" />
-              <span className="print-sign-name">
-                {procedure.signatures?.elaboratedByName || procedure.author || 'Farmacêutico / Analista de Processos'}
-              </span>
-              <span className="print-sign-role">
-                {procedure.signatures?.elaboratedByRole || 'Digifarma Sistemas'}
-              </span>
+          {!procedure.signatures?.hideBadge && (
+            <div className="v10-badge" style={{ marginBottom: '12px', display: 'inline-block' }}>
+              {procedure.signatures?.badge || 'HOMOLOGAÇÃO OFICIAL'}
             </div>
+          )}
 
-            <div className="print-sign-col">
-              <span className="print-sign-title">
-                {procedure.signatures?.reviewedByTitle || 'REVISADO POR'}
-              </span>
-              <div className="print-sign-line" />
-              <span className="print-sign-name">
-                {procedure.signatures?.reviewedByName || procedure.reviewedBy || 'Garantia da Qualidade (BPF)'}
-              </span>
-              <span className="print-sign-role">
-                {procedure.signatures?.reviewedByRole || 'Controle de Procedimentos'}
-              </span>
-            </div>
+          {!procedure.signatures?.hideTitle && (
+            <h1 className="display" style={{ fontSize: '32px', marginBottom: '8px' }}>
+              {procedure.signatures?.title || 'Controle da Qualidade & BPF'}
+            </h1>
+          )}
 
-            <div className="print-sign-col">
-              <span className="print-sign-title">
-                {procedure.signatures?.approvedByTitle || 'APROVADO POR'}
-              </span>
-              <div className="print-sign-line" />
-              <span className="print-sign-name">
-                {procedure.signatures?.approvedByName || 'Leonardo Henrique B. Trevas'}
-              </span>
-              <span className="print-sign-role">
-                {procedure.signatures?.approvedByRole || 'Responsável Técnico / Gestor'}
-              </span>
-            </div>
+          {!procedure.signatures?.hideSubtitle && (
+            <p className="lead muted" style={{ maxWidth: '58ch' }}>
+              {procedure.signatures?.subtitle || 'Procedimento Operacional Padrão aprovado segundo as diretrizes de Boas Práticas Farmacêuticas (RDC ANVISA) e normas de gestão da qualidade ISO 9001.'}
+            </p>
+          )}
+
+          {!procedure.signatures?.hideDate && procedure.signatures?.validationDate && (
+            <p className="lead muted" style={{ fontSize: '0.82rem', marginTop: '6px', color: '#10b981' }}>
+              {procedure.signatures.validationDate}
+            </p>
+          )}
+
+          {/* Bloco Oficial de Assinaturas Dinâmico */}
+          <div
+            className="print-signatures-grid"
+            style={{
+              marginTop: '40px',
+              gridTemplateColumns: `repeat(${procedure.signatures?.columns?.length || 3}, 1fr)`
+            }}
+          >
+            {(procedure.signatures?.columns || [
+              {
+                id: 'col-1',
+                title: procedure.signatures?.elaboratedByTitle || 'ELABORADO POR',
+                name: procedure.signatures?.elaboratedByName || procedure.author || 'Farmacêutico / Analista de Processos',
+                role: procedure.signatures?.elaboratedByRole || 'Digifarma Sistemas',
+              },
+              {
+                id: 'col-2',
+                title: procedure.signatures?.reviewedByTitle || 'REVISADO POR',
+                name: procedure.signatures?.reviewedByName || procedure.reviewedBy || 'Garantia da Qualidade (BPF)',
+                role: procedure.signatures?.reviewedByRole || 'Controle de Procedimentos',
+              },
+              {
+                id: 'col-3',
+                title: procedure.signatures?.approvedByTitle || 'APROVADO POR',
+                name: procedure.signatures?.approvedByName || 'Leonardo Henrique B. Trevas',
+                role: procedure.signatures?.approvedByRole || 'Responsável Técnico / Gestor',
+              },
+            ]).map((col) => (
+              <div key={col.id} className="print-sign-col">
+                <span className="print-sign-title">{col.title}</span>
+                <div className="print-sign-line" />
+                <span className="print-sign-name">{col.name}</span>
+                <span className="print-sign-role">{col.role}</span>
+                {col.date && (
+                  <span className="print-sign-date" style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px', textAlign: 'center' }}>
+                    {col.date}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
 
           <div className="contact" style={{ marginTop: '48px' }}>

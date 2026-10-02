@@ -219,7 +219,20 @@ export interface ReviewFeedback {
   createdAt: string;
 }
 
+export interface SignatureColumn {
+  id: string;
+  title: string;
+  name: string;
+  role: string;
+  date?: string;
+}
+
 export interface ProcedureSignatures {
+  badge?: string;
+  title?: string;
+  subtitle?: string;
+  validationDate?: string;
+  columns?: SignatureColumn[];
   elaboratedByTitle?: string;
   elaboratedByName?: string;
   elaboratedByRole?: string;
@@ -231,6 +244,10 @@ export interface ProcedureSignatures {
   approvedByRole?: string;
   companyName?: string;
   slogan?: string;
+  hideBadge?: boolean;
+  hideTitle?: boolean;
+  hideSubtitle?: boolean;
+  hideDate?: boolean;
 }
 
 export type ProcedureFormat = 'html' | 'pdf' | 'both';

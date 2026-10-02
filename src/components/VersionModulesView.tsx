@@ -89,24 +89,39 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
 
   const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico';
 
-  // Filtra estritamente os MENUS criados em Configurações para esta versão
-  const versionMenus = useMemo(() => {
-    return (menus || []).filter((m) => {
-      const mVer = m.version || 'ambos';
-      if (mVer === 'ambos') return true;
-      if (version === 'v10') return mVer === 'v10';
-      return mVer === 'classico' || mVer === 'r78';
-    });
-  }, [menus, version]);
-
-  // Procedimentos da versão selecionada
+  // Procedimentos da versão selecionada (APENAS revisados e aprovados/publicados)
   const versionProcedures = useMemo(() => {
     return procedures.filter((p) => {
+      // Regra de ouro: só fica disponível para os usuários se for revisado e publicado
+      const isApproved = p.status === 'aprovado' || !p.status;
+      if (!isApproved) return false;
+
       const pVer = p.systemVersion || 'v10';
-      if (version === 'v10') return pVer === 'v10' || pVer === 'ambos';
-      return pVer === 'classico' || pVer === 'r78' || pVer === 'ambos';
+      if (version === 'v10') return pVer === 'v10';
+      return pVer === 'classico' || pVer === 'r78';
     });
   }, [procedures, version]);
+
+  // Menus da versão selecionada:
+  // Se for Clássico: SOMENTE menus cadastrados como 'classico'/'r78' OU menus que possuam procedimentos aprovados para o Clássico!
+  const versionMenus = useMemo(() => {
+    return (menus || []).filter((m) => {
+      const mVer = m.version;
+      if (version === 'v10') {
+        return mVer === 'v10' || mVer === 'ambos' || !mVer;
+      }
+      // Clássico
+      if (mVer === 'classico' || mVer === 'r78') return true;
+      // Se mVer for ambos ou indefinido, só mostra no Clássico se tiver procedimentos do clássico nele!
+      return versionProcedures.some((p) => {
+        const cat = (p.category || '').toLowerCase();
+        const mId = (p.menuId || '').toLowerCase();
+        const path = (p.systemPath || '').toLowerCase();
+        const target = m.label.toLowerCase();
+        return mId === m.id.toLowerCase() || cat === target || cat.includes(target) || path.includes(target);
+      });
+    });
+  }, [menus, version, versionProcedures]);
 
   // Módulo ativo atualmente selecionado (se houver)
   const activeMenu = useMemo(() => {
@@ -291,20 +306,26 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           {moduleProcedures
             .filter((proc) => !submenus.some((s) => (proc.submenuId || '').toLowerCase() === s.id.toLowerCase()))
             .map((proc) => {
+              const reviewerName = proc.reviewedBy || proc.author || 'Qualidade Digifarma';
               return (
                 <div
                   key={proc.id}
-                  className="image-card-item"
+                  className="image-card-item proc-card-clean"
                   onClick={() => onSelectProcedure(proc.id, false)}
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="image-card-icon-center">
-                    <ActiveIcon size={26} />
+                  <div className="proc-clean-top-bar">
+                    <div className="proc-clean-icon">
+                      <ActiveIcon size={20} />
+                    </div>
+                    <span className="proc-reviewer-tag">
+                      ✓ Liberado por: <strong>{reviewerName}</strong>
+                    </span>
                   </div>
                   <h3 className="image-card-title">{proc.title}</h3>
-                  <p className="image-card-subtitle">
-                    {proc.subtitle || 'Clique para abrir o roteiro passo a passo'}
+                  <p className="image-card-subtitle-clean">
+                    {proc.subtitle || 'Procedimento homologado e validado'}
                   </p>
 
                   <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
@@ -384,41 +405,49 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             Resultados da busca ({searchResults.length})
           </h2>
           <div className="image-cards-grid">
-            {searchResults.map((proc) => (
-              <div
-                key={proc.id}
-                className="image-card-item"
-                onClick={() => onSelectProcedure(proc.id, false)}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="image-card-icon-center">
-                  <FileText size={26} />
-                </div>
-                <h3 className="image-card-title">{proc.title}</h3>
-                <p className="image-card-subtitle">{proc.subtitle}</p>
+            {searchResults.map((proc) => {
+              const reviewerName = proc.reviewedBy || proc.author || 'Qualidade Digifarma';
+              return (
+                <div
+                  key={proc.id}
+                  className="image-card-item proc-card-clean"
+                  onClick={() => onSelectProcedure(proc.id, false)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="proc-clean-top-bar">
+                    <div className="proc-clean-icon">
+                      <FileText size={20} />
+                    </div>
+                    <span className="proc-reviewer-tag">
+                      ✓ Liberado por: <strong>{reviewerName}</strong>
+                    </span>
+                  </div>
+                  <h3 className="image-card-title">{proc.title}</h3>
+                  <p className="image-card-subtitle-clean">{proc.subtitle || 'Procedimento homologado e validado'}</p>
 
-                <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="btn-subcard-action"
-                    onClick={() => onSelectProcedure(proc.id, false)}
-                  >
-                    <BookOpen size={13} />
-                    <span>Abrir</span>
-                    <ChevronRight size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-subcard-print"
-                    onClick={() => onSelectProcedure(proc.id, true)}
-                  >
-                    <Printer size={13} />
-                    <span>PDF</span>
-                  </button>
+                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-subcard-action"
+                      onClick={() => onSelectProcedure(proc.id, false)}
+                    >
+                      <BookOpen size={13} />
+                      <span>Abrir</span>
+                      <ChevronRight size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-subcard-print"
+                      onClick={() => onSelectProcedure(proc.id, true)}
+                    >
+                      <Printer size={13} />
+                      <span>PDF</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (

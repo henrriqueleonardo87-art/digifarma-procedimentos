@@ -60,6 +60,7 @@ import type {
   IndicatorIconName,
   ProcedureStatus,
   ProcedureSignatures,
+  SignatureColumn,
   OperationalItem,
   ChecklistItem,
   SlideStatItem,
@@ -273,7 +274,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     savedDraft?.menuId || initialProcedure?.menuId || (menus[0]?.id || 'cadastros')
   );
   const [submenuId] = useState(initialProcedure?.submenuId || '');
-  const [author, setAuthor] = useState(
+  const [author] = useState(
     savedDraft?.author || initialProcedure?.author || currentUser?.name || currentUser?.username || 'Leonardo Trevas'
   );
 
@@ -410,6 +411,73 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     slogan: initialProcedure?.signatures?.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas',
   }));
 
+  // Metadados da Última Página de Homologação Oficial (Edição Total: Badge, Título, Subtítulo, Data e Visibilidade)
+  const [signaturesMeta, setSignaturesMeta] = useState(() => ({
+    badge: initialProcedure?.signatures?.badge || 'HOMOLOGAÇÃO OFICIAL',
+    title: initialProcedure?.signatures?.title || 'Controle da Qualidade & BPF',
+    subtitle: initialProcedure?.signatures?.subtitle || 'Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.',
+    validationDate: initialProcedure?.signatures?.validationDate || `Data de Homologação: ${new Date().toLocaleDateString('pt-BR')}`,
+    hideBadge: !!initialProcedure?.signatures?.hideBadge,
+    hideTitle: !!initialProcedure?.signatures?.hideTitle,
+    hideSubtitle: !!initialProcedure?.signatures?.hideSubtitle,
+    hideDate: !!initialProcedure?.signatures?.hideDate,
+  }));
+
+  // Colunas de Assinatura Dinâmicas (Adicionar, Excluir, Reordenar, Editar cargos e nomes)
+  const [signatureColumns, setSignatureColumns] = useState<SignatureColumn[]>(() => {
+    if (initialProcedure?.signatures?.columns && initialProcedure.signatures.columns.length > 0) {
+      return initialProcedure.signatures.columns;
+    }
+    return [
+      {
+        id: 'sig-col-1',
+        title: initialProcedure?.signatures?.elaboratedByTitle || 'ELABORADO POR',
+        name: initialProcedure?.signatures?.elaboratedByName || initialProcedure?.author || author || 'Leonardo Henrique B. Trevas',
+        role: initialProcedure?.signatures?.elaboratedByRole || 'Digifarma Sistemas',
+        date: new Date().toLocaleDateString('pt-BR'),
+      },
+      {
+        id: 'sig-col-2',
+        title: initialProcedure?.signatures?.reviewedByTitle || 'REVISADO POR',
+        name: initialProcedure?.signatures?.reviewedByName || 'Garantia da Qualidade (BPF)',
+        role: initialProcedure?.signatures?.reviewedByRole || 'Controle de Procedimentos',
+        date: new Date().toLocaleDateString('pt-BR'),
+      },
+      {
+        id: 'sig-col-3',
+        title: initialProcedure?.signatures?.approvedByTitle || 'APROVADO POR',
+        name: initialProcedure?.signatures?.approvedByName || 'Leonardo Henrique B. Trevas',
+        role: initialProcedure?.signatures?.approvedByRole || 'Responsável Técnico / Gestor',
+        date: new Date().toLocaleDateString('pt-BR'),
+      },
+    ];
+  });
+
+  // Reordenação e Visibilidade dos Elementos da Capa Editorial
+  const [coverOrder, setCoverOrder] = useState<string[]>(['badge', 'title', 'subtitle', 'slogan', 'stats']);
+  const [coverMeta, setCoverMeta] = useState(() => ({
+    badge: systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO',
+    hideBadge: false,
+    hideTitle: false,
+    hideSubtitle: false,
+    hideSlogan: false,
+    hideStats: false,
+  }));
+
+  // Sistema Universal de Estilização de Textos Ativos
+  const [activeTextTarget, setActiveTextTarget] = useState<string | null>(null);
+  const [textStyles, setTextStyles] = useState<{ [targetId: string]: React.CSSProperties }>({});
+
+  const moveCoverElement = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= coverOrder.length) return;
+    const nextOrder = [...coverOrder];
+    const temp = nextOrder[index];
+    nextOrder[index] = nextOrder[targetIndex];
+    nextOrder[targetIndex] = temp;
+    setCoverOrder(nextOrder);
+  };
+
   const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(initializeSlides);
 
   // Slide Ativo no Modo Canva (0..N-1)
@@ -431,6 +499,11 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           coverStats,
           checklistItems,
           signatures,
+          signaturesMeta,
+          signatureColumns,
+          coverOrder,
+          coverMeta,
+          textStyles,
           slidesConfig,
           savedAt: new Date().toISOString(),
         };
@@ -440,7 +513,26 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [title, subtitle, systemVersion, menuId, author, steps, images, callouts, coverStats, checklistItems, signatures, slidesConfig, draftStorageKey]);
+  }, [
+    title,
+    subtitle,
+    systemVersion,
+    menuId,
+    author,
+    steps,
+    images,
+    callouts,
+    coverStats,
+    checklistItems,
+    signatures,
+    signaturesMeta,
+    signatureColumns,
+    coverOrder,
+    coverMeta,
+    textStyles,
+    slidesConfig,
+    draftStorageKey,
+  ]);
 
   const handleDiscardDraft = () => {
     try {
@@ -691,6 +783,109 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     showToast('Elemento removido.');
   };
 
+  const updateIndicatorField = (indId: string, updates: Partial<SlideIndicator>, slideIdx?: number) => {
+    const targetIdx = typeof slideIdx === 'number' ? slideIdx : safeActiveSlideIndex;
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === targetIdx
+          ? {
+              ...slide,
+              indicators: (slide.indicators || []).map((ind) =>
+                ind.id === indId ? { ...ind, ...updates } : ind
+              ),
+            }
+          : slide
+      )
+    );
+  };
+
+  const updateActiveStyle = (styleUpdates: {
+    fontFamily?: string;
+    isBold?: boolean;
+    isItalic?: boolean;
+    isUnderline?: boolean;
+    textAlign?: 'left' | 'center' | 'right';
+    textColor?: string;
+    bgColor?: string;
+    borderColor?: string;
+    scaleDelta?: number;
+  }) => {
+    // 1. Se houver um indicador visual selecionado, aplica nele
+    if (selectedIndicatorId) {
+      const cur = (slidesConfig[safeActiveSlideIndex]?.indicators || []).find((i) => i.id === selectedIndicatorId);
+      if (cur) {
+        const updates: Partial<SlideIndicator> = {};
+        if (styleUpdates.fontFamily !== undefined) updates.fontFamily = styleUpdates.fontFamily;
+        if (styleUpdates.isBold !== undefined) updates.isBold = styleUpdates.isBold;
+        if (styleUpdates.isItalic !== undefined) updates.isItalic = styleUpdates.isItalic;
+        if (styleUpdates.isUnderline !== undefined) updates.isUnderline = styleUpdates.isUnderline;
+        if (styleUpdates.textAlign !== undefined) updates.textAlign = styleUpdates.textAlign;
+        if (styleUpdates.textColor !== undefined) updates.textColor = styleUpdates.textColor;
+        if (styleUpdates.bgColor !== undefined) updates.bgColor = styleUpdates.bgColor;
+        if (styleUpdates.borderColor !== undefined) updates.color = styleUpdates.borderColor;
+        if (styleUpdates.scaleDelta !== undefined) {
+          const curScale = cur.scale ?? 1.0;
+          updates.scale = Math.max(0.3, Math.min(3.0, Number((curScale + styleUpdates.scaleDelta).toFixed(2))));
+        }
+        updateSelectedIndicator(updates);
+      }
+    }
+
+    // 2. Se houver um campo de texto ativo (Capa, Homologação, Título de Etapa, etc.)
+    if (activeTextTarget) {
+      setTextStyles((prev) => {
+        const current = prev[activeTextTarget] || {};
+        const next: React.CSSProperties = { ...current };
+
+        if (styleUpdates.fontFamily !== undefined) next.fontFamily = styleUpdates.fontFamily;
+        if (styleUpdates.isBold !== undefined) next.fontWeight = styleUpdates.isBold ? 800 : 400;
+        if (styleUpdates.isItalic !== undefined) next.fontStyle = styleUpdates.isItalic ? 'italic' : 'normal';
+        if (styleUpdates.isUnderline !== undefined) next.textDecoration = styleUpdates.isUnderline ? 'underline' : 'none';
+        if (styleUpdates.textAlign !== undefined) next.textAlign = styleUpdates.textAlign;
+        if (styleUpdates.textColor !== undefined) next.color = styleUpdates.textColor;
+        if (styleUpdates.bgColor !== undefined) next.backgroundColor = styleUpdates.bgColor;
+        if (styleUpdates.scaleDelta !== undefined) {
+          const curSize = parseFloat(String(current.fontSize || '16'));
+          const newSize = Math.max(10, Math.min(64, curSize + (styleUpdates.scaleDelta > 0 ? 2 : -2)));
+          next.fontSize = `${newSize}px`;
+        }
+        return { ...prev, [activeTextTarget]: next };
+      });
+    }
+  };
+
+  const addTextBox = () => {
+    const newTextIndicator: SlideIndicator = {
+      id: `txt-${Date.now()}`,
+      type: 'text',
+      x: 50,
+      y: 50,
+      label: 'Novo Texto Editável...',
+      color: '#38bdf8',
+      bgColor: 'rgba(15, 23, 42, 0.92)',
+      textColor: '#ffffff',
+      fontFamily: 'Inter, sans-serif',
+      isBold: false,
+      textAlign: 'left',
+      size: 'md',
+      scale: 1.0,
+    };
+
+    setSlidesConfig((prev) =>
+      prev.map((slide, idx) =>
+        idx === safeActiveSlideIndex
+          ? {
+              ...slide,
+              indicators: [...(slide.indicators || []), newTextIndicator],
+            }
+          : slide
+      )
+    );
+    setSelectedIndicatorId(newTextIndicator.id);
+    setActiveTextTarget(`ind-txt-${newTextIndicator.id}`);
+    showToast('Caixa de texto adicionada! Digite e formate livremente.');
+  };
+
   // Mãozinhas
   const addPointingHand = (direction: IndicatorDirection = 'up', color: string = '#ef4444') => {
     const newId = `hand-${Date.now()}`;
@@ -793,27 +988,6 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     );
   };
 
-  // Caixa de Texto Livre
-  const addTextBox = (label = 'Instrução do Campo...', textColor = '#ffffff') => {
-    const newId = `text-${Date.now()}`;
-    pushIndicator(
-      {
-        id: newId,
-        type: 'text',
-        label,
-        color: '#ef4444',
-        textColor,
-        bgColor: 'rgba(15, 23, 42, 0.88)',
-        fontFamily: 'Inter, sans-serif',
-        x: 50,
-        y: 45,
-        size: 'md',
-        glow: 'soft',
-        scale: 1.0,
-      },
-      'Caixa de texto criada! Altere fonte e cores na barra acima.'
-    );
-  };
 
   // Ícones Especiais
   const addIcon = (iconName: IndicatorIconName = 'alert', color = '#ef4444') => {
@@ -1167,7 +1341,27 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico', systemCategory, 'BPF'],
       blocks,
       slidesConfig,
-      signatures,
+      signatures: {
+        ...signatures,
+        badge: signaturesMeta.badge,
+        title: signaturesMeta.title,
+        subtitle: signaturesMeta.subtitle,
+        validationDate: signaturesMeta.validationDate,
+        hideBadge: signaturesMeta.hideBadge,
+        hideTitle: signaturesMeta.hideTitle,
+        hideSubtitle: signaturesMeta.hideSubtitle,
+        hideDate: signaturesMeta.hideDate,
+        columns: signatureColumns,
+        elaboratedByTitle: signatureColumns[0]?.title || signatures.elaboratedByTitle,
+        elaboratedByName: signatureColumns[0]?.name || signatures.elaboratedByName,
+        elaboratedByRole: signatureColumns[0]?.role || signatures.elaboratedByRole,
+        reviewedByTitle: signatureColumns[1]?.title || signatures.reviewedByTitle,
+        reviewedByName: signatureColumns[1]?.name || signatures.reviewedByName,
+        reviewedByRole: signatureColumns[1]?.role || signatures.reviewedByRole,
+        approvedByTitle: signatureColumns[2]?.title || signatures.approvedByTitle,
+        approvedByName: signatureColumns[2]?.name || signatures.approvedByName,
+        approvedByRole: signatureColumns[2]?.role || signatures.approvedByRole,
+      },
       coverStats,
       checklistItems,
       created_at: initialProcedure?.created_at || nowIso,
@@ -1413,18 +1607,56 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             color: ind.textColor || ind.color || '#ffffff',
             border: `1.5px solid ${color}`,
             fontFamily: ind.fontFamily || 'inherit',
+            fontWeight: ind.isBold ? 800 : 700,
+            fontStyle: ind.isItalic ? 'italic' : 'normal',
+            textDecoration: ind.isUnderline ? 'underline' : 'none',
+            textAlign: ind.textAlign || 'left',
             borderRadius: '6px',
             padding: '4px 10px',
             fontSize: size === 'sm' ? '0.75rem' : size === 'lg' ? '1.05rem' : size === 'xl' ? '1.25rem' : '0.86rem',
-            fontWeight: 700,
             opacity,
             boxShadow: glowStyle || '0 4px 12px rgba(0,0,0,0.5)',
-            maxWidth: '280px',
+            minWidth: '120px',
+            maxWidth: '360px',
             whiteSpace: 'pre-wrap',
             lineHeight: 1.3,
+            cursor: isInteractive ? 'text' : 'default',
+          }}
+          onClick={(e) => {
+            if (isInteractive) {
+              e.stopPropagation();
+              setSelectedIndicatorId(ind.id);
+              setActiveTextTarget(`ind-txt-${ind.id}`);
+            }
           }}
         >
-          {ind.label || 'Texto Informativo'}
+          {isInteractive ? (
+            <textarea
+              className="canva-inline-txt-input"
+              value={ind.label || ''}
+              onChange={(e) => updateIndicatorField(ind.id, { label: e.target.value }, slideIdx)}
+              placeholder="Digite o texto..."
+              rows={Math.max(1, (ind.label || '').split('\n').length)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                resize: 'none',
+                color: 'inherit',
+                fontFamily: 'inherit',
+                fontWeight: 'inherit',
+                fontStyle: 'inherit',
+                textDecoration: 'inherit',
+                textAlign: 'inherit',
+                fontSize: 'inherit',
+                padding: 0,
+                margin: 0,
+              }}
+            />
+          ) : (
+            ind.label || 'Texto Informativo'
+          )}
         </div>
       );
     } else if (ind.type === 'badge') {
@@ -1630,155 +1862,478 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <span className="b">farma</span>
             </div>
 
-            {isInteractive ? (
-              <div
-                className="v10-badge"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSystemVersion(systemVersion === 'v10' ? 'classico' : 'v10');
-                }}
-                title="Clique para alternar versão (Digifarma V10 / Digifarma Clássico)"
-                style={{ cursor: 'pointer', userSelect: 'none' }}
-              >
-                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
+            {/* Barra de Restauração de Elementos da Capa */}
+            {isInteractive && (coverMeta.hideBadge || coverMeta.hideTitle || coverMeta.hideSubtitle || coverMeta.hideSlogan || coverMeta.hideStats) && (
+              <div className="canva-restore-pill-bar no-print" style={{ marginBottom: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Restaurar na Capa:</span>
+                {coverMeta.hideBadge && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setCoverMeta(prev => ({ ...prev, hideBadge: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Badge Versão
+                  </button>
+                )}
+                {coverMeta.hideTitle && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setCoverMeta(prev => ({ ...prev, hideTitle: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Título Principal
+                  </button>
+                )}
+                {coverMeta.hideSubtitle && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setCoverMeta(prev => ({ ...prev, hideSubtitle: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Subtítulo / Resumo
+                  </button>
+                )}
+                {coverMeta.hideSlogan && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setCoverMeta(prev => ({ ...prev, hideSlogan: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Slogan / BPF
+                  </button>
+                )}
+                {coverMeta.hideStats && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setCoverMeta(prev => ({ ...prev, hideStats: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Métricas / Estatísticas
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="v10-badge">
-                {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
-              </div>
             )}
 
-            {isInteractive ? (
-              <input
-                type="text"
-                className="canva-inline-display-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Título Principal do Manual..."
-              />
-            ) : (
-              <h1 className="display">{title}</h1>
-            )}
-
-            {isInteractive ? (
-              <textarea
-                className="canva-inline-lead-input"
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="Subtítulo ou resumo operacional da rotina..."
-                rows={2}
-              />
-            ) : (
-              <p className="lead">{subtitle}</p>
-            )}
-
-            {isInteractive ? (
-              <input
-                type="text"
-                className="canva-inline-fitem-input"
-                style={{ width: '100%', marginTop: '8px', fontSize: '0.82rem', color: '#94a3b8' }}
-                value={signatures.slogan || ''}
-                onChange={(e) => setSignatures((prev) => ({ ...prev, slogan: e.target.value }))}
-                placeholder="Slogan / Certificação BPF (Ex: Digitalmente fácil · Homologado ISO 9001)..."
-              />
-            ) : (
-              <div className="slogan muted" style={{ marginTop: '8px' }}>
-                {signatures.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas'}
-              </div>
-            )}
-
-            {/* Estatísticas da Capa Customizáveis e Editáveis */}
-            <div className="stats" style={{ marginTop: '28px' }}>
-              {coverStats.map((st, sIndex) => (
-                <div key={st.id} className="stat canva-stat-card-editable">
-                  {isInteractive && (
-                    <button
-                      type="button"
-                      className="item-delete-btn no-print"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCoverStats((prev) => prev.filter((_, i) => i !== sIndex));
-                      }}
-                      title="Excluir este bloco de estatística"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <div className="stat-inputs-row">
+            {/* Renderização Ordenada e Reconfigurável dos Elementos da Capa */}
+            {coverOrder.map((sectionKey, pos) => {
+              if (sectionKey === 'badge' && !coverMeta.hideBadge) {
+                return (
+                  <div key="cover-badge" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
                     {isInteractive ? (
-                      <>
-                        <input
-                          type="text"
-                          className="stat-num-input"
-                          value={st.number}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCoverStats((prev) =>
-                              prev.map((item, i) => (i === sIndex ? { ...item, number: val } : item))
-                            );
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div
+                          className="v10-badge"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSystemVersion(systemVersion === 'v10' ? 'classico' : 'v10');
                           }}
-                          placeholder="100"
-                        />
-                        <input
-                          type="text"
-                          className="stat-unit-input"
-                          value={st.unit || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCoverStats((prev) =>
-                              prev.map((item, i) => (i === sIndex ? { ...item, unit: val } : item))
-                            );
-                          }}
-                          placeholder="%"
-                        />
-                      </>
+                          title="Clique para alternar versão (Digifarma V10 / Digifarma Clássico)"
+                          style={{ cursor: 'pointer', userSelect: 'none', ...textStyles['cover-badge'] }}
+                        >
+                          {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
+                        </div>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === 0}
+                          onClick={() => moveCoverElement(pos, 'up')}
+                          title="Mover para cima"
+                          style={{ opacity: pos === 0 ? 0.3 : 1 }}
+                        >
+                          <ArrowUp size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === coverOrder.length - 1}
+                          onClick={() => moveCoverElement(pos, 'down')}
+                          title="Mover para baixo"
+                          style={{ opacity: pos === coverOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          <ArrowDown size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger no-print"
+                          title="Excluir badge da capa"
+                          onClick={() => setCoverMeta(prev => ({ ...prev, hideBadge: true }))}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     ) : (
-                      <div className="n">
-                        {st.number}
-                        {st.unit ? <small>{st.unit}</small> : null}
+                      <div className="v10-badge" style={textStyles['cover-badge']}>
+                        {systemVersion === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}
                       </div>
                     )}
                   </div>
-                  {isInteractive ? (
-                    <input
-                      type="text"
-                      className="stat-label-input"
-                      value={st.label}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCoverStats((prev) =>
-                          prev.map((item, i) => (i === sIndex ? { ...item, label: val } : item))
-                        );
-                      }}
-                      placeholder="Descrição da métrica..."
-                    />
-                  ) : (
-                    <div className="l">{st.label}</div>
-                  )}
-                </div>
-              ))}
-            </div>
+                );
+              }
 
-            {isInteractive && (
-              <button
-                type="button"
-                className="btn-add-stat-mini no-print"
-                onClick={() =>
-                  setCoverStats((prev) => [
-                    ...prev,
-                    {
-                      id: `stat-${Date.now()}`,
-                      number: '1',
-                      unit: 'x',
-                      label: 'Nova Métrica / Indicador',
-                    },
-                  ])
-                }
-              >
-                <Plus size={13} />
-                <span>Adicionar Métrica / Estatística</span>
-              </button>
-            )}
+              if (sectionKey === 'title' && !coverMeta.hideTitle) {
+                return (
+                  <div key="cover-title" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
+                    {isInteractive ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          className="canva-inline-display-input"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          onFocus={() => setActiveTextTarget('cover-title')}
+                          style={{ flex: 1, ...textStyles['cover-title'] }}
+                          placeholder="Título Principal do Manual..."
+                        />
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          title="Diminuir fonte (A-)"
+                          onClick={() => updateActiveStyle({ scaleDelta: -2 })}
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          title="Aumentar fonte (A+)"
+                          onClick={() => updateActiveStyle({ scaleDelta: 2 })}
+                        >
+                          <Plus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === 0}
+                          onClick={() => moveCoverElement(pos, 'up')}
+                          title="Mover para cima"
+                          style={{ opacity: pos === 0 ? 0.3 : 1 }}
+                        >
+                          <ArrowUp size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === coverOrder.length - 1}
+                          onClick={() => moveCoverElement(pos, 'down')}
+                          title="Mover para baixo"
+                          style={{ opacity: pos === coverOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          <ArrowDown size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger no-print"
+                          title="Excluir título da capa"
+                          onClick={() => setCoverMeta(prev => ({ ...prev, hideTitle: true }))}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <h1 className="display" style={textStyles['cover-title']}>{title}</h1>
+                    )}
+                  </div>
+                );
+              }
+
+              if (sectionKey === 'subtitle' && !coverMeta.hideSubtitle) {
+                return (
+                  <div key="cover-subtitle" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
+                    {isInteractive ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <textarea
+                          className="canva-inline-lead-input"
+                          value={subtitle}
+                          onChange={(e) => setSubtitle(e.target.value)}
+                          onFocus={() => setActiveTextTarget('cover-subtitle')}
+                          style={{ flex: 1, ...textStyles['cover-subtitle'] }}
+                          placeholder="Subtítulo ou resumo operacional da rotina..."
+                          rows={2}
+                        />
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          title="Diminuir fonte (A-)"
+                          onClick={() => updateActiveStyle({ scaleDelta: -2 })}
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          title="Aumentar fonte (A+)"
+                          onClick={() => updateActiveStyle({ scaleDelta: 2 })}
+                        >
+                          <Plus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === 0}
+                          onClick={() => moveCoverElement(pos, 'up')}
+                          title="Mover para cima"
+                          style={{ opacity: pos === 0 ? 0.3 : 1 }}
+                        >
+                          <ArrowUp size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === coverOrder.length - 1}
+                          onClick={() => moveCoverElement(pos, 'down')}
+                          title="Mover para baixo"
+                          style={{ opacity: pos === coverOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          <ArrowDown size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger no-print"
+                          title="Excluir subtítulo da capa"
+                          onClick={() => setCoverMeta(prev => ({ ...prev, hideSubtitle: true }))}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="lead" style={textStyles['cover-subtitle']}>{subtitle}</p>
+                    )}
+                  </div>
+                );
+              }
+
+              if (sectionKey === 'slogan' && !coverMeta.hideSlogan) {
+                return (
+                  <div key="cover-slogan" className="cover-section-item" style={{ position: 'relative', marginTop: '8px' }}>
+                    {isInteractive ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          className="canva-inline-fitem-input"
+                          style={{ flex: 1, fontSize: '0.82rem', color: '#94a3b8', ...textStyles['cover-slogan'] }}
+                          value={signatures.slogan || ''}
+                          onChange={(e) => setSignatures((prev) => ({ ...prev, slogan: e.target.value }))}
+                          onFocus={() => setActiveTextTarget('cover-slogan')}
+                          placeholder="Slogan / Certificação BPF (Ex: Digitalmente fácil · Homologado ISO 9001)..."
+                        />
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === 0}
+                          onClick={() => moveCoverElement(pos, 'up')}
+                          title="Mover para cima"
+                          style={{ opacity: pos === 0 ? 0.3 : 1 }}
+                        >
+                          <ArrowUp size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === coverOrder.length - 1}
+                          onClick={() => moveCoverElement(pos, 'down')}
+                          title="Mover para baixo"
+                          style={{ opacity: pos === coverOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          <ArrowDown size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger no-print"
+                          title="Excluir slogan da capa"
+                          onClick={() => setCoverMeta(prev => ({ ...prev, hideSlogan: true }))}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="slogan muted" style={{ marginTop: '8px', ...textStyles['cover-slogan'] }}>
+                        {signatures.slogan || 'Digitalmente fácil · Homologado ISO 9001 & Boas Práticas Farmacêuticas'}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (sectionKey === 'stats' && !coverMeta.hideStats) {
+                return (
+                  <div key="cover-stats" className="cover-section-item" style={{ position: 'relative', marginTop: '24px' }}>
+                    {isInteractive && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700 }}>Bloco de Métricas:</span>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === 0}
+                          onClick={() => moveCoverElement(pos, 'up')}
+                          title="Mover para cima"
+                          style={{ opacity: pos === 0 ? 0.3 : 1 }}
+                        >
+                          <ArrowUp size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn no-print"
+                          disabled={pos === coverOrder.length - 1}
+                          onClick={() => moveCoverElement(pos, 'down')}
+                          title="Mover para baixo"
+                          style={{ opacity: pos === coverOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          <ArrowDown size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger no-print"
+                          title="Excluir bloco de métricas"
+                          onClick={() => setCoverMeta(prev => ({ ...prev, hideStats: true }))}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="stats">
+                      {coverStats.map((st, sIndex) => (
+                        <div key={st.id} className="stat canva-stat-card-editable" style={{ position: 'relative' }}>
+                          {isInteractive && (
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '2px', zIndex: 10 }}>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                disabled={sIndex === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (sIndex > 0) {
+                                    const updated = [...coverStats];
+                                    const temp = updated[sIndex];
+                                    updated[sIndex] = updated[sIndex - 1];
+                                    updated[sIndex - 1] = temp;
+                                    setCoverStats(updated);
+                                  }
+                                }}
+                                title="Mover para a esquerda"
+                                style={{ opacity: sIndex === 0 ? 0.3 : 1 }}
+                              >
+                                ←
+                              </button>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                disabled={sIndex === coverStats.length - 1}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (sIndex < coverStats.length - 1) {
+                                    const updated = [...coverStats];
+                                    const temp = updated[sIndex];
+                                    updated[sIndex] = updated[sIndex + 1];
+                                    updated[sIndex + 1] = temp;
+                                    setCoverStats(updated);
+                                  }
+                                }}
+                                title="Mover para a direita"
+                                style={{ opacity: sIndex === coverStats.length - 1 ? 0.3 : 1 }}
+                              >
+                                →
+                              </button>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCoverStats((prev) => prev.filter((_, i) => i !== sIndex));
+                                }}
+                                title="Excluir este bloco de estatística"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                          <div className="stat-inputs-row">
+                            {isInteractive ? (
+                              <>
+                                <input
+                                  type="text"
+                                  className="stat-num-input"
+                                  value={st.number}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCoverStats((prev) =>
+                                      prev.map((item, i) => (i === sIndex ? { ...item, number: val } : item))
+                                    );
+                                  }}
+                                  placeholder="100"
+                                />
+                                <input
+                                  type="text"
+                                  className="stat-unit-input"
+                                  value={st.unit || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCoverStats((prev) =>
+                                      prev.map((item, i) => (i === sIndex ? { ...item, unit: val } : item))
+                                    );
+                                  }}
+                                  placeholder="%"
+                                />
+                              </>
+                            ) : (
+                              <div className="n">
+                                {st.number}
+                                {st.unit ? <small>{st.unit}</small> : null}
+                              </div>
+                            )}
+                          </div>
+                          {isInteractive ? (
+                            <input
+                              type="text"
+                              className="stat-label-input"
+                              value={st.label}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCoverStats((prev) =>
+                                  prev.map((item, i) => (i === sIndex ? { ...item, label: val } : item))
+                                );
+                              }}
+                              placeholder="Descrição da métrica..."
+                            />
+                          ) : (
+                            <div className="l">{st.label}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {isInteractive && (
+                      <button
+                        type="button"
+                        className="btn-add-stat-mini no-print"
+                        style={{ marginTop: '10px' }}
+                        onClick={() =>
+                          setCoverStats((prev) => [
+                            ...prev,
+                            {
+                              id: `stat-${Date.now()}`,
+                              number: '1',
+                              unit: 'x',
+                              label: 'Nova Métrica / Indicador',
+                            },
+                          ])
+                        }
+                      >
+                        <Plus size={13} />
+                        <span>Adicionar Métrica / Estatística</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              return null;
+            })}
           </div>
 
           {indicators.map((ind) => renderIndicatorItem(ind, isInteractive, slideIdx))}
@@ -2371,169 +2926,426 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <span className="a">Digi</span>
               <span className="b">farma</span>
             </div>
-            <div className="v10-badge">HOMOLOGAÇÃO OFICIAL</div>
 
-            {isInteractive ? (
-              <input
-                type="text"
-                className="canva-inline-display-input"
-                style={{ fontSize: '32px', marginBottom: '8px' }}
-                value={slide.title || 'Controle da Qualidade & BPF'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSlidesConfig((prev) =>
-                    prev.map((s, idx) => (idx === slideIdx ? { ...s, title: val } : s))
-                  );
-                }}
-                placeholder="Título da Homologação..."
-              />
-            ) : (
-              <h1 className="display" style={{ fontSize: '32px' }}>
-                {slide.title || 'Controle da Qualidade & BPF'}
-              </h1>
+            {/* Barra de Restauração de Elementos Homologados Ocultados */}
+            {isInteractive && (signaturesMeta.hideBadge || signaturesMeta.hideTitle || signaturesMeta.hideSubtitle || signaturesMeta.hideDate) && (
+              <div className="canva-restore-pill-bar no-print" style={{ marginBottom: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Restaurar Elementos:</span>
+                {signaturesMeta.hideBadge && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setSignaturesMeta(prev => ({ ...prev, hideBadge: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Badge Homologação
+                  </button>
+                )}
+                {signaturesMeta.hideTitle && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setSignaturesMeta(prev => ({ ...prev, hideTitle: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Título
+                  </button>
+                )}
+                {signaturesMeta.hideSubtitle && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setSignaturesMeta(prev => ({ ...prev, hideSubtitle: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Subtítulo
+                  </button>
+                )}
+                {signaturesMeta.hideDate && (
+                  <button
+                    type="button"
+                    className="canva-restore-pill"
+                    onClick={() => setSignaturesMeta(prev => ({ ...prev, hideDate: false }))}
+                    style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    + Data de Homologação
+                  </button>
+                )}
+              </div>
             )}
 
-            {isInteractive ? (
-              <textarea
-                className="canva-inline-lead-input"
-                value={slide.subtitle || 'Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSlidesConfig((prev) =>
-                    prev.map((s, idx) => (idx === slideIdx ? { ...s, subtitle: val } : s))
-                  );
-                }}
-                rows={2}
-              />
-            ) : (
-              <p className="lead">
-                {slide.subtitle || 'Procedimento validado e arquivado para fiscalização sanitária e instrução de trabalho.'}
-              </p>
+            {/* Badge de Homologação */}
+            {!signaturesMeta.hideBadge && (
+              <div style={{ display: 'inline-block', marginBottom: '8px', position: 'relative' }}>
+                {isInteractive ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="text"
+                      className="v10-badge"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(239, 68, 68, 0.5)',
+                        color: 'var(--red)',
+                        cursor: 'text',
+                        padding: '4px 10px',
+                        outline: 'none',
+                        borderRadius: '999px',
+                        fontWeight: 800,
+                        ...textStyles['sig-badge'],
+                      }}
+                      value={signaturesMeta.badge}
+                      onChange={(e) => setSignaturesMeta(prev => ({ ...prev, badge: e.target.value }))}
+                      onFocus={() => setActiveTextTarget('sig-badge')}
+                      placeholder="HOMOLOGAÇÃO OFICIAL"
+                    />
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Diminuir fonte (A-)"
+                      onClick={() => updateActiveStyle({ scaleDelta: -2 })}
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Aumentar fonte (A+)"
+                      onClick={() => updateActiveStyle({ scaleDelta: 2 })}
+                    >
+                      <Plus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn danger no-print"
+                      title="Excluir este badge"
+                      onClick={() => setSignaturesMeta(prev => ({ ...prev, hideBadge: true }))}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="v10-badge" style={textStyles['sig-badge']}>
+                    {signaturesMeta.badge}
+                  </div>
+                )}
+              </div>
             )}
 
-            <div className="print-signatures-grid" style={{ marginTop: '36px' }}>
-              {/* Box 1: Elaborado */}
-              <div className="print-sign-col">
+            {/* Título Principal */}
+            {!signaturesMeta.hideTitle && (
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
                 {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
-                    value={signatures.elaboratedByTitle || 'ELABORADO POR'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, elaboratedByTitle: e.target.value }))}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="canva-inline-display-input"
+                      style={{ fontSize: '32px', flex: 1, ...textStyles['sig-title'] }}
+                      value={signaturesMeta.title}
+                      onChange={(e) => setSignaturesMeta(prev => ({ ...prev, title: e.target.value }))}
+                      onFocus={() => setActiveTextTarget('sig-title')}
+                      placeholder="Título da Homologação..."
+                    />
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Diminuir fonte (A-)"
+                      onClick={() => updateActiveStyle({ scaleDelta: -2 })}
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Aumentar fonte (A+)"
+                      onClick={() => updateActiveStyle({ scaleDelta: 2 })}
+                    >
+                      <Plus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn danger no-print"
+                      title="Excluir este título"
+                      onClick={() => setSignaturesMeta(prev => ({ ...prev, hideTitle: true }))}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ) : (
-                  <span className="print-sign-title">{signatures.elaboratedByTitle || 'ELABORADO POR'}</span>
-                )}
-                <div className="print-sign-line"></div>
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    value={signatures.elaboratedByName || author || ''}
-                    onChange={(e) => {
-                      setAuthor(e.target.value);
-                      setSignatures((prev) => ({ ...prev, elaboratedByName: e.target.value }));
-                    }}
-                    className="canva-inline-sign-input"
-                    placeholder="Nome do Elaborador"
-                  />
-                ) : (
-                  <span className="print-sign-name">
-                    {signatures.elaboratedByName || author || 'Leonardo Henrique B. Trevas'}
-                  </span>
-                )}
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
-                    value={signatures.elaboratedByRole || 'Digifarma Sistemas'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, elaboratedByRole: e.target.value }))}
-                  />
-                ) : (
-                  <span className="print-sign-role">{signatures.elaboratedByRole || 'Digifarma Sistemas'}</span>
+                  <h1 className="display" style={{ fontSize: '32px', ...textStyles['sig-title'] }}>
+                    {signaturesMeta.title}
+                  </h1>
                 )}
               </div>
+            )}
 
-              {/* Box 2: Revisado */}
-              <div className="print-sign-col">
+            {/* Subtítulo / Instrução Regulamentar */}
+            {!signaturesMeta.hideSubtitle && (
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
                 {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
-                    value={signatures.reviewedByTitle || 'REVISADO POR'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByTitle: e.target.value }))}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <textarea
+                      className="canva-inline-lead-input"
+                      style={{ flex: 1, ...textStyles['sig-subtitle'] }}
+                      value={signaturesMeta.subtitle}
+                      onChange={(e) => setSignaturesMeta(prev => ({ ...prev, subtitle: e.target.value }))}
+                      onFocus={() => setActiveTextTarget('sig-subtitle')}
+                      placeholder="Procedimento validado e arquivado para fiscalização..."
+                      rows={2}
+                    />
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Diminuir fonte (A-)"
+                      onClick={() => updateActiveStyle({ scaleDelta: -2 })}
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn no-print"
+                      title="Aumentar fonte (A+)"
+                      onClick={() => updateActiveStyle({ scaleDelta: 2 })}
+                    >
+                      <Plus size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      className="canva-control-btn danger no-print"
+                      title="Excluir este subtítulo"
+                      onClick={() => setSignaturesMeta(prev => ({ ...prev, hideSubtitle: true }))}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ) : (
-                  <span className="print-sign-title">{signatures.reviewedByTitle || 'REVISADO POR'}</span>
-                )}
-                <div className="print-sign-line"></div>
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    value={signatures.reviewedByName || 'Garantia da Qualidade (BPF)'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByName: e.target.value }))}
-                    className="canva-inline-sign-input"
-                    placeholder="Nome do Revisor"
-                  />
-                ) : (
-                  <span className="print-sign-name">
-                    {signatures.reviewedByName || 'Garantia da Qualidade (BPF)'}
-                  </span>
-                )}
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
-                    value={signatures.reviewedByRole || 'Controle de Procedimentos'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, reviewedByRole: e.target.value }))}
-                  />
-                ) : (
-                  <span className="print-sign-role">{signatures.reviewedByRole || 'Controle de Procedimentos'}</span>
+                  <p className="lead" style={textStyles['sig-subtitle']}>
+                    {signaturesMeta.subtitle}
+                  </p>
                 )}
               </div>
+            )}
 
-              {/* Box 3: Aprovado */}
-              <div className="print-sign-col">
+            {/* Data de Homologação */}
+            {!signaturesMeta.hideDate && (
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
                 {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
-                    value={signatures.approvedByTitle || 'APROVADO POR'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByTitle: e.target.value }))}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="canva-inline-fitem-input"
+                      style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600, width: '320px', ...textStyles['sig-date'] }}
+                      value={signaturesMeta.validationDate}
+                      onChange={(e) => setSignaturesMeta(prev => ({ ...prev, validationDate: e.target.value }))}
+                      onFocus={() => setActiveTextTarget('sig-date')}
+                      placeholder="Data de Homologação: 02/10/2026..."
+                    />
+                    <button
+                      type="button"
+                      className="canva-control-btn danger no-print"
+                      title="Excluir campo de data"
+                      onClick={() => setSignaturesMeta(prev => ({ ...prev, hideDate: true }))}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ) : (
-                  <span className="print-sign-title">{signatures.approvedByTitle || 'APROVADO POR'}</span>
-                )}
-                <div className="print-sign-line"></div>
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    value={signatures.approvedByName || 'Leonardo Henrique B. Trevas'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByName: e.target.value }))}
-                    className="canva-inline-sign-input"
-                    placeholder="Nome do Aprovador"
-                  />
-                ) : (
-                  <span className="print-sign-name">
-                    {signatures.approvedByName || 'Leonardo Henrique B. Trevas'}
-                  </span>
-                )}
-                {isInteractive ? (
-                  <input
-                    type="text"
-                    className="canva-inline-fitem-input"
-                    style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
-                    value={signatures.approvedByRole || 'Responsável Técnico / Gestor'}
-                    onChange={(e) => setSignatures((prev) => ({ ...prev, approvedByRole: e.target.value }))}
-                  />
-                ) : (
-                  <span className="print-sign-role">{signatures.approvedByRole || 'Responsável Técnico / Gestor'}</span>
+                  <p className="lead muted" style={{ fontSize: '0.82rem', color: '#10b981', ...textStyles['sig-date'] }}>
+                    {signaturesMeta.validationDate}
+                  </p>
                 )}
               </div>
+            )}
+
+            {/* Grid Dinâmico de Assinaturas (Elaborado, Revisado, Aprovado, RT, etc.) */}
+            <div
+              className="print-signatures-grid"
+              style={{
+                marginTop: '28px',
+                gridTemplateColumns: `repeat(${signatureColumns.length || 1}, 1fr)`,
+                gap: '16px',
+              }}
+            >
+              {signatureColumns.map((col, colIdx) => (
+                <div key={col.id} className="print-sign-col canva-sign-col-editable" style={{ position: 'relative' }}>
+                  {isInteractive && (
+                    <div className="sign-col-actions-bar no-print" style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '6px' }}>
+                      <button
+                        type="button"
+                        className="canva-control-btn"
+                        disabled={colIdx === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (colIdx > 0) {
+                            const updated = [...signatureColumns];
+                            const temp = updated[colIdx];
+                            updated[colIdx] = updated[colIdx - 1];
+                            updated[colIdx - 1] = temp;
+                            setSignatureColumns(updated);
+                          }
+                        }}
+                        title="Mover assinatura para a esquerda"
+                        style={{ opacity: colIdx === 0 ? 0.3 : 1 }}
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        className="canva-control-btn"
+                        disabled={colIdx === signatureColumns.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (colIdx < signatureColumns.length - 1) {
+                            const updated = [...signatureColumns];
+                            const temp = updated[colIdx];
+                            updated[colIdx] = updated[colIdx + 1];
+                            updated[colIdx + 1] = temp;
+                            setSignatureColumns(updated);
+                          }
+                        }}
+                        title="Mover assinatura para a direita"
+                        style={{ opacity: colIdx === signatureColumns.length - 1 ? 0.3 : 1 }}
+                      >
+                        →
+                      </button>
+                      <button
+                        type="button"
+                        className="canva-control-btn danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSignatureColumns(prev => prev.filter((_, i) => i !== colIdx));
+                        }}
+                        title="Excluir este bloco de assinatura"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {isInteractive ? (
+                    <input
+                      type="text"
+                      className="canva-inline-fitem-input"
+                      style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.75rem', marginBottom: '4px' }}
+                      value={col.title}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSignatureColumns(prev => prev.map((item, i) => i === colIdx ? { ...item, title: val } : item));
+                      }}
+                      placeholder="Título (Ex: RESPONSÁVEL TÉCNICO)"
+                    />
+                  ) : (
+                    <span className="print-sign-title">{col.title}</span>
+                  )}
+
+                  <div className="print-sign-line" />
+
+                  {isInteractive ? (
+                    <input
+                      type="text"
+                      className="canva-inline-sign-input"
+                      value={col.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSignatureColumns(prev => prev.map((item, i) => i === colIdx ? { ...item, name: val } : item));
+                      }}
+                      placeholder="Nome do Profissional"
+                    />
+                  ) : (
+                    <span className="print-sign-name">{col.name}</span>
+                  )}
+
+                  {isInteractive ? (
+                    <input
+                      type="text"
+                      className="canva-inline-fitem-input"
+                      style={{ textAlign: 'center', fontSize: '0.72rem', marginTop: '4px' }}
+                      value={col.role}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSignatureColumns(prev => prev.map((item, i) => i === colIdx ? { ...item, role: val } : item));
+                      }}
+                      placeholder="Cargo / CRF / Função"
+                    />
+                  ) : (
+                    <span className="print-sign-role">{col.role}</span>
+                  )}
+
+                  {isInteractive ? (
+                    <input
+                      type="text"
+                      className="canva-inline-fitem-input"
+                      style={{ textAlign: 'center', fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}
+                      value={col.date || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSignatureColumns(prev => prev.map((item, i) => i === colIdx ? { ...item, date: val } : item));
+                      }}
+                      placeholder="Data (Ex: 02/10/2026)"
+                    />
+                  ) : (
+                    col.date && (
+                      <span className="print-sign-date" style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px', display: 'block', textAlign: 'center' }}>
+                        {col.date}
+                      </span>
+                    )
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Botão Adicionar Assinatura / Validação */}
+            {isInteractive && (
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn-add-stat-mini no-print"
+                  onClick={() => {
+                    setSignatureColumns(prev => [
+                      ...prev,
+                      {
+                        id: `col-${Date.now()}`,
+                        title: 'RESPONSÁVEL TÉCNICO',
+                        name: currentUser?.name || 'Nome do Profissional',
+                        role: 'Farmacêutico / Fiscalização CRF',
+                        date: new Date().toLocaleDateString('pt-BR'),
+                      },
+                    ]);
+                  }}
+                  title="Adicionar nova coluna de assinatura na página de homologação"
+                >
+                  <Plus size={13} />
+                  <span>Adicionar Assinatura / Validação</span>
+                </button>
+              </div>
+            )}
+
+            {/* Rodapé da Empresa e Slogan */}
+            <div className="contact" style={{ marginTop: '36px', textAlign: 'center' }}>
+              {isInteractive ? (
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ width: '220px', textAlign: 'center', fontWeight: 700 }}
+                    value={signatures.companyName || ''}
+                    onChange={(e) => setSignatures(prev => ({ ...prev, companyName: e.target.value }))}
+                    placeholder="Digifarma Sistemas LTDA"
+                  />
+                  <span style={{ color: '#64748b' }}>·</span>
+                  <input
+                    type="text"
+                    className="canva-inline-fitem-input"
+                    style={{ width: '320px', textAlign: 'center', color: '#94a3b8' }}
+                    value={signatures.slogan || ''}
+                    onChange={(e) => setSignatures(prev => ({ ...prev, slogan: e.target.value }))}
+                    placeholder="Slogan / Certificação..."
+                  />
+                </div>
+              ) : (
+                <>
+                  <b>{signatures.companyName || 'Digifarma Sistemas LTDA'}</b> · {signatures.slogan || 'Digitalmente fácil · Homologado ISO 9001'}
+                </>
+              )}
             </div>
           </div>
 
@@ -3293,11 +4105,34 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             {/* Barra de Ferramentas de Design do Canva (Mãozinhas, Setas, Formas, Textos, Ícones, Dropdown) */}
             {/* ── BARRA DE FORMATAÇÃO RICA DO STUDIO DIGIFARMA (ESTILO GOOGLE DOCS / PPT) ── */}
             <div className="canva-doc-toolbar no-print">
+              {/* Botão de Adicionar Caixa de Texto Livre */}
+              <div className="toolbar-group">
+                <button
+                  type="button"
+                  className="toolbar-btn primary"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={addTextBox}
+                  title="Inserir Caixa de Texto Livre e Editável (Arraste e formate como quiser)"
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.18)',
+                    borderColor: 'rgba(56, 189, 248, 0.5)',
+                    color: '#38bdf8',
+                    fontWeight: 700,
+                  }}
+                >
+                  <Type size={14} color="#38bdf8" />
+                  <span>＋ Caixa de Texto</span>
+                </button>
+              </div>
+
+              <div className="toolbar-divider" />
+
               {/* Botões Centrais de Recursos (Abrem Modais / Gavetas Limpas) */}
               <div className="toolbar-group">
                 <button
                   type="button"
                   className={`toolbar-btn ${activeResourceModal === 'shapes' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setActiveResourceModal('shapes')}
                   title="Abrir Galeria de Formas e Setas"
                 >
@@ -3308,6 +4143,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <button
                   type="button"
                   className={`toolbar-btn ${activeResourceModal === 'emojis' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setActiveResourceModal('emojis')}
                   title="Abrir Galeria de Emojis e Símbolos Farmacêuticos"
                 >
@@ -3318,6 +4154,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <button
                   type="button"
                   className={`toolbar-btn ${activeResourceModal === 'icons' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setActiveResourceModal('icons')}
                   title="Abrir Ícones do Sistema"
                 >
@@ -3328,6 +4165,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <button
                   type="button"
                   className={`toolbar-btn ${activeResourceModal === 'dynamic' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setActiveResourceModal('dynamic')}
                   title="Abrir Recursos Dinâmicos (Dropdowns, Radar, Carimbo, GIFs)"
                 >
@@ -3338,6 +4176,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <button
                   type="button"
                   className={`toolbar-btn ${activeResourceModal === 'hands' ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setActiveResourceModal('hands')}
                   title="Mãozinhas Indicadoras"
                 >
@@ -3353,39 +4192,53 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 {/* Fonte */}
                 <select
                   className="toolbar-select"
-                  value={selectedIndicator?.fontFamily || 'Inter, sans-serif'}
-                  onChange={(e) => updateSelectedIndicator({ fontFamily: e.target.value })}
+                  value={selectedIndicator?.fontFamily || (activeTextTarget ? (textStyles[activeTextTarget]?.fontFamily as string) : 'Inter, sans-serif') || 'Inter, sans-serif'}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onChange={(e) => updateActiveStyle({ fontFamily: e.target.value })}
                   title="Família da Fonte"
                 >
-                  <option value="Inter, sans-serif">Inter</option>
-                  <option value="Outfit, sans-serif">Outfit</option>
-                  <option value="Roboto, sans-serif">Roboto</option>
-                  <option value="'Playfair Display', serif">Playfair</option>
-                  <option value="'Fira Code', monospace">Fira Code</option>
-                  <option value="'Bebas Neue', Impact, sans-serif">Bebas Neue</option>
+                  <option value="Inter, sans-serif">Inter (Moderno)</option>
+                  <option value="Outfit, sans-serif">Outfit (Tech)</option>
+                  <option value="Roboto, sans-serif">Roboto (Clássico)</option>
+                  <option value="'Playfair Display', serif">Playfair (Elegante)</option>
+                  <option value="'Fira Code', monospace">Fira Code (Mono)</option>
+                  <option value="'Bebas Neue', Impact, sans-serif">Bebas Neue (Manchete)</option>
+                  <option value="'Nunito', sans-serif">Nunito (Arredondado)</option>
                 </select>
 
                 {/* Negrito / Itálico / Sublinhado */}
                 <button
                   type="button"
-                  className={`toolbar-btn ${selectedIndicator?.isBold ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ isBold: !selectedIndicator?.isBold })}
+                  className={`toolbar-btn ${selectedIndicator?.isBold || (activeTextTarget && textStyles[activeTextTarget]?.fontWeight === 800) ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const isCurrentlyBold = selectedIndicator?.isBold || (activeTextTarget && textStyles[activeTextTarget]?.fontWeight === 800);
+                    updateActiveStyle({ isBold: !isCurrentlyBold });
+                  }}
                   title="Negrito"
                 >
                   <Bold size={13} />
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn ${selectedIndicator?.isItalic ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ isItalic: !selectedIndicator?.isItalic })}
+                  className={`toolbar-btn ${selectedIndicator?.isItalic || (activeTextTarget && textStyles[activeTextTarget]?.fontStyle === 'italic') ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const isCurrentlyItalic = selectedIndicator?.isItalic || (activeTextTarget && textStyles[activeTextTarget]?.fontStyle === 'italic');
+                    updateActiveStyle({ isItalic: !isCurrentlyItalic });
+                  }}
                   title="Itálico"
                 >
                   <Italic size={13} />
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn ${selectedIndicator?.isUnderline ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ isUnderline: !selectedIndicator?.isUnderline })}
+                  className={`toolbar-btn ${selectedIndicator?.isUnderline || (activeTextTarget && textStyles[activeTextTarget]?.textDecoration === 'underline') ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const isCurrentlyUnderline = selectedIndicator?.isUnderline || (activeTextTarget && textStyles[activeTextTarget]?.textDecoration === 'underline');
+                    updateActiveStyle({ isUnderline: !isCurrentlyUnderline });
+                  }}
                   title="Sublinhado"
                 >
                   <Underline size={13} />
@@ -3398,24 +4251,27 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               <div className="toolbar-group">
                 <button
                   type="button"
-                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'left' ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ textAlign: 'left' })}
+                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'left' || (activeTextTarget && textStyles[activeTextTarget]?.textAlign === 'left') ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => updateActiveStyle({ textAlign: 'left' })}
                   title="Alinhar à Esquerda"
                 >
                   <AlignLeft size={13} />
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn ${(!selectedIndicator?.textAlign || selectedIndicator?.textAlign === 'center') ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ textAlign: 'center' })}
+                  className={`toolbar-btn ${(!selectedIndicator?.textAlign || selectedIndicator?.textAlign === 'center' || (activeTextTarget && textStyles[activeTextTarget]?.textAlign === 'center')) ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => updateActiveStyle({ textAlign: 'center' })}
                   title="Centralizar"
                 >
                   <AlignCenter size={13} />
                 </button>
                 <button
                   type="button"
-                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'right' ? 'active' : ''}`}
-                  onClick={() => updateSelectedIndicator({ textAlign: 'right' })}
+                  className={`toolbar-btn ${selectedIndicator?.textAlign === 'right' || (activeTextTarget && textStyles[activeTextTarget]?.textAlign === 'right') ? 'active' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => updateActiveStyle({ textAlign: 'right' })}
                   title="Alinhar à Direita"
                 >
                   <AlignRight size={13} />
@@ -3429,26 +4285,38 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <div
                   className="toolbar-color-btn"
                   title="Cor do Texto"
-                  style={{ backgroundColor: selectedIndicator?.textColor || '#ffffff' }}
+                  style={{ backgroundColor: selectedIndicator?.textColor || (activeTextTarget ? (textStyles[activeTextTarget]?.color as string) : '#ffffff') || '#ffffff' }}
                 >
-                  <Type size={12} color={selectedIndicator?.textColor === '#ffffff' ? '#000' : '#fff'} />
+                  <Type size={12} color="#000" />
                   <input
                     type="color"
-                    value={selectedIndicator?.textColor && selectedIndicator.textColor.startsWith('#') ? selectedIndicator.textColor : '#ffffff'}
-                    onChange={(e) => updateSelectedIndicator({ textColor: e.target.value })}
+                    value={
+                      selectedIndicator?.textColor && selectedIndicator.textColor.startsWith('#')
+                        ? selectedIndicator.textColor
+                        : activeTextTarget && textStyles[activeTextTarget]?.color && String(textStyles[activeTextTarget]?.color).startsWith('#')
+                        ? String(textStyles[activeTextTarget]?.color)
+                        : '#ffffff'
+                    }
+                    onChange={(e) => updateActiveStyle({ textColor: e.target.value })}
                   />
                 </div>
 
                 <div
                   className="toolbar-color-btn"
                   title="Cor de Fundo / Destaque"
-                  style={{ backgroundColor: selectedIndicator?.bgColor || '#0f172a' }}
+                  style={{ backgroundColor: selectedIndicator?.bgColor || (activeTextTarget ? (textStyles[activeTextTarget]?.backgroundColor as string) : '#0f172a') || '#0f172a' }}
                 >
                   <div style={{ width: '8px', height: '8px', border: '1px solid #fff', borderRadius: '2px' }} />
                   <input
                     type="color"
-                    value={selectedIndicator?.bgColor && selectedIndicator.bgColor.startsWith('#') ? selectedIndicator.bgColor : '#0f172a'}
-                    onChange={(e) => updateSelectedIndicator({ bgColor: e.target.value })}
+                    value={
+                      selectedIndicator?.bgColor && selectedIndicator.bgColor.startsWith('#')
+                        ? selectedIndicator.bgColor
+                        : activeTextTarget && textStyles[activeTextTarget]?.backgroundColor && String(textStyles[activeTextTarget]?.backgroundColor).startsWith('#')
+                        ? String(textStyles[activeTextTarget]?.backgroundColor)
+                        : '#0f172a'
+                    }
+                    onChange={(e) => updateActiveStyle({ bgColor: e.target.value })}
                   />
                 </div>
 
@@ -3460,7 +4328,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   <input
                     type="color"
                     value={selectedIndicator?.color && selectedIndicator.color.startsWith('#') ? selectedIndicator.color : '#ef4444'}
-                    onChange={(e) => updateSelectedIndicator({ color: e.target.value })}
+                    onChange={(e) => updateActiveStyle({ borderColor: e.target.value })}
                   />
                 </div>
               </div>
@@ -3472,25 +4340,25 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 <button
                   type="button"
                   className="toolbar-btn"
-                  disabled={!selectedIndicator}
-                  onClick={() => {
-                    if (selectedIndicator) changeIndicatorScale(selectedIndicator.id, -0.15);
-                  }}
-                  title="Diminuir Escala (-15%)"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => updateActiveStyle({ scaleDelta: -0.15 })}
+                  title="Diminuir Tamanho / Escala (-)"
                 >
                   <Minus size={12} />
                 </button>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, minWidth: '40px', textAlign: 'center', color: '#cbd5e1' }}>
-                  {selectedIndicator ? `${Math.round((selectedIndicator.scale ?? 1.0) * 100)}%` : '100%'}
+                  {selectedIndicator
+                    ? `${Math.round((selectedIndicator.scale ?? 1.0) * 100)}%`
+                    : activeTextTarget && textStyles[activeTextTarget]?.fontSize
+                    ? textStyles[activeTextTarget]?.fontSize
+                    : '100%'}
                 </span>
                 <button
                   type="button"
                   className="toolbar-btn"
-                  disabled={!selectedIndicator}
-                  onClick={() => {
-                    if (selectedIndicator) changeIndicatorScale(selectedIndicator.id, 0.15);
-                  }}
-                  title="Aumentar Escala (+15%)"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => updateActiveStyle({ scaleDelta: 0.15 })}
+                  title="Aumentar Tamanho / Escala (+)"
                 >
                   <Plus size={12} />
                 </button>
@@ -3502,6 +4370,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                   <button
                     type="button"
                     className="toolbar-btn danger"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => removeIndicator(selectedIndicator.id)}
                     title="Excluir Elemento Selecionado (Atalho: Delete)"
                   >
