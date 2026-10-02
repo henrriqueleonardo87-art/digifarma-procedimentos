@@ -41,6 +41,7 @@ import {
   Shapes,
   Search,
   X as XIcon,
+  GripVertical,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -477,6 +478,10 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     nextOrder[targetIndex] = temp;
     setCoverOrder(nextOrder);
   };
+
+  // Estado Universal de Drag and Drop para Reordenação pelo Mouse
+  const [dndItem, setDndItem] = useState<{ type: string; index: number } | null>(null);
+  const [dndOver, setDndOver] = useState<{ type: string; index: number } | null>(null);
 
   const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(initializeSlides);
 
@@ -1185,6 +1190,89 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     window.addEventListener('mouseup', onMouseUp);
   };
 
+  // Redimensionamento Suave de Indicadores pelo Arraste do Mouse (4 Alças nos Cantos)
+  const handleIndicatorResizeMouseDown = (
+    e: React.MouseEvent,
+    indId: string,
+    corner: 'nw' | 'ne' | 'sw' | 'se',
+    initialScale: number,
+    slideIdx?: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const targetSlideIdx = typeof slideIdx === 'number' ? slideIdx : safeActiveSlideIndex;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      let deltaX = moveEvent.clientX - startX;
+      let deltaY = moveEvent.clientY - startY;
+
+      if (corner === 'nw') {
+        deltaX = -deltaX;
+        deltaY = -deltaY;
+      } else if (corner === 'ne') {
+        deltaY = -deltaY;
+      } else if (corner === 'sw') {
+        deltaX = -deltaX;
+      }
+
+      const avgDelta = (deltaX + deltaY) / 2;
+      const newScale = Math.max(0.2, Math.min(4.0, Number((initialScale + avgDelta / 100).toFixed(2))));
+
+      setSlidesConfig((prev) =>
+        prev.map((slide, idx) =>
+          idx === targetSlideIdx
+            ? {
+                ...slide,
+                indicators: (slide.indicators || []).map((ind) =>
+                  ind.id === indId ? { ...ind, scale: newScale } : ind
+                ),
+              }
+            : slide
+        )
+      );
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  // Redimensionamento Livre da Largura da Imagem pelo Arraste do Mouse
+  const handleShotframeResizeMouseDown = (e: React.MouseEvent, targetStepIdx: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const splitterEl = e.currentTarget as HTMLElement;
+    const splitContainer = splitterEl.closest('.feature-split') as HTMLElement;
+    if (!splitContainer) return;
+
+    const containerRect = splitContainer.getBoundingClientRect();
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const widthPx = containerRect.right - moveEvent.clientX;
+      let percent = Math.round((widthPx / containerRect.width) * 100);
+      percent = Math.max(25, Math.min(85, percent));
+
+      setSteps((prev) =>
+        prev.map((s, idx) => (idx === targetStepIdx ? { ...s, imageWidth: `${percent}%` } : s))
+      );
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   // Clique no Shotframe para Reposicionar
   const handleShotframeClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1777,6 +1865,32 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
           }
         } : undefined}
       >
+        {/* Alças de Redimensionamento Interativo nos 4 cantos com o Mouse */}
+        {isSelected && isInteractive && (
+          <>
+            <div
+              className="canva-resize-handle nw no-print"
+              title="Clique e arraste com o mouse para redimensionar"
+              onMouseDown={(e) => handleIndicatorResizeMouseDown(e, ind.id, 'nw', scale, slideIdx)}
+            />
+            <div
+              className="canva-resize-handle ne no-print"
+              title="Clique e arraste com o mouse para redimensionar"
+              onMouseDown={(e) => handleIndicatorResizeMouseDown(e, ind.id, 'ne', scale, slideIdx)}
+            />
+            <div
+              className="canva-resize-handle sw no-print"
+              title="Clique e arraste com o mouse para redimensionar"
+              onMouseDown={(e) => handleIndicatorResizeMouseDown(e, ind.id, 'sw', scale, slideIdx)}
+            />
+            <div
+              className="canva-resize-handle se no-print"
+              title="Clique e arraste com o mouse para redimensionar"
+              onMouseDown={(e) => handleIndicatorResizeMouseDown(e, ind.id, 'se', scale, slideIdx)}
+            />
+          </>
+        )}
+
         {/* Controle flutuante de escala e exclusão diretamente no elemento selecionado */}
         {isSelected && isInteractive && (
           <div
@@ -1921,11 +2035,64 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
             {/* Renderização Ordenada e Reconfigurável dos Elementos da Capa */}
             {coverOrder.map((sectionKey, pos) => {
+              const isDraggingSection = dndItem?.type === 'cover-order' && dndItem.index === pos;
+              const isOverSection = dndOver?.type === 'cover-order' && dndOver.index === pos;
+
+              const sectionDndProps = isInteractive ? {
+                draggable: true,
+                onDragStart: (e: React.DragEvent) => {
+                  e.dataTransfer.setData('text/plain', String(pos));
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDndItem({ type: 'cover-order', index: pos });
+                },
+                onDragOver: (e: React.DragEvent) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dndOver?.type !== 'cover-order' || dndOver.index !== pos) {
+                    setDndOver({ type: 'cover-order', index: pos });
+                  }
+                },
+                onDragLeave: () => {
+                  if (dndOver?.type === 'cover-order' && dndOver.index === pos) {
+                    setDndOver(null);
+                  }
+                },
+                onDrop: (e: React.DragEvent) => {
+                  e.preventDefault();
+                  if (dndItem?.type === 'cover-order' && dndItem.index !== pos) {
+                    const from = dndItem.index;
+                    const to = pos;
+                    const updated = [...coverOrder];
+                    const [moved] = updated.splice(from, 1);
+                    updated.splice(to, 0, moved);
+                    setCoverOrder(updated);
+                  }
+                  setDndItem(null);
+                  setDndOver(null);
+                },
+                onDragEnd: () => {
+                  setDndItem(null);
+                  setDndOver(null);
+                },
+              } : {};
+
               if (sectionKey === 'badge' && !coverMeta.hideBadge) {
                 return (
-                  <div key="cover-badge" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
+                  <div
+                    key="cover-badge"
+                    className={`cover-section-item ${isDraggingSection ? 'canva-dnd-dragging' : ''} ${isOverSection ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative', marginBottom: '8px' }}
+                    {...sectionDndProps}
+                  >
                     {isInteractive ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
                         <div
                           className="v10-badge"
                           onClick={(e) => {
@@ -1977,9 +2144,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               if (sectionKey === 'title' && !coverMeta.hideTitle) {
                 return (
-                  <div key="cover-title" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
+                  <div
+                    key="cover-title"
+                    className={`cover-section-item ${isDraggingSection ? 'canva-dnd-dragging' : ''} ${isOverSection ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative', marginBottom: '8px' }}
+                    {...sectionDndProps}
+                  >
                     {isInteractive ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
                         <input
                           type="text"
                           className="canva-inline-display-input"
@@ -2043,9 +2222,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               if (sectionKey === 'subtitle' && !coverMeta.hideSubtitle) {
                 return (
-                  <div key="cover-subtitle" className="cover-section-item" style={{ position: 'relative', marginBottom: '8px' }}>
+                  <div
+                    key="cover-subtitle"
+                    className={`cover-section-item ${isDraggingSection ? 'canva-dnd-dragging' : ''} ${isOverSection ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative', marginBottom: '8px' }}
+                    {...sectionDndProps}
+                  >
                     {isInteractive ? (
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab', marginTop: '4px' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
                         <textarea
                           className="canva-inline-lead-input"
                           value={subtitle}
@@ -2109,9 +2300,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               if (sectionKey === 'slogan' && !coverMeta.hideSlogan) {
                 return (
-                  <div key="cover-slogan" className="cover-section-item" style={{ position: 'relative', marginTop: '8px' }}>
+                  <div
+                    key="cover-slogan"
+                    className={`cover-section-item ${isDraggingSection ? 'canva-dnd-dragging' : ''} ${isOverSection ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative', marginTop: '8px' }}
+                    {...sectionDndProps}
+                  >
                     {isInteractive ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
                         <input
                           type="text"
                           className="canva-inline-fitem-input"
@@ -2161,9 +2364,21 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
 
               if (sectionKey === 'stats' && !coverMeta.hideStats) {
                 return (
-                  <div key="cover-stats" className="cover-section-item" style={{ position: 'relative', marginTop: '24px' }}>
+                  <div
+                    key="cover-stats"
+                    className={`cover-section-item ${isDraggingSection ? 'canva-dnd-dragging' : ''} ${isOverSection ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative', marginTop: '24px' }}
+                    {...sectionDndProps}
+                  >
                     {isInteractive && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
                         <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: 700 }}>Bloco de Métricas:</span>
                         <button
                           type="button"
@@ -2197,61 +2412,109 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                     )}
 
                     <div className="stats">
-                      {coverStats.map((st, sIndex) => (
-                        <div key={st.id} className="stat canva-stat-card-editable" style={{ position: 'relative' }}>
-                          {isInteractive && (
-                            <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '2px', zIndex: 10 }}>
-                              <button
-                                type="button"
-                                className="item-delete-btn no-print"
-                                disabled={sIndex === 0}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (sIndex > 0) {
-                                    const updated = [...coverStats];
-                                    const temp = updated[sIndex];
-                                    updated[sIndex] = updated[sIndex - 1];
-                                    updated[sIndex - 1] = temp;
-                                    setCoverStats(updated);
-                                  }
-                                }}
-                                title="Mover para a esquerda"
-                                style={{ opacity: sIndex === 0 ? 0.3 : 1 }}
-                              >
-                                ←
-                              </button>
-                              <button
-                                type="button"
-                                className="item-delete-btn no-print"
-                                disabled={sIndex === coverStats.length - 1}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (sIndex < coverStats.length - 1) {
-                                    const updated = [...coverStats];
-                                    const temp = updated[sIndex];
-                                    updated[sIndex] = updated[sIndex + 1];
-                                    updated[sIndex + 1] = temp;
-                                    setCoverStats(updated);
-                                  }
-                                }}
-                                title="Mover para a direita"
-                                style={{ opacity: sIndex === coverStats.length - 1 ? 0.3 : 1 }}
-                              >
-                                →
-                              </button>
-                              <button
-                                type="button"
-                                className="item-delete-btn no-print"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCoverStats((prev) => prev.filter((_, i) => i !== sIndex));
-                                }}
-                                title="Excluir este bloco de estatística"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
+                      {coverStats.map((st, sIndex) => {
+                        const isDraggingStat = dndItem?.type === 'cover-stat' && dndItem.index === sIndex;
+                        const isOverStat = dndOver?.type === 'cover-stat' && dndOver.index === sIndex;
+
+                        return (
+                          <div
+                            key={st.id}
+                            className={`stat canva-stat-card-editable ${isDraggingStat ? 'canva-dnd-dragging' : ''} ${isOverStat ? 'canva-dnd-over' : ''}`}
+                            style={{ position: 'relative' }}
+                            draggable={isInteractive}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', String(sIndex));
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDndItem({ type: 'cover-stat', index: sIndex });
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (dndOver?.type !== 'cover-stat' || dndOver.index !== sIndex) {
+                                setDndOver({ type: 'cover-stat', index: sIndex });
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (dndOver?.type === 'cover-stat' && dndOver.index === sIndex) {
+                                setDndOver(null);
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (dndItem?.type === 'cover-stat' && dndItem.index !== sIndex) {
+                                const updated = [...coverStats];
+                                const [moved] = updated.splice(dndItem.index, 1);
+                                updated.splice(sIndex, 0, moved);
+                                setCoverStats(updated);
+                              }
+                              setDndItem(null);
+                              setDndOver(null);
+                            }}
+                            onDragEnd={() => {
+                              setDndItem(null);
+                              setDndOver(null);
+                            }}
+                          >
+                            {isInteractive && (
+                              <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '2px', zIndex: 10 }}>
+                                <div
+                                  className="item-delete-btn grip no-print"
+                                  title="Segure e arraste com o mouse para reposicionar"
+                                  style={{ cursor: 'grab' }}
+                                >
+                                  <GripVertical size={11} />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="item-delete-btn no-print"
+                                  disabled={sIndex === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sIndex > 0) {
+                                      const updated = [...coverStats];
+                                      const temp = updated[sIndex];
+                                      updated[sIndex] = updated[sIndex - 1];
+                                      updated[sIndex - 1] = temp;
+                                      setCoverStats(updated);
+                                    }
+                                  }}
+                                  title="Mover para a esquerda"
+                                  style={{ opacity: sIndex === 0 ? 0.3 : 1 }}
+                                >
+                                  ←
+                                </button>
+                                <button
+                                  type="button"
+                                  className="item-delete-btn no-print"
+                                  disabled={sIndex === coverStats.length - 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sIndex < coverStats.length - 1) {
+                                      const updated = [...coverStats];
+                                      const temp = updated[sIndex];
+                                      updated[sIndex] = updated[sIndex + 1];
+                                      updated[sIndex + 1] = temp;
+                                      setCoverStats(updated);
+                                    }
+                                  }}
+                                  title="Mover para a direita"
+                                  style={{ opacity: sIndex === coverStats.length - 1 ? 0.3 : 1 }}
+                                >
+                                  →
+                                </button>
+                                <button
+                                  type="button"
+                                  className="item-delete-btn no-print"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCoverStats((prev) => prev.filter((_, i) => i !== sIndex));
+                                  }}
+                                  title="Excluir este bloco de estatística"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
                           <div className="stat-inputs-row">
                             {isInteractive ? (
                               <>
@@ -2304,8 +2567,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                             <div className="l">{st.label}</div>
                           )}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
+                  </div>
 
                     {isInteractive && (
                       <button
@@ -2428,100 +2692,185 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               return (
                 <div className="feature-split">
                   <div className="feature-left">
-                    {currentOps.map((op, opIndex) => (
-                      <div
-                        key={op.id}
-                        className={`fitem ${op.type === 'warning' ? 'warning' : ''}`}
-                        style={{ position: 'relative' }}
-                      >
-                        {isInteractive && (
-                          <button
-                            type="button"
-                            className="item-delete-btn no-print"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const updated = currentOps.filter((_, i) => i !== opIndex);
-                              updateStepOps(updated);
-                            }}
-                            title="Excluir este item operacional"
-                          >
-                            ✕
-                          </button>
-                        )}
+                    {currentOps.map((op, opIndex) => {
+                      const isDraggingThis = dndItem?.type === 'step-op' && dndItem.index === opIndex;
+                      const isOverThis = dndOver?.type === 'step-op' && dndOver.index === opIndex;
+
+                      return (
                         <div
-                          className="fico"
-                          style={
-                            op.type === 'warning'
-                              ? { backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }
-                              : undefined
-                          }
+                          key={op.id}
+                          className={`fitem ${op.type === 'warning' ? 'warning' : ''} ${isDraggingThis ? 'canva-dnd-dragging' : ''} ${isOverThis ? 'canva-dnd-over' : ''}`}
+                          style={{ position: 'relative' }}
+                          draggable={isInteractive}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', String(opIndex));
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDndItem({ type: 'step-op', index: opIndex });
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dndOver?.type !== 'step-op' || dndOver.index !== opIndex) {
+                              setDndOver({ type: 'step-op', index: opIndex });
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dndOver?.type === 'step-op' && dndOver.index === opIndex) {
+                              setDndOver(null);
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dndItem?.type === 'step-op' && dndItem.index !== opIndex) {
+                              const updated = [...currentOps];
+                              const [moved] = updated.splice(dndItem.index, 1);
+                              updated.splice(opIndex, 0, moved);
+                              updateStepOps(updated);
+                            }
+                            setDndItem(null);
+                            setDndOver(null);
+                          }}
+                          onDragEnd={() => {
+                            setDndItem(null);
+                            setDndOver(null);
+                          }}
                         >
-                          {isInteractive ? (
-                            <input
-                              type="text"
-                              value={op.icon || '✓'}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, icon: val } : item));
-                                updateStepOps(updated);
-                              }}
-                              style={{
-                                width: '28px',
-                                textAlign: 'center',
-                                background: 'transparent',
-                                border: 'none',
-                                fontWeight: 800,
-                                fontSize: '1rem',
-                                color: 'inherit',
-                                outline: 'none',
-                              }}
-                              title="Clique para editar o ícone/emoji"
-                            />
-                          ) : (
-                            <span>{op.icon || '✓'}</span>
+                          {isInteractive && (
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '2px', zIndex: 10 }}>
+                              <div
+                                className="item-delete-btn grip no-print"
+                                title="Segure e arraste com o mouse para reordenar"
+                                style={{ cursor: 'grab' }}
+                              >
+                                <GripVertical size={11} />
+                              </div>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                disabled={opIndex === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (opIndex > 0) {
+                                    const updated = [...currentOps];
+                                    const temp = updated[opIndex];
+                                    updated[opIndex] = updated[opIndex - 1];
+                                    updated[opIndex - 1] = temp;
+                                    updateStepOps(updated);
+                                  }
+                                }}
+                                title="Mover item para cima"
+                                style={{ opacity: opIndex === 0 ? 0.3 : 1 }}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                disabled={opIndex === currentOps.length - 1}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (opIndex < currentOps.length - 1) {
+                                    const updated = [...currentOps];
+                                    const temp = updated[opIndex];
+                                    updated[opIndex] = updated[opIndex + 1];
+                                    updated[opIndex + 1] = temp;
+                                    updateStepOps(updated);
+                                  }
+                                }}
+                                title="Mover item para baixo"
+                                style={{ opacity: opIndex === currentOps.length - 1 ? 0.3 : 1 }}
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                className="item-delete-btn no-print"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = currentOps.filter((_, i) => i !== opIndex);
+                                  updateStepOps(updated);
+                                }}
+                                title="Excluir este item operacional"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           )}
-                        </div>
-                        <div className="ftxt" style={{ flex: 1, paddingRight: isInteractive ? '24px' : '0' }}>
-                          {isInteractive ? (
-                            <>
+                          <div
+                            className="fico"
+                            style={
+                              op.type === 'warning'
+                                ? { backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }
+                                : undefined
+                            }
+                          >
+                            {isInteractive ? (
                               <input
                                 type="text"
-                                className="canva-inline-head-input"
+                                value={op.icon || '✓'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, icon: val } : item));
+                                  updateStepOps(updated);
+                                }}
                                 style={{
-                                  fontSize: '0.92rem',
+                                  width: '28px',
+                                  textAlign: 'center',
+                                  background: 'transparent',
+                                  border: 'none',
                                   fontWeight: 800,
-                                  marginBottom: '3px',
-                                  color: op.type === 'warning' ? '#d97706' : undefined,
+                                  fontSize: '1rem',
+                                  color: 'inherit',
+                                  outline: 'none',
                                 }}
-                                value={op.title}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, title: val } : item));
-                                  updateStepOps(updated);
-                                }}
-                                placeholder="Título do item..."
+                                title="Clique para editar o ícone/emoji"
                               />
-                              <input
-                                type="text"
-                                className="canva-inline-fitem-input"
-                                value={op.text || op.content || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, text: val, content: val } : item));
-                                  updateStepOps(updated);
-                                }}
-                                placeholder="Instrução ou resultado..."
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <h4 style={op.type === 'warning' ? { color: '#d97706' } : undefined}>{op.title}</h4>
-                              <p>{op.text || op.content}</p>
-                            </>
-                          )}
+                            ) : (
+                              <span>{op.icon || '✓'}</span>
+                            )}
+                          </div>
+                          <div className="ftxt" style={{ flex: 1, paddingRight: isInteractive ? '74px' : '0' }}>
+                            {isInteractive ? (
+                              <>
+                                <input
+                                  type="text"
+                                  className="canva-inline-head-input"
+                                  style={{
+                                    fontSize: '0.92rem',
+                                    fontWeight: 800,
+                                    marginBottom: '3px',
+                                    color: op.type === 'warning' ? '#d97706' : undefined,
+                                  }}
+                                  value={op.title}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, title: val } : item));
+                                    updateStepOps(updated);
+                                  }}
+                                  placeholder="Título do item..."
+                                />
+                                <input
+                                  type="text"
+                                  className="canva-inline-fitem-input"
+                                  value={op.text || op.content || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = currentOps.map((item, i) => (i === opIndex ? { ...item, text: val, content: val } : item));
+                                    updateStepOps(updated);
+                                  }}
+                                  placeholder="Instrução ou resultado..."
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <h4 style={op.type === 'warning' ? { color: '#d97706' } : undefined}>{op.title}</h4>
+                                <p>{op.text || op.content}</p>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {isInteractive && (
                       <button
@@ -2546,7 +2895,20 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                     )}
                   </div>
 
-                  {/* Shotframe da Etapa com controle de largura (50%, 65%, 80%, 100%) */}
+                  {/* Divisor / Alça de Arraste com o Mouse para Redimensionar a Imagem Livremente */}
+                  {isInteractive && (
+                    <div
+                      className="canva-shotframe-splitter no-print"
+                      title="Clique e arraste com o mouse para redimensionar a largura da imagem livremente"
+                      onMouseDown={(e) => handleShotframeResizeMouseDown(e, stepIdx)}
+                    >
+                      <div className="splitter-thumb">
+                        <GripVertical size={14} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shotframe da Etapa com controle de largura (50%, 65%, 80%, 100% ou arraste livre) */}
                   <div
                     className="shotframe"
                     style={{
@@ -2572,6 +2934,23 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                             {w}
                           </button>
                         ))}
+                        {/* Slider contínuo de largura pelo mouse */}
+                        <div className="shotframe-slider-wrap" title="Arraste para redimensionar com o mouse">
+                          <input
+                            type="range"
+                            min="25"
+                            max="85"
+                            value={parseInt(step.imageWidth || '65', 10) || 65}
+                            onChange={(e) => {
+                              const val = `${e.target.value}%`;
+                              setSteps((prev) =>
+                                prev.map((s, idx) => (idx === stepIdx ? { ...s, imageWidth: val } : s))
+                              );
+                            }}
+                            className="shotframe-range-slider"
+                          />
+                          <span className="shotframe-percent-badge">{step.imageWidth || '65%'}</span>
+                        </div>
                       </div>
                     )}
 
@@ -2827,23 +3206,111 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             )}
 
             <div className="canva-checklist-preview" style={{ marginTop: '22px' }}>
-              {checklistItems.map((chk, i) => (
-                <div key={chk.id} className="canva-check-row" style={{ position: 'relative' }}>
-                  {isInteractive && (
-                    <button
-                      type="button"
-                      className="item-delete-btn no-print"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setChecklistItems((prev) => prev.filter((_, idx) => idx !== i));
-                      }}
-                      title="Excluir este critério de homologação"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <div className="canva-check-circle">✓</div>
-                  <div style={{ flex: 1, paddingRight: isInteractive ? '26px' : '0' }}>
+              {checklistItems.map((chk, i) => {
+                const isDraggingThis = dndItem?.type === 'chk-item' && dndItem.index === i;
+                const isOverThis = dndOver?.type === 'chk-item' && dndOver.index === i;
+
+                return (
+                  <div
+                    key={chk.id}
+                    className={`canva-check-row ${isDraggingThis ? 'canva-dnd-dragging' : ''} ${isOverThis ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative' }}
+                    draggable={isInteractive}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', String(i));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDndItem({ type: 'chk-item', index: i });
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dndOver?.type !== 'chk-item' || dndOver.index !== i) {
+                        setDndOver({ type: 'chk-item', index: i });
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dndOver?.type === 'chk-item' && dndOver.index === i) {
+                        setDndOver(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dndItem?.type === 'chk-item' && dndItem.index !== i) {
+                        const updated = [...checklistItems];
+                        const [moved] = updated.splice(dndItem.index, 1);
+                        updated.splice(i, 0, moved);
+                        setChecklistItems(updated);
+                      }
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
+                    onDragEnd={() => {
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
+                  >
+                    {isInteractive && (
+                      <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '2px', zIndex: 10 }}>
+                        <div
+                          className="item-delete-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
+                        <button
+                          type="button"
+                          className="item-delete-btn no-print"
+                          disabled={i === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (i > 0) {
+                              const updated = [...checklistItems];
+                              const temp = updated[i];
+                              updated[i] = updated[i - 1];
+                              updated[i - 1] = temp;
+                              setChecklistItems(updated);
+                            }
+                          }}
+                          title="Mover critério para cima"
+                          style={{ opacity: i === 0 ? 0.3 : 1 }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="item-delete-btn no-print"
+                          disabled={i === checklistItems.length - 1}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (i < checklistItems.length - 1) {
+                              const updated = [...checklistItems];
+                              const temp = updated[i];
+                              updated[i] = updated[i + 1];
+                              updated[i + 1] = temp;
+                              setChecklistItems(updated);
+                            }
+                          }}
+                          title="Mover critério para baixo"
+                          style={{ opacity: i === checklistItems.length - 1 ? 0.3 : 1 }}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          className="item-delete-btn no-print"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChecklistItems((prev) => prev.filter((_, idx) => idx !== i));
+                          }}
+                          title="Excluir este critério de homologação"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    <div className="canva-check-circle">✓</div>
+                    <div style={{ flex: 1, paddingRight: isInteractive ? '74px' : '0' }}>
                     {isInteractive ? (
                       <>
                         <input
@@ -2881,7 +3348,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                     )}
                   </div>
                 </div>
-              ))}
+              );
+            })}
 
               {isInteractive && (
                 <button
@@ -3165,61 +3633,109 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                 gap: '16px',
               }}
             >
-              {signatureColumns.map((col, colIdx) => (
-                <div key={col.id} className="print-sign-col canva-sign-col-editable" style={{ position: 'relative' }}>
-                  {isInteractive && (
-                    <div className="sign-col-actions-bar no-print" style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '6px' }}>
-                      <button
-                        type="button"
-                        className="canva-control-btn"
-                        disabled={colIdx === 0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (colIdx > 0) {
-                            const updated = [...signatureColumns];
-                            const temp = updated[colIdx];
-                            updated[colIdx] = updated[colIdx - 1];
-                            updated[colIdx - 1] = temp;
-                            setSignatureColumns(updated);
-                          }
-                        }}
-                        title="Mover assinatura para a esquerda"
-                        style={{ opacity: colIdx === 0 ? 0.3 : 1 }}
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        className="canva-control-btn"
-                        disabled={colIdx === signatureColumns.length - 1}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (colIdx < signatureColumns.length - 1) {
-                            const updated = [...signatureColumns];
-                            const temp = updated[colIdx];
-                            updated[colIdx] = updated[colIdx + 1];
-                            updated[colIdx + 1] = temp;
-                            setSignatureColumns(updated);
-                          }
-                        }}
-                        title="Mover assinatura para a direita"
-                        style={{ opacity: colIdx === signatureColumns.length - 1 ? 0.3 : 1 }}
-                      >
-                        →
-                      </button>
-                      <button
-                        type="button"
-                        className="canva-control-btn danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSignatureColumns(prev => prev.filter((_, i) => i !== colIdx));
-                        }}
-                        title="Excluir este bloco de assinatura"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
+              {signatureColumns.map((col, colIdx) => {
+                const isDraggingThis = dndItem?.type === 'signature-col' && dndItem.index === colIdx;
+                const isOverThis = dndOver?.type === 'signature-col' && dndOver.index === colIdx;
+
+                return (
+                  <div
+                    key={col.id}
+                    className={`print-sign-col canva-sign-col-editable ${isDraggingThis ? 'canva-dnd-dragging' : ''} ${isOverThis ? 'canva-dnd-over' : ''}`}
+                    style={{ position: 'relative' }}
+                    draggable={isInteractive}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', String(colIdx));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDndItem({ type: 'signature-col', index: colIdx });
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dndOver?.type !== 'signature-col' || dndOver.index !== colIdx) {
+                        setDndOver({ type: 'signature-col', index: colIdx });
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dndOver?.type === 'signature-col' && dndOver.index === colIdx) {
+                        setDndOver(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dndItem?.type === 'signature-col' && dndItem.index !== colIdx) {
+                        const updated = [...signatureColumns];
+                        const [moved] = updated.splice(dndItem.index, 1);
+                        updated.splice(colIdx, 0, moved);
+                        setSignatureColumns(updated);
+                      }
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
+                    onDragEnd={() => {
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
+                  >
+                    {isInteractive && (
+                      <div className="sign-col-actions-bar no-print" style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <div
+                          className="canva-control-btn grip no-print"
+                          title="Segure e arraste com o mouse para reordenar"
+                          style={{ cursor: 'grab' }}
+                        >
+                          <GripVertical size={11} />
+                        </div>
+                        <button
+                          type="button"
+                          className="canva-control-btn"
+                          disabled={colIdx === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (colIdx > 0) {
+                              const updated = [...signatureColumns];
+                              const temp = updated[colIdx];
+                              updated[colIdx] = updated[colIdx - 1];
+                              updated[colIdx - 1] = temp;
+                              setSignatureColumns(updated);
+                            }
+                          }}
+                          title="Mover assinatura para a esquerda"
+                          style={{ opacity: colIdx === 0 ? 0.3 : 1 }}
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn"
+                          disabled={colIdx === signatureColumns.length - 1}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (colIdx < signatureColumns.length - 1) {
+                              const updated = [...signatureColumns];
+                              const temp = updated[colIdx];
+                              updated[colIdx] = updated[colIdx + 1];
+                              updated[colIdx + 1] = temp;
+                              setSignatureColumns(updated);
+                            }
+                          }}
+                          title="Mover assinatura para a direita"
+                          style={{ opacity: colIdx === signatureColumns.length - 1 ? 0.3 : 1 }}
+                        >
+                          →
+                        </button>
+                        <button
+                          type="button"
+                          className="canva-control-btn danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSignatureColumns(prev => prev.filter((_, i) => i !== colIdx));
+                          }}
+                          title="Excluir este bloco de assinatura"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
 
                   {isInteractive ? (
                     <input
@@ -3290,7 +3806,8 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
                     )
                   )}
                 </div>
-              ))}
+              );
+            })}
             </div>
 
             {/* Botão Adicionar Assinatura / Validação */}
@@ -4037,16 +4554,53 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
               {slidesConfig.map((slide, idx) => {
                 const isCurrentActive = idx === safeActiveSlideIndex;
                 const slideTitle = getSlideTitle(slide, idx);
+                const isDraggingThis = dndItem?.type === 'slide' && dndItem.index === idx;
+                const isOverThis = dndOver?.type === 'slide' && dndOver.index === idx;
 
                 return (
                   <div
                     key={slide.id || `thumb-${idx}`}
-                    className={`thumb-card ${isCurrentActive ? 'active' : ''}`}
+                    className={`thumb-card ${isCurrentActive ? 'active' : ''} ${isDraggingThis ? 'canva-dnd-dragging' : ''} ${isOverThis ? 'canva-dnd-over' : ''}`}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', String(idx));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDndItem({ type: 'slide', index: idx });
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dndOver?.type !== 'slide' || dndOver.index !== idx) {
+                        setDndOver({ type: 'slide', index: idx });
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dndOver?.type === 'slide' && dndOver.index === idx) {
+                        setDndOver(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dndItem?.type === 'slide' && dndItem.index !== idx) {
+                        movePage(dndItem.index, idx);
+                        setActiveSlideIndex(idx);
+                      }
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
+                    onDragEnd={() => {
+                      setDndItem(null);
+                      setDndOver(null);
+                    }}
                     onClick={() => {
                       setActiveSlideIndex(idx);
                       setSelectedIndicatorId(null);
                     }}
+                    title="Clique para editar ou arraste com o mouse para reordenar"
                   >
+                    <div className="thumb-grip-handle no-print" title="Segure e arraste para reordenar">
+                      <GripVertical size={12} />
+                    </div>
                     <span className="thumb-num">{String(idx + 1).padStart(2, '0')}</span>
                     <div className="thumb-preview">
                       <strong style={{ fontSize: '0.78rem' }}>{slideTitle}</strong>
