@@ -412,63 +412,65 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               );
             })}
 
-          {/* Estado Vazio dentro de um Módulo sem Rotinas */}
+          {/* Estado Vazio Moderno e Minimalista dentro de um Módulo sem Rotinas */}
           {submenus.length === 0 && moduleProcedures.length === 0 && (
             <div
               style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',
-                padding: '44px 20px',
-                background: 'var(--bg-secondary)',
+                padding: '48px 24px',
+                background: 'var(--bg-primary)',
                 borderRadius: '16px',
-                border: '1.5px dashed var(--border-strong)',
-                boxShadow: 'var(--shadow-subtle)',
-                margin: '12px 0',
+                border: '1px solid var(--border)',
+                boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                margin: '16px 0',
               }}
             >
               <div
                 style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '50%',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '14px',
                   background: 'var(--red-soft)',
                   border: '1px solid rgba(231, 76, 60, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 14px',
+                  margin: '0 auto 16px',
+                  boxShadow: '0 4px 12px rgba(231, 76, 60, 0.15)',
                 }}
               >
                 <span style={{ color: 'var(--red)', display: 'inline-flex' }}>
-                  <ActiveIcon size={24} />
+                  <ActiveIcon size={26} />
                 </span>
               </div>
-              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>
-                Nenhuma rotina ou POP cadastrado em {activeMenu.label}
+              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px', letterSpacing: '-0.01em' }}>
+                Nenhum POP cadastrado em {activeMenu.label}
               </h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '440px', margin: '0 auto 20px', lineHeight: 1.5 }}>
-                Importe os arquivos oficiais em PDF ou HTML para este módulo para disponibilizá-los aos colaboradores.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '420px', margin: '0 auto 20px', lineHeight: 1.55 }}>
+                Disponibilize os manuais oficiais em PDF ou HTML para sua equipe farmacêutica neste módulo.
               </p>
               {onOpenImport && (
                 <button
                   type="button"
                   onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
                   style={{
-                    background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                    background: 'var(--red)',
                     color: '#ffffff',
                     border: 'none',
-                    borderRadius: '9px',
-                    padding: '9px 20px',
+                    borderRadius: '10px',
+                    padding: '10px 22px',
                     fontSize: '0.86rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '7px',
+                    gap: '8px',
                     boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <Upload size={15} />
+                  <Upload size={16} />
                   <span>Importar POP para {activeMenu.label}</span>
                 </button>
               )}
@@ -741,43 +743,43 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             );
           })}
 
-          {/* Estado Vazio caso a versão não tenha nenhum menu cadastrado */}
+          {/* Estado Vazio Moderno, Limpo e Minimalista em Branco e Vermelho */}
           {versionMenus.length === 0 && (
             <div
               className="version-empty-menus-box"
               style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',
-                padding: '52px 28px',
-                background: 'var(--bg-secondary)',
-                borderRadius: '16px',
-                border: '1.5px dashed var(--border-strong)',
-                boxShadow: 'var(--shadow-subtle)',
+                padding: '60px 28px',
+                background: 'var(--bg-primary)',
+                borderRadius: '20px',
+                border: '1px solid var(--border)',
+                boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.05)',
                 marginTop: '1rem',
               }}
             >
               <div
                 style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
+                  width: '68px',
+                  height: '68px',
+                  borderRadius: '18px',
                   background: 'var(--red-soft)',
-                  border: '1px solid rgba(231, 76, 60, 0.25)',
+                  border: '1px solid rgba(231, 76, 60, 0.3)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  boxShadow: '0 0 0 8px rgba(231, 76, 60, 0.08)',
+                  margin: '0 auto 18px',
+                  boxShadow: '0 6px 18px rgba(231, 76, 60, 0.18)',
                 }}
               >
-                <FolderPlus size={30} color="var(--red)" />
+                <FolderPlus size={32} color="var(--red)" />
               </div>
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                Nenhum módulo configurado para o {versionName}
+              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+                Nenhum módulo ativo no {versionName}
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 24px', lineHeight: 1.55 }}>
-                Estruture os menus e rotinas operacionais da sua farmácia ou importe diretamente seus procedimentos em formato PDF e HTML para o acervo.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '500px', margin: '0 auto 26px', lineHeight: 1.6 }}>
+                Você pode importar procedimentos oficiais em formato PDF e HTML ou estruturar os módulos do sistema nas configurações.
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -786,11 +788,11 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                     type="button"
                     onClick={() => onOpenImport(undefined, undefined, version)}
                     style={{
-                      background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                      background: 'var(--red)',
                       color: '#ffffff',
                       border: 'none',
-                      borderRadius: '10px',
-                      padding: '11px 22px',
+                      borderRadius: '11px',
+                      padding: '11px 24px',
                       fontSize: '0.88rem',
                       fontWeight: 800,
                       cursor: 'pointer',
@@ -798,9 +800,10 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                       alignItems: 'center',
                       gap: '8px',
                       boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <Upload size={16} />
+                    <Upload size={17} />
                     <span>Importar POP para o {versionName}</span>
                   </button>
                 )}
@@ -812,15 +815,16 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                     style={{
                       background: 'var(--bg-primary)',
                       color: 'var(--text-primary)',
-                      border: '1.5px solid var(--border-strong)',
-                      borderRadius: '10px',
-                      padding: '11px 20px',
+                      border: '1.5px solid var(--border)',
+                      borderRadius: '11px',
+                      padding: '11px 22px',
                       fontSize: '0.88rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <Sliders size={16} color="var(--red)" />

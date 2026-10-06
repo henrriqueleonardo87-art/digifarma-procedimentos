@@ -11,39 +11,39 @@
   --ink: #131419;          /* Fundo escuro profundo */
   --ink-2: #1b1d25;        /* Superfície escura de cards */
   --ink-3: #232634;        /* Card escuro elevado */
-  --paper: #f5f6fa;        /* Fundo claro da aplicação */
-  --paper-2: #ffffff;      /* Superfície clara de leitura */
+  --paper: #f8fafc;        /* Fundo claro da aplicação moderno */
+  --paper-2: #ffffff;      /* Superfície branca pura de leitura */
   --red: #e74c3c;          /* Vermelho Digifarma — cor institucional */
   --red-dark: #c0392b;     /* Tom escuro para gradientes */
-  --red-soft: rgba(231, 76, 60, 0.14); /* Tint para alertas e ícones */
-  --green: #2ecc71;        /* Destaque positivo / validação */
-  --green-ink: #27ae60;    /* Verde para texto em fundo claro */
-  --amber: #f39c12;        /* Atenção / alerta operacional */
+  --red-soft: rgba(231, 76, 60, 0.10); /* Tint suave e elegante para alertas e ícones */
+  --green: #10b981;        /* Destaque positivo / validação */
+  --green-ink: #059669;    /* Verde para texto em fundo claro */
+  --amber: #f59e0b;        /* Atenção / alerta operacional */
 
   --on-ink: #eef0f5;       /* Texto em fundo escuro */
   --on-ink-mut: #9aa2b0;   /* Texto secundário em fundo escuro */
   --on-ink-line: rgba(255, 255, 255, 0.10); /* Linhas em fundo escuro */
-  --on-paper: #20232b;     /* Texto em fundo claro */
-  --on-paper-mut: #6a7180; /* Texto secundário em fundo claro */
-  --on-paper-line: #e4e7ee;/* Linhas em fundo claro */
+  --on-paper: #0f172a;     /* Texto de alto contraste e legibilidade em fundo claro */
+  --on-paper-mut: #475569; /* Texto secundário refinado em fundo claro */
+  --on-paper-line: #e2e8f0;/* Linhas ultra-limpas em fundo claro */
 
   --font-sans: 'Aptos', 'Aptos Display', 'Inter', Calibri, 'Segoe UI', system-ui, sans-serif;
   --font-display: 'Aptos Display', 'Aptos', 'Inter', -apple-system, sans-serif;
   --maxw: 1120px;
 
   /* Mapeamento Semântico para Modo Claro (Padrão) */
-  --bg-primary: var(--paper-2);
-  --bg-secondary: var(--paper);
-  --bg-tertiary: #ebedf2;
-  --bg-hover: #e8ebf0;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-hover: #f1f5f9;
 
-  --text-primary: var(--on-paper);
-  --text-secondary: var(--on-paper-mut);
-  --text-muted: #8c94a4;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
 
-  --border: var(--on-paper-line);
-  --border-subtle: #edf0f5;
-  --border-strong: #d0d6e2;
+  --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --border-strong: #cbd5e1;
 
   /* Vermelho Marca */
   --primary-50: var(--red-soft);
@@ -7404,6 +7404,12 @@ input[type="checkbox"]:focus-visible,
   }
 
   .global-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-username-text {
     display: none;
   }
 
@@ -7449,9 +7455,13 @@ input[type="checkbox"]:focus-visible,
   }
 
   .sidebar.collapsed .brand {
-    padding: 0.5rem 0 1rem !important;
+    padding: 0.5rem 0 0.85rem !important;
     justify-content: center !important;
     width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
   }
 
   .sidebar.collapsed .nav-item {
@@ -8259,6 +8269,22 @@ input[type="checkbox"]:focus-visible,
 
 .sidebar-header-collapse-btn:hover {
   background: var(--bg-tertiary);
+  color: var(--red);
+  border-color: rgba(231, 76, 60, 0.4);
+}
+
+.sidebar-header-collapse-btn.collapsed {
+  width: 32px;
+  height: 24px;
+  margin: 0 !important;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-header-collapse-btn.collapsed:hover {
+  background: var(--red-soft);
   color: var(--red);
   border-color: rgba(231, 76, 60, 0.4);
 }

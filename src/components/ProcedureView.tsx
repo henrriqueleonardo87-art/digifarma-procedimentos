@@ -570,7 +570,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               type="button"
               className="btn-proc-primary-action"
               onClick={() => onOpenImport(procedure)}
-              style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: '#0284c7', color: '#38bdf8' }}
+              style={{ background: 'var(--red-soft)', borderColor: 'rgba(231, 76, 60, 0.35)', color: 'var(--red)' }}
               title="Anexar ou atualizar arquivos PDF e HTML deste procedimento"
             >
               <Upload size={14} />
@@ -840,14 +840,14 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
       {/* Selo Oficial de Homologação e Responsável pela Liberação */}
       {(procedure.status === 'aprovado' || !procedure.status) && (
-        <div className="homologation-status-bar no-print" style={{ margin: '12px auto 16px', maxWidth: '1120px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '10px' }}>
+        <div className="homologation-status-bar no-print" style={{ margin: '12px auto 16px', maxWidth: '1120px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ShieldCheck size={20} color="#10b981" />
-            <span style={{ fontSize: '0.84rem', color: '#f1f5f9' }}>
+            <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)' }}>
               Procedimento <strong>Homologado e Publicado</strong> oficialmente no repositório
             </span>
           </div>
-          <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: 700 }}>
+          <span style={{ fontSize: '0.78rem', color: 'var(--green-ink)', fontWeight: 700 }}>
             ✓ Liberado por: <u>{procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}</u>
           </span>
         </div>
@@ -857,20 +857,21 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
       <div className="repository-doc-container no-print" style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
         <div
           style={{
-            background: '#13161f',
-            border: '1px solid #283347',
-            borderRadius: '12px',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: '14px',
             padding: '12px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '12px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Formato no Repositório:
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Formato de Leitura:
             </span>
 
             {/* Tags Marcadas Selecionáveis */}
@@ -881,9 +882,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 style={{
                   padding: '6px 14px',
                   borderRadius: '8px',
-                  border: selectedFormat === 'pdf' ? '1.5px solid #ef4444' : '1px solid #334155',
-                  background: selectedFormat === 'pdf' ? 'rgba(239, 68, 68, 0.22)' : '#1e2433',
-                  color: selectedFormat === 'pdf' ? '#fca5a5' : '#94a3b8',
+                  border: selectedFormat === 'pdf' ? '1.5px solid var(--red)' : '1px solid var(--border)',
+                  background: selectedFormat === 'pdf' ? 'var(--red-soft)' : 'var(--bg-secondary)',
+                  color: selectedFormat === 'pdf' ? 'var(--red)' : 'var(--text-secondary)',
                   fontSize: '0.78rem',
                   fontWeight: 800,
                   cursor: 'pointer',
@@ -893,10 +894,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <FileText size={14} color="#ef4444" />
-                <span>[📄 Documento PDF]</span>
+                <FileText size={14} color="var(--red)" />
+                <span>Documento PDF</span>
                 {selectedFormat === 'pdf' && (
-                  <span style={{ fontSize: '0.66rem', background: '#ef4444', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
+                  <span style={{ fontSize: '0.66rem', background: 'var(--red)', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
                     Ativo
                   </span>
                 )}
@@ -911,9 +912,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 style={{
                   padding: '6px 14px',
                   borderRadius: '8px',
-                  border: selectedFormat === 'html' ? '1.5px solid #3b82f6' : '1px solid #334155',
-                  background: selectedFormat === 'html' ? 'rgba(59, 130, 246, 0.22)' : '#1e2433',
-                  color: selectedFormat === 'html' ? '#93c5fd' : '#94a3b8',
+                  border: selectedFormat === 'html' ? '1.5px solid var(--red)' : '1px solid var(--border)',
+                  background: selectedFormat === 'html' ? 'var(--red-soft)' : 'var(--bg-secondary)',
+                  color: selectedFormat === 'html' ? 'var(--red)' : 'var(--text-secondary)',
                   fontSize: '0.78rem',
                   fontWeight: 800,
                   cursor: 'pointer',
@@ -923,10 +924,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <Monitor size={14} color="#3b82f6" />
-                <span>[🌐 Manual HTML]</span>
+                <Monitor size={14} color="var(--red)" />
+                <span>Manual HTML</span>
                 {selectedFormat === 'html' && (
-                  <span style={{ fontSize: '0.66rem', background: '#3b82f6', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
+                  <span style={{ fontSize: '0.66rem', background: 'var(--red)', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
                     Ativo
                   </span>
                 )}
@@ -943,20 +944,21 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 type="button"
                 onClick={() => onOpenImport(procedure)}
                 style={{
-                  background: '#1e2433',
-                  border: '1px solid #3b4760',
-                  color: '#e2e8f0',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.75rem',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  borderRadius: '8px',
+                  padding: '6px 14px',
+                  fontSize: '0.76rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <Upload size={12} />
+                <Upload size={13} color="var(--red)" />
                 <span>{hasImportedFiles ? 'Substituir / Anexar' : 'Importar PDF / HTML'}</span>
               </button>
             )}
@@ -969,25 +971,26 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         <div className="repository-viewer-box no-print" style={{ maxWidth: '1120px', width: '100%', margin: '0 auto 24px auto' }}>
           <div
             style={{
-              background: '#1a1f2c',
-              border: '1px solid #283347',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
               borderBottom: 'none',
-              borderRadius: '12px 12px 0 0',
-              padding: '10px 16px',
+              borderRadius: '14px 14px 0 0',
+              padding: '10px 18px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '10px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={18} color="#ef4444" />
-              <strong style={{ fontSize: '0.88rem', color: '#ffffff' }}>
+              <FileText size={18} color="var(--red)" />
+              <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                 {procedure.pdfFileName || `${procedure.title}.pdf`}
               </strong>
               {procedure.pdfFileSize && (
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   ({(procedure.pdfFileSize / (1024 * 1024)).toFixed(2)} MB)
                 </span>
               )}
@@ -1000,15 +1003,15 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 style={{
                   background: 'var(--red)',
                   color: '#ffffff',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
+                  padding: '7px 16px',
+                  borderRadius: '8px',
                   fontSize: '0.78rem',
                   fontWeight: 700,
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                  boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
                 }}
               >
                 <FileDown size={13} />
@@ -1020,11 +1023,11 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  background: '#283144',
-                  border: '1px solid #3b4760',
-                  color: '#e2e8f0',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
                   fontSize: '0.78rem',
                   fontWeight: 600,
                   textDecoration: 'none',
@@ -1041,12 +1044,12 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
           <div
             style={{
-              background: '#0e1117',
-              border: '1px solid #283347',
-              borderRadius: '0 0 12px 12px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '0 0 14px 14px',
               overflow: 'hidden',
               height: '820px',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
             }}
           >
             <iframe
@@ -1068,21 +1071,22 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         <div className="repository-viewer-box no-print" style={{ maxWidth: '1120px', width: '100%', margin: '0 auto 24px auto' }}>
           <div
             style={{
-              background: '#1a1f2c',
-              border: '1px solid #283347',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
               borderBottom: 'none',
-              borderRadius: '12px 12px 0 0',
-              padding: '10px 16px',
+              borderRadius: '14px 14px 0 0',
+              padding: '10px 18px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '10px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Monitor size={18} color="#3b82f6" />
-              <strong style={{ fontSize: '0.88rem', color: '#ffffff' }}>
+              <Monitor size={18} color="var(--red)" />
+              <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                 {procedure.htmlFileName || `${procedure.title}.html`}
               </strong>
             </div>
@@ -1092,10 +1096,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 type="button"
                 onClick={handleDownloadHtml}
                 style={{
-                  background: '#2563eb',
+                  background: 'var(--red)',
                   color: '#ffffff',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
+                  padding: '7px 16px',
+                  borderRadius: '8px',
                   fontSize: '0.78rem',
                   fontWeight: 700,
                   border: 'none',
@@ -1103,6 +1107,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
+                  boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
                 }}
               >
                 <FileDown size={13} />
@@ -1119,11 +1124,11 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                   }
                 }}
                 style={{
-                  background: '#283144',
-                  border: '1px solid #3b4760',
-                  color: '#e2e8f0',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
                   fontSize: '0.78rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -1141,11 +1146,11 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           <div
             style={{
               background: '#ffffff',
-              border: '1px solid #283347',
-              borderRadius: '0 0 12px 12px',
+              border: '1px solid var(--border)',
+              borderRadius: '0 0 14px 14px',
               overflow: 'hidden',
               height: '820px',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
             }}
           >
             <iframe

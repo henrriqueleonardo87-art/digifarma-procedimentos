@@ -63,55 +63,91 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
       id="sidebar"
     >
-      {/* Brand Header com Botão de Recolher no Topo */}
-      <div className="brand">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: isCollapsed ? '0' : '0.65rem',
-            cursor: 'pointer',
-            flex: 1,
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
-            overflow: 'hidden',
-          }}
-          onClick={() => handleNavClick('dashboard')}
-          title="Digifarma - Início"
-        >
-          <div className="brand-logo-icon">
-            <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
-          </div>
-          {!isCollapsed && (
-            <div style={{ overflow: 'hidden' }}>
-              <div className="name">Digifarma</div>
-              <div className="sub brand-product">Treinamento & POPs</div>
+      {/* Brand Header com visual limpo e sem sobreposição */}
+      <div className={`brand ${isCollapsed ? 'brand-collapsed' : ''}`}>
+        {!isCollapsed ? (
+          <>
+            <div
+              className="brand-logo-area"
+              onClick={() => handleNavClick('dashboard')}
+              title="Digifarma - Início"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                cursor: 'pointer',
+                flex: 1,
+                overflow: 'hidden',
+              }}
+            >
+              <div className="brand-logo-icon">
+                <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+              </div>
+              <div style={{ overflow: 'hidden' }}>
+                <div className="name">Digifarma</div>
+                <div className="sub brand-product">Treinamento & POPs</div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Botão de Recolher / Expandir no Topo com ícone de seta */}
-        {onToggleCollapse && (
-          <button
-            type="button"
-            className="sidebar-header-collapse-btn no-print"
-            onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            aria-label={isCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
-        )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {onToggleCollapse && (
+                <button
+                  type="button"
+                  className="sidebar-header-collapse-btn no-print"
+                  onClick={onToggleCollapse}
+                  title="Recolher menu lateral"
+                  aria-label="Recolher menu lateral"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              )}
 
-        {onCloseMobile && (
-          <button
-            type="button"
-            className="sidebar-mobile-close-btn"
-            onClick={onCloseMobile}
-            aria-label="Fechar menu lateral"
-            title="Fechar menu"
+              {onCloseMobile && (
+                <button
+                  type="button"
+                  className="sidebar-mobile-close-btn"
+                  onClick={onCloseMobile}
+                  aria-label="Fechar menu lateral"
+                  title="Fechar menu"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+            }}
           >
-            ✕
-          </button>
+            <div
+              className="brand-logo-icon"
+              onClick={() => handleNavClick('dashboard')}
+              title="Digifarma - Início"
+              style={{ cursor: 'pointer' }}
+            >
+              <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+            </div>
+
+            {onToggleCollapse && (
+              <button
+                type="button"
+                className="sidebar-header-collapse-btn collapsed no-print"
+                onClick={onToggleCollapse}
+                title="Expandir menu lateral"
+                aria-label="Expandir menu lateral"
+                style={{ margin: 0 }}
+              >
+                <ChevronRight size={14} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
