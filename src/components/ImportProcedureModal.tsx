@@ -5,11 +5,12 @@ import {
   FileText,
   Monitor,
   Layers,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   Trash2,
   Tag,
+  ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion, ProcedureFormat } from '../types/procedure';
 import type { AppUser } from '../types/auth';
@@ -43,12 +44,8 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
   const isEditingExisting = !!existingProcedure;
 
   // Estados dos Dados Cadastrais
-  const [title, setTitle] = useState(
-    existingProcedure?.title || ''
-  );
-  const [subtitle, setSubtitle] = useState(
-    existingProcedure?.subtitle || ''
-  );
+  const [title, setTitle] = useState(existingProcedure?.title || '');
+  const [subtitle, setSubtitle] = useState(existingProcedure?.subtitle || '');
   const [systemVersion, setSystemVersion] = useState<SystemVersion>(
     existingProcedure?.systemVersion === 'classico' || defaultVersion === 'r78'
       ? 'classico'
@@ -179,22 +176,22 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
       if (htmlFile) {
         finalHtmlData = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Falha ao ler arquivo HTML'));
+          reader.onload = (event) => {
+            const content = event.target?.result as string;
+            resolve(content || '');
+          };
+          reader.onerror = (err) => reject(err);
           reader.readAsText(htmlFile);
         });
       }
 
-      // Construção das tags do repositório
-      const tagsList: string[] = [
-        'Repositório',
-        systemVersion === 'classico' ? 'Clássico' : 'V10',
-        category,
-      ];
-      if (hasPdf || pdfFile) tagsList.push('PDF');
-      if (hasHtml || htmlFile) tagsList.push('HTML');
+      // Monta tags e caminho do sistema
+      const tagsList: string[] = ['POP', 'Repositório'];
+      if (formatChoice === 'pdf' || formatChoice === 'both') tagsList.push('PDF');
+      if (formatChoice === 'html' || formatChoice === 'both') tagsList.push('HTML');
+      tagsList.push(systemVersion === 'v10' ? 'V10' : 'Clássico');
 
-      const pathStr = `${systemVersion === 'classico' ? 'Digifarma Clássico' : 'Digifarma V10'} ➔ ${category}`;
+      const pathStr = `${systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'} ➔ ${category}`;
 
       const updatedProcedure: Procedure = {
         ...(existingProcedure || {}),
@@ -205,7 +202,7 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
         systemVersion,
         menuId,
         systemPath: pathStr,
-        author,
+        author: author.trim() || 'Farmacêutico Responsável',
         status: publishDirectly ? 'aprovado' : 'pendente',
         isActive: existingProcedure ? existingProcedure.isActive !== false : true,
         formatType: formatChoice,
@@ -245,101 +242,161 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop import-pop-backdrop" onClick={onClose}>
+    <div
+      className="modal-backdrop import-pop-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(10, 12, 18, 0.72)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.25rem',
+        zIndex: 1050,
+      }}
+    >
       <div
         className="import-pop-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#13161f',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '16px',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          borderRadius: '18px',
           width: '100%',
-          maxWidth: '740px',
-          padding: '1.6rem',
-          boxShadow: '0 30px 70px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          maxWidth: '720px',
+          padding: '1.75rem',
+          boxShadow: '0 25px 65px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
           animation: 'modalFadeIn 0.2s ease',
-          color: '#f8fafc',
           maxHeight: '92vh',
           overflowY: 'auto',
+          position: 'relative',
         }}
       >
+        {/* Faixa decorativa superior vermelha institucional */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '20px',
+            right: '20px',
+            height: '3px',
+            background: 'linear-gradient(90deg, var(--red) 0%, #ff6b6b 100%)',
+            borderRadius: '0 0 4px 4px',
+          }}
+        />
+
         {/* Cabeçalho do Modal */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                }}
-              >
-                Repositório de POPs
-              </span>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                • {isEditingExisting ? 'Anexar / Atualizar Arquivos' : 'Importação Direta'}
-              </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: '0 6px 16px rgba(231, 76, 60, 0.35)',
+                flexShrink: 0,
+              }}
+            >
+              <Upload size={22} />
             </div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
-              {isEditingExisting ? 'Anexar Documento ao Procedimento' : 'Importar Procedimento para o Repositório'}
-            </h2>
-            <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
-              Cadastre e disponibilize manuais operacionais em PDF e HTML diretamente no repositório.
-            </p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'var(--red-soft)',
+                    color: 'var(--red)',
+                    border: '1px solid rgba(231, 76, 60, 0.25)',
+                  }}
+                >
+                  REPOSITÓRIO DIGITAL
+                </span>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  • {isEditingExisting ? 'Anexar Arquivos' : 'Importar POP'}
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+                {isEditingExisting ? 'Anexar Documento ao POP' : 'Importar Procedimento Oficial'}
+              </h2>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '3px 0 0 0' }}>
+                Disponibilize manuais em PDF e HTML diretamente no repositório da farmácia.
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
             style={{
-              background: '#1e2433',
-              border: '1px solid #334155',
-              color: '#94a3b8',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
+              padding: '7px',
+              borderRadius: '9px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'all 0.15s ease',
             }}
             title="Fechar"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
         {errorMessage && (
           <div
             style={{
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: '8px',
-              padding: '10px 12px',
-              color: '#fca5a5',
-              fontSize: '0.82rem',
+              background: 'var(--danger-bg)',
+              border: '1px solid var(--danger-border)',
+              borderRadius: '10px',
+              padding: '11px 14px',
+              color: 'var(--danger-text)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              marginBottom: '1rem',
+              gap: '9px',
+              marginBottom: '1.25rem',
             }}
           >
-            <AlertCircle size={16} />
+            <AlertCircle size={17} style={{ flexShrink: 0 }} />
             <span>{errorMessage}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           {/* Seção 1: Dados do Procedimento */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '1.25rem' }}>
+          <div
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
+              padding: '1.2rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+          >
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
-                Título do Procedimento / Rotina *
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '5px' }}>
+                Título do Procedimento / POP *
               </label>
               <input
                 type="text"
@@ -349,47 +406,48 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                 placeholder="Ex: Recebimento e Conferência de Mercadorias..."
                 style={{
                   width: '100%',
-                  background: '#191f2d',
-                  border: '1px solid #2d374d',
-                  borderRadius: '8px',
-                  padding: '9px 12px',
-                  color: '#ffffff',
+                  background: 'var(--bg-primary)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: '9px',
+                  padding: '9px 13px',
+                  color: 'var(--text-primary)',
                   fontSize: '0.88rem',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  transition: 'border-color 0.15s ease',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
-                Subtítulo / Descrição Sumária
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '5px' }}>
+                Resumo / Objetivo do POP (Opcional)
               </label>
               <input
                 type="text"
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="Ex: Instrução de trabalho padrão para checagem de lotes e XML..."
+                placeholder="Ex: Diretrizes operacionais e boas práticas farmacêuticas para a equipe..."
                 style={{
                   width: '100%',
-                  background: '#191f2d',
-                  border: '1px solid #2d374d',
-                  borderRadius: '8px',
-                  padding: '9px 12px',
-                  color: '#ffffff',
-                  fontSize: '0.88rem',
+                  background: 'var(--bg-primary)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: '9px',
+                  padding: '9px 13px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.86rem',
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
-                  Versão do Sistema Digifarma
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '5px' }}>
+                  Versão do Digifarma
                 </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     type="button"
                     onClick={() => setSystemVersion('v10')}
@@ -397,19 +455,19 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                       flex: 1,
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      border: systemVersion === 'v10' ? '1.5px solid var(--red)' : '1px solid #2d374d',
-                      background: systemVersion === 'v10' ? 'rgba(239, 68, 68, 0.15)' : '#191f2d',
-                      color: systemVersion === 'v10' ? '#ffffff' : '#94a3b8',
-                      fontWeight: 700,
+                      border: systemVersion === 'v10' ? '2px solid var(--red)' : '1.5px solid var(--border)',
+                      background: systemVersion === 'v10' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                      color: systemVersion === 'v10' ? 'var(--red)' : 'var(--text-secondary)',
+                      fontWeight: 800,
                       fontSize: '0.78rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
+                      gap: '5px',
                     }}
                   >
-                    <span>Digifarma V10</span>
+                    <span>V10</span>
                   </button>
                   <button
                     type="button"
@@ -418,25 +476,25 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                       flex: 1,
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      border: systemVersion === 'classico' ? '1.5px solid #38bdf8' : '1px solid #2d374d',
-                      background: systemVersion === 'classico' ? 'rgba(56, 189, 248, 0.15)' : '#191f2d',
-                      color: systemVersion === 'classico' ? '#ffffff' : '#94a3b8',
-                      fontWeight: 700,
+                      border: systemVersion === 'classico' ? '2px solid var(--red)' : '1.5px solid var(--border)',
+                      background: systemVersion === 'classico' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                      color: systemVersion === 'classico' ? 'var(--red)' : 'var(--text-secondary)',
+                      fontWeight: 800,
                       fontSize: '0.78rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
+                      gap: '5px',
                     }}
                   >
-                    <span>Digifarma Clássico</span>
+                    <span>Clássico</span>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '5px' }}>
                   Módulo / Categoria
                 </label>
                 <select
@@ -449,11 +507,11 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                   }}
                   style={{
                     width: '100%',
-                    background: '#191f2d',
-                    border: '1px solid #2d374d',
+                    background: 'var(--bg-primary)',
+                    border: '1.5px solid var(--border)',
                     borderRadius: '8px',
-                    padding: '9px 12px',
-                    color: '#ffffff',
+                    padding: '8px 12px',
+                    color: 'var(--text-primary)',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -468,7 +526,7 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '5px' }}>
                   Elaborador / Responsável
                 </label>
                 <input
@@ -478,11 +536,11 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                   placeholder="Nome do responsável"
                   style={{
                     width: '100%',
-                    background: '#191f2d',
-                    border: '1px solid #2d374d',
+                    background: 'var(--bg-primary)',
+                    border: '1.5px solid var(--border)',
                     borderRadius: '8px',
-                    padding: '9px 12px',
-                    color: '#ffffff',
+                    padding: '8px 12px',
+                    color: 'var(--text-primary)',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -495,47 +553,48 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
           {/* Seção 2: Seletor de Formato com Tags Marcadas */}
           <div
             style={{
-              background: '#181e2b',
-              border: '1px solid #283347',
-              borderRadius: '12px',
-              padding: '1.1rem',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
+              padding: '1.2rem',
               marginBottom: '1.25rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Tag size={15} color="#38bdf8" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff' }}>
-                  Formato do Arquivo no Repositório (Tag Marcada)
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <Tag size={16} color="var(--red)" />
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Formato do Arquivo (Tag Marcada)
                 </span>
               </div>
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                Selecione o tipo de mídia deste procedimento
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Importe PDF, HTML ou ambos para o mesmo POP
               </span>
             </div>
 
-            {/* Tags Marcadas Selecionáveis */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+            {/* Chips de Tags Marcadas Selecionáveis */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '14px' }}>
               <button
                 type="button"
                 onClick={() => setFormatChoice('pdf')}
                 style={{
-                  padding: '9px 8px',
-                  borderRadius: '8px',
-                  border: formatChoice === 'pdf' ? '2px solid #ef4444' : '1px solid #2d374d',
-                  background: formatChoice === 'pdf' ? 'rgba(239, 68, 68, 0.18)' : '#191f2d',
-                  color: formatChoice === 'pdf' ? '#fca5a5' : '#94a3b8',
+                  padding: '10px 8px',
+                  borderRadius: '10px',
+                  border: formatChoice === 'pdf' ? '2px solid var(--red)' : '1.5px solid var(--border)',
+                  background: formatChoice === 'pdf' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                  color: formatChoice === 'pdf' ? 'var(--red)' : 'var(--text-secondary)',
                   fontWeight: 800,
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
                   transition: 'all 0.15s ease',
+                  boxShadow: formatChoice === 'pdf' ? '0 2px 8px rgba(231, 76, 60, 0.2)' : 'none',
                 }}
               >
-                <FileText size={15} color="#ef4444" />
+                <FileText size={16} color="var(--red)" />
                 <span>[📄 Apenas PDF]</span>
               </button>
 
@@ -543,22 +602,23 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                 type="button"
                 onClick={() => setFormatChoice('html')}
                 style={{
-                  padding: '9px 8px',
-                  borderRadius: '8px',
-                  border: formatChoice === 'html' ? '2px solid #3b82f6' : '1px solid #2d374d',
-                  background: formatChoice === 'html' ? 'rgba(59, 130, 246, 0.18)' : '#191f2d',
-                  color: formatChoice === 'html' ? '#93c5fd' : '#94a3b8',
+                  padding: '10px 8px',
+                  borderRadius: '10px',
+                  border: formatChoice === 'html' ? '2px solid var(--red)' : '1.5px solid var(--border)',
+                  background: formatChoice === 'html' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                  color: formatChoice === 'html' ? 'var(--red)' : 'var(--text-secondary)',
                   fontWeight: 800,
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
                   transition: 'all 0.15s ease',
+                  boxShadow: formatChoice === 'html' ? '0 2px 8px rgba(231, 76, 60, 0.2)' : 'none',
                 }}
               >
-                <Monitor size={15} color="#3b82f6" />
+                <Monitor size={16} color="var(--red)" />
                 <span>[🌐 Apenas HTML]</span>
               </button>
 
@@ -566,50 +626,64 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                 type="button"
                 onClick={() => setFormatChoice('both')}
                 style={{
-                  padding: '9px 8px',
-                  borderRadius: '8px',
-                  border: formatChoice === 'both' ? '2px solid #10b981' : '1px solid #2d374d',
-                  background: formatChoice === 'both' ? 'rgba(16, 185, 129, 0.18)' : '#191f2d',
-                  color: formatChoice === 'both' ? '#6ee7b7' : '#94a3b8',
+                  padding: '10px 8px',
+                  borderRadius: '10px',
+                  border: formatChoice === 'both' ? '2px solid var(--red)' : '1.5px solid var(--border)',
+                  background: formatChoice === 'both' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                  color: formatChoice === 'both' ? 'var(--red)' : 'var(--text-secondary)',
                   fontWeight: 800,
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
                   transition: 'all 0.15s ease',
-                  position: 'relative',
+                  boxShadow: formatChoice === 'both' ? '0 2px 8px rgba(231, 76, 60, 0.2)' : 'none',
                 }}
               >
-                <Layers size={15} color="#10b981" />
+                <Layers size={16} color="var(--red)" />
                 <span>[✨ Ambos (PDF + HTML)]</span>
               </button>
             </div>
 
-            {/* Inputs de Upload conforme a escolha */}
+            {/* Inputs de Upload com Dropzone Clean */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Card de Upload do PDF */}
               {(formatChoice === 'pdf' || formatChoice === 'both') && (
                 <div
                   style={{
-                    border: '1px dashed #ef4444',
-                    background: 'rgba(239, 68, 68, 0.05)',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
+                    border: '1.5px dashed rgba(231, 76, 60, 0.45)',
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={20} color="#ef4444" />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          background: 'var(--red-soft)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--red)',
+                        }}
+                      >
+                        <FileText size={20} />
+                      </div>
                       <div>
-                        <strong style={{ fontSize: '0.84rem', color: '#ffffff', display: 'block' }}>
+                        <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)', display: 'block' }}>
                           Arquivo PDF Oficial
                         </strong>
-                        <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                           {pdfFileName
                             ? `${pdfFileName} ${pdfFileSize ? `(${(pdfFileSize / (1024 * 1024)).toFixed(2)} MB)` : ''}`
-                            : 'Nenhum PDF selecionado'}
+                            : 'Nenhum documento PDF selecionado ainda.'}
                         </span>
                       </div>
                     </div>
@@ -626,12 +700,12 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                         type="button"
                         onClick={() => pdfInputRef.current?.click()}
                         style={{
-                          background: '#283144',
-                          border: '1px solid #3b4760',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
+                          background: 'var(--bg-secondary)',
+                          border: '1.5px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'flex',
@@ -639,7 +713,7 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                           gap: '6px',
                         }}
                       >
-                        <Upload size={12} />
+                        <Upload size={13} color="var(--red)" />
                         <span>{pdfFileName ? 'Substituir PDF' : 'Selecionar .PDF'}</span>
                       </button>
                       {pdfFileName && (
@@ -652,16 +726,16 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                             setExistingPdfUrl(undefined);
                           }}
                           style={{
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            border: '1px solid #ef4444',
-                            color: '#ef4444',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
+                            background: 'var(--danger-bg)',
+                            border: '1px solid var(--danger-border)',
+                            color: 'var(--red)',
+                            padding: '7px 10px',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                           }}
                           title="Remover arquivo"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>
@@ -673,23 +747,37 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
               {(formatChoice === 'html' || formatChoice === 'both') && (
                 <div
                   style={{
-                    border: '1px dashed #3b82f6',
-                    background: 'rgba(59, 130, 246, 0.05)',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
+                    border: '1.5px dashed rgba(231, 76, 60, 0.45)',
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Monitor size={20} color="#3b82f6" />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          background: 'var(--red-soft)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--red)',
+                        }}
+                      >
+                        <Monitor size={20} />
+                      </div>
                       <div>
-                        <strong style={{ fontSize: '0.84rem', color: '#ffffff', display: 'block' }}>
+                        <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)', display: 'block' }}>
                           Manual HTML Interativo
                         </strong>
-                        <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                           {htmlFileName
                             ? `${htmlFileName} ${htmlFileSize ? `(${(htmlFileSize / 1024).toFixed(1)} KB)` : ''}`
-                            : 'Nenhum HTML selecionado'}
+                            : 'Nenhum documento HTML selecionado ainda.'}
                         </span>
                       </div>
                     </div>
@@ -706,12 +794,12 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                         type="button"
                         onClick={() => htmlInputRef.current?.click()}
                         style={{
-                          background: '#283144',
-                          border: '1px solid #3b4760',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
+                          background: 'var(--bg-secondary)',
+                          border: '1.5px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'flex',
@@ -719,7 +807,7 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                           gap: '6px',
                         }}
                       >
-                        <Upload size={12} />
+                        <Upload size={13} color="var(--red)" />
                         <span>{htmlFileName ? 'Substituir HTML' : 'Selecionar .HTML'}</span>
                       </button>
                       {htmlFileName && (
@@ -732,16 +820,16 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                             setExistingHtmlData(undefined);
                           }}
                           style={{
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            border: '1px solid #ef4444',
-                            color: '#ef4444',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
+                            background: 'var(--danger-bg)',
+                            border: '1px solid var(--danger-border)',
+                            color: 'var(--red)',
+                            padding: '7px 10px',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                           }}
                           title="Remover arquivo"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>
@@ -754,9 +842,9 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
             {formatChoice === 'both' && (
               <div
                 style={{
-                  marginTop: '12px',
-                  paddingTop: '10px',
-                  borderTop: '1px solid #283347',
+                  marginTop: '14px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -764,41 +852,41 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                   gap: '8px',
                 }}
               >
-                <span style={{ fontSize: '0.76rem', color: '#cbd5e1' }}>
-                  Tag Padrão ao Abrir no Repositório:
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Exibir inicialmente por padrão:
                 </span>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     type="button"
                     onClick={() => setActiveViewFormat('pdf')}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      border: activeViewFormat === 'pdf' ? '1.5px solid #ef4444' : '1px solid #334155',
-                      background: activeViewFormat === 'pdf' ? 'rgba(239, 68, 68, 0.25)' : '#1e2433',
-                      color: activeViewFormat === 'pdf' ? '#ffffff' : '#94a3b8',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      border: activeViewFormat === 'pdf' ? '2px solid var(--red)' : '1px solid var(--border)',
+                      background: activeViewFormat === 'pdf' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                      color: activeViewFormat === 'pdf' ? 'var(--red)' : 'var(--text-secondary)',
+                      fontSize: '0.76rem',
+                      fontWeight: 800,
                       cursor: 'pointer',
                     }}
                   >
-                    [Tag PDF Ativa]
+                    [Tag PDF Inicial]
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveViewFormat('html')}
                     style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      border: activeViewFormat === 'html' ? '1.5px solid #3b82f6' : '1px solid #334155',
-                      background: activeViewFormat === 'html' ? 'rgba(59, 130, 246, 0.25)' : '#1e2433',
-                      color: activeViewFormat === 'html' ? '#ffffff' : '#94a3b8',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      border: activeViewFormat === 'html' ? '2px solid var(--red)' : '1px solid var(--border)',
+                      background: activeViewFormat === 'html' ? 'var(--red-soft)' : 'var(--bg-primary)',
+                      color: activeViewFormat === 'html' ? 'var(--red)' : 'var(--text-secondary)',
+                      fontSize: '0.76rem',
+                      fontWeight: 800,
                       cursor: 'pointer',
                     }}
                   >
-                    [Tag HTML Ativa]
+                    [Tag HTML Inicial]
                   </button>
                 </div>
               </div>
@@ -811,21 +899,21 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: '#191f2d',
-              border: '1px solid #2d374d',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              marginBottom: '1.25rem',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '11px 16px',
+              marginBottom: '1.5rem',
             }}
           >
             <div>
-              <strong style={{ fontSize: '0.82rem', color: '#ffffff', display: 'block' }}>
-                Status de Homologação
+              <strong style={{ fontSize: '0.84rem', color: 'var(--text-primary)', display: 'block' }}>
+                Status de Publicação do Manual
               </strong>
-              <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                 {publishDirectly
-                  ? 'Publicar imediatamente no Repositório (Disponível a todos os usuários)'
-                  : 'Enviar como pendente para a Central de Revisão'}
+                  ? 'Publicar diretamente no Repositório (Disponível de imediato aos colaboradores)'
+                  : 'Enviar como pendente para a Central de Revisão ISO/BPF'}
               </span>
             </div>
 
@@ -833,12 +921,12 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
               type="button"
               onClick={() => setPublishDirectly(!publishDirectly)}
               style={{
-                background: publishDirectly ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)',
-                border: publishDirectly ? '1px solid #10b981' : '1px solid #f59e0b',
-                color: publishDirectly ? '#34d399' : '#fbbf24',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.76rem',
+                background: publishDirectly ? 'var(--success-bg)' : 'var(--warning-bg)',
+                border: publishDirectly ? '1px solid var(--success-border)' : '1px solid var(--warning-border)',
+                color: publishDirectly ? 'var(--success-text)' : 'var(--warning-text)',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
                 fontWeight: 800,
                 cursor: 'pointer',
                 display: 'flex',
@@ -846,25 +934,25 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                 gap: '6px',
               }}
             >
-              <CheckCircle2 size={13} />
-              <span>{publishDirectly ? 'Publicado' : 'Para Revisão'}</span>
+              {publishDirectly ? <ShieldCheck size={14} /> : <Clock size={14} />}
+              <span>{publishDirectly ? '✓ Publicado Oficial' : '⏳ Enviar p/ Revisão'}</span>
             </button>
           </div>
 
           {/* Rodapé de Ações */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #283347', paddingTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
             <button
               type="button"
               disabled={isSubmitting}
               onClick={onClose}
               style={{
-                background: '#1e2433',
-                border: '1px solid #334155',
-                color: '#94a3b8',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
+                background: 'transparent',
+                border: '1.5px solid var(--border)',
+                color: 'var(--text-secondary)',
+                padding: '9px 18px',
+                borderRadius: '10px',
+                fontSize: '0.84rem',
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
@@ -875,28 +963,28 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
               type="submit"
               disabled={isSubmitting}
               style={{
-                background: 'var(--red)',
+                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
                 border: 'none',
                 color: '#ffffff',
-                padding: '8px 20px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
+                padding: '9px 24px',
+                borderRadius: '10px',
+                fontSize: '0.86rem',
                 fontWeight: 800,
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)',
+                boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
               }}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 size={14} className="spin-animate" />
+                  <Loader2 size={16} className="animate-spin" />
                   <span>Importando para o Repositório...</span>
                 </>
               ) : (
                 <>
-                  <Upload size={14} />
+                  <Upload size={16} />
                   <span>Salvar no Repositório</span>
                 </>
               )}

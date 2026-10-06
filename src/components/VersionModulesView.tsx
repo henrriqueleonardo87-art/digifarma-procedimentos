@@ -411,6 +411,69 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 </div>
               );
             })}
+
+          {/* Estado Vazio dentro de um Módulo sem Rotinas */}
+          {submenus.length === 0 && moduleProcedures.length === 0 && (
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '44px 20px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '16px',
+                border: '1.5px dashed var(--border-strong)',
+                boxShadow: 'var(--shadow-subtle)',
+                margin: '12px 0',
+              }}
+            >
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '50%',
+                  background: 'var(--red-soft)',
+                  border: '1px solid rgba(231, 76, 60, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                }}
+              >
+                <span style={{ color: 'var(--red)', display: 'inline-flex' }}>
+                  <ActiveIcon size={24} />
+                </span>
+              </div>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+                Nenhuma rotina ou POP cadastrado em {activeMenu.label}
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '440px', margin: '0 auto 20px', lineHeight: 1.5 }}>
+                Importe os arquivos oficiais em PDF ou HTML para este módulo para disponibilizá-los aos colaboradores.
+              </p>
+              {onOpenImport && (
+                <button
+                  type="button"
+                  onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
+                  style={{
+                    background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '9px',
+                    padding: '9px 20px',
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+                  }}
+                >
+                  <Upload size={15} />
+                  <span>Importar POP para {activeMenu.label}</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -431,16 +494,69 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           {version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'}
         </h1>
         <p className="version-hero-sub">
-          Selecione o menu desejado para visualizar seus submenus e rotinas passo a passo
+          Repositório de rotinas e procedimentos operacionais padronizados do ERP Digifarma.
         </p>
 
+        {/* Barra de Ações do Topo: Importar POP em Destaque */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+          {onOpenImport && (
+            <button
+              type="button"
+              className="btn-import-pop-hero"
+              onClick={() => onOpenImport(undefined, undefined, version)}
+              style={{
+                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '9px 20px',
+                fontSize: '0.86rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <Upload size={16} />
+              <span>Importar POP ({version === 'v10' ? 'V10' : 'Clássico'})</span>
+            </button>
+          )}
+
+          {isEditorEnabled && onNewProcedure && (
+            <button
+              type="button"
+              onClick={() => onNewProcedure(undefined, undefined, version)}
+              style={{
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1.5px solid var(--border)',
+                borderRadius: '10px',
+                padding: '9px 18px',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <Plus size={16} color="var(--red)" />
+              <span>Novo no Editor Manual</span>
+            </button>
+          )}
+        </div>
+
         {/* Barra de Pesquisa Rápida */}
-        <div className="version-search-wrap">
+        <div className="version-search-wrap" style={{ marginTop: '20px' }}>
           <Search size={16} className="version-search-ic" />
           <input
             type="text"
             className="version-search-input"
-            placeholder="Ou pesquise diretamente qualquer procedimento ou atalho..."
+            placeholder="Pesquise por nome do procedimento, palavra-chave ou rotina..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -511,22 +627,71 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
       ) : (
         /* Grade de Menus em Cards Baseada nos Menus Cadastrados em Configurações */
         <div className="image-cards-grid">
-          {/* Card Novo */}
-          <div
-            className="image-card-item image-card-new-item"
-            onClick={() => onNewProcedure(undefined, undefined, version)}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="image-card-icon-center new-icon-center">
-              <Plus size={28} />
+          {/* Card Importar POP em Destaque */}
+          {onOpenImport && (
+            <div
+              className="image-card-item image-card-import-item"
+              onClick={() => onOpenImport(undefined, undefined, version)}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1.5px dashed var(--red)',
+                boxShadow: 'var(--shadow-subtle)',
+              }}
+            >
+              <div
+                className="image-card-icon-center"
+                style={{
+                  color: 'var(--red)',
+                  background: 'var(--red-soft)',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                }}
+              >
+                <Upload size={26} />
+              </div>
+              <h3 className="image-card-title">Importar POP</h3>
+              <p className="image-card-subtitle">
+                Anexe manuais oficiais em PDF ou HTML para o {versionName}
+              </p>
+              <span
+                className="image-card-count-badge"
+                style={{
+                  background: 'var(--red)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  padding: '4px 10px',
+                }}
+              >
+                + Importar Arquivo
+              </span>
             </div>
-            <h3 className="image-card-title">Novo</h3>
-            <p className="image-card-subtitle">Cadastrar novo manual ou POP</p>
-            <span className="image-card-count-badge new-badge">
-              + Criar Procedimento
-            </span>
-          </div>
+          )}
+
+          {/* Card Novo (apenas se editor ativado) */}
+          {isEditorEnabled && onNewProcedure && (
+            <div
+              className="image-card-item image-card-new-item"
+              onClick={() => onNewProcedure(undefined, undefined, version)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="image-card-icon-center new-icon-center">
+                <Plus size={28} />
+              </div>
+              <h3 className="image-card-title">Novo Manual</h3>
+              <p className="image-card-subtitle">Criar slides interativos no estúdio</p>
+              <span className="image-card-count-badge new-badge">
+                + Criar no Editor
+              </span>
+            </div>
+          )}
 
           {/* Cards dos Menus da Versão configurados pelo usuário */}
           {versionMenus.map((mod) => {
@@ -583,30 +748,86 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',
-                padding: '40px 24px',
-                background: 'rgba(30, 41, 59, 0.45)',
-                borderRadius: '12px',
-                border: '1px dashed #334155',
+                padding: '52px 28px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '16px',
+                border: '1.5px dashed var(--border-strong)',
+                boxShadow: 'var(--shadow-subtle)',
+                marginTop: '1rem',
               }}
             >
-              <FolderPlus size={40} style={{ color: 'var(--red)', margin: '0 auto 10px', opacity: 0.8 }} />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'var(--red-soft)',
+                  border: '1px solid rgba(231, 76, 60, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  boxShadow: '0 0 0 8px rgba(231, 76, 60, 0.08)',
+                }}
+              >
+                <FolderPlus size={30} color="var(--red)" />
+              </div>
+
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                 Nenhum módulo configurado para o {versionName}
               </h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 16px' }}>
-                Você pode criar e organizar os módulos e rotinas desta versão acessando "Módulos" no menu lateral.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 24px', lineHeight: 1.55 }}>
+                Estruture os menus e rotinas operacionais da sua farmácia ou importe diretamente seus procedimentos em formato PDF e HTML para o acervo.
               </p>
-              {onOpenConfig && (
-                <button
-                  type="button"
-                  className="btn primary sm"
-                  onClick={onOpenConfig}
-                  style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Sliders size={14} />
-                  <span>Gerenciar Módulos Agora</span>
-                </button>
-              )}
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                {onOpenImport && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenImport(undefined, undefined, version)}
+                    style={{
+                      background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '11px 22px',
+                      fontSize: '0.88rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+                    }}
+                  >
+                    <Upload size={16} />
+                    <span>Importar POP para o {versionName}</span>
+                  </button>
+                )}
+
+                {onOpenConfig && (
+                  <button
+                    type="button"
+                    onClick={onOpenConfig}
+                    style={{
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-primary)',
+                      border: '1.5px solid var(--border-strong)',
+                      borderRadius: '10px',
+                      padding: '11px 20px',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <Sliders size={16} color="var(--red)" />
+                    <span>Configurar Módulos do Sistema</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

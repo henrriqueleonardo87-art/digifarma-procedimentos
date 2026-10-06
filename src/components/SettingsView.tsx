@@ -412,13 +412,30 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
       </div>
 
       <div className="settings-page-title-box">
+        <span
+          style={{
+            fontSize: '0.68rem',
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            background: 'var(--red-soft)',
+            color: 'var(--red)',
+            border: '1px solid rgba(231, 76, 60, 0.25)',
+            display: 'inline-block',
+            marginBottom: '8px',
+          }}
+        >
+          PAINEL DE CONFIGURAÇÕES &amp; REPOSITÓRIO
+        </span>
         <h1 className="settings-page-title">
           {onlyMenus ? 'Módulos e Rotinas do Sistema' : 'Configurações do Digifarma'}
         </h1>
         <p className="settings-page-subtitle">
           {onlyMenus
             ? 'Crie, organize e edite a estrutura de módulos e rotinas operacionais do Digifarma V10 e Digifarma Clássico.'
-            : 'Gerencie a organização dos módulos do sistema, rotinas, conexão em nuvem e backups.'}
+            : 'Gerencie o modo de operação do repositório, módulos do sistema, rotinas, conexão em nuvem e backups.'}
         </p>
       </div>
 
@@ -481,7 +498,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             <div>
               <h2 className="settings-section-title">Modo de Operação: Repositório &amp; Editor</h2>
               <p className="settings-section-desc">
-                Configure se o sistema opera exclusivamente como Repositório Digital ou com o Editor Manual ativado.
+                Defina se o sistema opera exclusivamente como Repositório Digital ou com o Editor Manual ativado.
               </p>
             </div>
           </div>
@@ -489,11 +506,11 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           {editorToggleMsg && (
             <div
               style={{
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid #10b981',
-                color: '#34d399',
+                background: 'var(--red-soft)',
+                border: '1.5px solid var(--red)',
+                color: 'var(--red)',
                 padding: '12px 18px',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 marginTop: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -509,37 +526,38 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
 
           <div
             style={{
-              background: '#161c28',
-              border: '1px solid #283449',
-              borderRadius: '14px',
-              padding: '1.4rem',
-              marginTop: '1.2rem',
+              background: 'var(--bg-primary)',
+              border: '1.5px solid var(--border)',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              marginTop: '1.25rem',
+              boxShadow: 'var(--shadow-subtle)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ flex: 1, minWidth: '280px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Ativar Editor de Procedimentos (Studio Digifarma)
                   </h3>
                   <span
                     style={{
-                      fontSize: '0.7rem',
+                      fontSize: '0.72rem',
                       fontWeight: 800,
-                      padding: '3px 9px',
+                      padding: '3px 10px',
                       borderRadius: '999px',
-                      background: localEditorEnabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)',
-                      color: localEditorEnabled ? '#34d399' : '#38bdf8',
-                      border: localEditorEnabled ? '1px solid #10b981' : '1px solid #38bdf8',
+                      background: localEditorEnabled ? 'var(--red-soft)' : 'var(--bg-secondary)',
+                      color: localEditorEnabled ? 'var(--red)' : 'var(--text-secondary)',
+                      border: localEditorEnabled ? '1.5px solid var(--red)' : '1px solid var(--border)',
                     }}
                   >
                     {localEditorEnabled ? '✓ Editor Ativado' : '📂 Modo Repositório (Padrão)'}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                   {localEditorEnabled
-                    ? 'O editor manual está ativado. As opções "Novo Procedimento" e "Editar" são exibidas nos painéis para criação de slides e personalização rica.'
-                    : 'O sistema opera estritamente como Repositório de Procedimentos. Os botões de criação e edição manual ficam ocultos na interface, mantendo a experiência focada em consulta, homologação e importação de PDFs/HTMLs.'}
+                    ? 'O editor manual está ativado. As opções "Novo Procedimento" e "Editar" ficam visíveis nos módulos e painéis para criação de slides e personalização rica.'
+                    : 'O sistema opera como Repositório Digital de POPs. Os botões de criação manual e edição ficam ocultos na interface, mantendo a experiência limpa e focada em consulta, homologação e importação de PDFs/HTMLs.'}
                 </p>
               </div>
 
@@ -548,19 +566,19 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
                   type="button"
                   onClick={() => handleToggleEditorInternal(!localEditorEnabled)}
                   style={{
-                    padding: '9px 18px',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
+                    padding: '10px 22px',
+                    borderRadius: '10px',
+                    fontSize: '0.86rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    background: localEditorEnabled ? 'rgba(239, 68, 68, 0.2)' : 'var(--red)',
-                    border: localEditorEnabled ? '1px solid #ef4444' : 'none',
-                    color: '#ffffff',
-                    boxShadow: localEditorEnabled ? 'none' : '0 4px 14px rgba(239, 68, 68, 0.3)',
-                    transition: 'all 0.15s ease',
+                    background: localEditorEnabled ? 'var(--danger-bg)' : 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                    border: localEditorEnabled ? '1.5px solid var(--danger-border)' : 'none',
+                    color: localEditorEnabled ? 'var(--red)' : '#ffffff',
+                    boxShadow: localEditorEnabled ? 'none' : '0 4px 14px rgba(231, 76, 60, 0.35)',
+                    transition: 'all 0.18s ease',
                   }}
                 >
                   <Sliders size={16} />
@@ -571,44 +589,62 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           </div>
 
           {/* Cards Comparativos dos Dois Modos */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '1.25rem' }}>
             <div
               style={{
-                background: '#161c28',
-                border: !localEditorEnabled ? '1.5px solid #38bdf8' : '1px solid #283449',
-                borderRadius: '12px',
-                padding: '1.2rem',
+                background: !localEditorEnabled ? 'var(--red-soft)' : 'var(--bg-primary)',
+                border: !localEditorEnabled ? '2px solid var(--red)' : '1px solid var(--border)',
+                borderRadius: '14px',
+                padding: '1.25rem',
                 position: 'relative',
+                boxShadow: !localEditorEnabled ? '0 4px 16px rgba(231, 76, 60, 0.12)' : 'var(--shadow-subtle)',
+                transition: 'all 0.2s ease',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <BookOpen size={18} color="#38bdf8" />
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
-                  Modo Repositório Digital
-                </h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BookOpen size={19} color="var(--red)" />
+                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Modo Repositório Digital
+                  </h4>
+                </div>
+                {!localEditorEnabled && (
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'var(--red)', color: '#ffffff', padding: '2px 8px', borderRadius: '6px' }}>
+                    ATIVO
+                  </span>
+                )}
               </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                Foco total na visualização, busca e consulta de POPs. Permite importar arquivos oficiais diretamente em PDF ou HTML com tags marcadas.
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Foco total na visualização, busca e consulta de POPs. Permite importar arquivos oficiais diretamente em PDF ou HTML com tags marcadas sem poluição visual.
               </p>
             </div>
 
             <div
               style={{
-                background: '#161c28',
-                border: localEditorEnabled ? '1.5px solid var(--red)' : '1px solid #283449',
-                borderRadius: '12px',
-                padding: '1.2rem',
+                background: localEditorEnabled ? 'var(--red-soft)' : 'var(--bg-primary)',
+                border: localEditorEnabled ? '2px solid var(--red)' : '1px solid var(--border)',
+                borderRadius: '14px',
+                padding: '1.25rem',
                 position: 'relative',
+                boxShadow: localEditorEnabled ? '0 4px 16px rgba(231, 76, 60, 0.12)' : 'var(--shadow-subtle)',
+                transition: 'all 0.2s ease',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <Sliders size={18} color="var(--red)" />
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
-                  Modo Studio &amp; Editor
-                </h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sliders size={19} color="var(--red)" />
+                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Modo Studio &amp; Editor
+                  </h4>
+                </div>
+                {localEditorEnabled && (
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'var(--red)', color: '#ffffff', padding: '2px 8px', borderRadius: '6px' }}>
+                    ATIVO
+                  </span>
+                )}
               </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                Exibe ferramentas visuais completas de edição, permitindo criar novos slides, formatar textos, adicionar mãozinhas e indicadores interativos.
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Exibe ferramentas visuais completas de edição, permitindo criar novos slides, formatar textos, adicionar imagens e indicadores interativos.
               </p>
             </div>
           </div>
@@ -700,7 +736,25 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
                 </select>
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end', height: '38px' }}>
+              <button
+                type="submit"
+                style={{
+                  alignSelf: 'flex-end',
+                  height: '38px',
+                  background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0 18px',
+                  fontWeight: 800,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
+                }}
+              >
                 <Plus size={15} />
                 <span>Criar Módulo</span>
               </button>
@@ -862,9 +916,22 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1.25rem' }}>
             <button
               type="button"
-              className="btn btn-primary"
               onClick={handleSaveSupabase}
               disabled={testingSupabase}
+              style={{
+                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '9px 18px',
+                fontWeight: 800,
+                fontSize: '0.84rem',
+                cursor: testingSupabase ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
+              }}
             >
               {testingSupabase ? <RefreshCw size={14} className="animate-spin" /> : <Database size={14} />}
               <span>{testingSupabase ? 'Testando Conexão...' : 'Salvar e Testar Conexão'}</span>
@@ -1044,9 +1111,24 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
 
             <button
               type="submit"
-              className="btn btn-primary"
               disabled={accountSaving}
-              style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+              style={{
+                marginTop: '0.75rem',
+                width: '100%',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '11px',
+                fontWeight: 800,
+                fontSize: '0.86rem',
+                cursor: accountSaving ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
+              }}
             >
               <KeyRound size={15} />
               <span>{accountSaving ? 'Atualizando Senha...' : 'Atualizar Minha Senha'}</span>
