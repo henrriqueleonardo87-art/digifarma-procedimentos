@@ -27,6 +27,10 @@ import {
   MoreVertical,
   Loader2,
   ShieldCheck,
+  Upload,
+  ExternalLink,
+  FileText,
+  Monitor,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -53,6 +57,8 @@ interface ProcedureViewProps {
   onUnpublish?: () => void;
   onSendToReview?: () => void;
   onPublish?: () => void;
+  isEditorEnabled?: boolean;
+  onOpenImport?: (procedure: Procedure) => void;
 }
 
 export const ProcedureView: React.FC<ProcedureViewProps> = ({
@@ -68,6 +74,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   onUnpublish,
   onSendToReview,
   onPublish,
+  isEditorEnabled = false,
+  onOpenImport,
 }) => {
   // Disparo automático de PDF quando solicitado direto do card
   React.useEffect(() => {
@@ -78,6 +86,18 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
       return () => clearTimeout(timer);
     }
   }, [autoPrint]);
+
+  const hasImportedPdf = !!procedure.pdfFileUrl;
+  const hasImportedHtml = !!procedure.htmlFileData;
+  const hasImportedFiles = hasImportedPdf || hasImportedHtml;
+
+  const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'html'>(() => {
+    if (procedure.activeViewFormat === 'html' && hasImportedHtml) return 'html';
+    if (hasImportedPdf) return 'pdf';
+    if (hasImportedHtml) return 'html';
+    return procedure.formatType === 'html' ? 'html' : 'pdf';
+  });
+
   // Encontrar nomes amigáveis para Menus e Submenus
   const menuInfo = useMemo(() => {
     const foundMenu = menus.find(
@@ -105,13 +125,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
     return procedure.blocks.filter((b): b is CalloutBlock => b.type === 'callout');
   }, [procedure.blocks]);
 
-
-
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-
-
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -131,6 +147,16 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleDownloadPdf = async () => {
+    if (procedure.pdfFileUrl) {
+      const a = document.createElement('a');
+      a.href = procedure.pdfFileUrl;
+      a.download = procedure.pdfFileName || `${procedure.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
     try {
       setIsGeneratingPdf(true);
       await exportProcedurePdf(procedure);
@@ -140,6 +166,22 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  const handleDownloadHtml = () => {
+    if (procedure.htmlFileData) {
+      const blob = new Blob([procedure.htmlFileData], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = procedure.htmlFileName || `${procedure.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    downloadProcedureHtml(procedure);
   };
 
   const handlePrint = () => {
@@ -523,35 +565,63 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
         {/* Ações Primárias e Menu Secundário */}
         <div className="proc-action-right-group">
-          <button
-            type="button"
-            className="btn-proc-primary-action"
-            onClick={onEdit}
-            title="Editar procedimento no Studio Digifarma"
-          >
-            <Edit3 size={15} />
-            <span>Editar</span>
-          </button>
+          {onOpenImport && (
+            <button
+              type="button"
+              className="btn-proc-primary-action"
+              onClick={() => onOpenImport(procedure)}
+              style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: '#0284c7', color: '#38bdf8' }}
+              title="Anexar ou atualizar arquivos PDF e HTML deste procedimento"
+            >
+              <Upload size={14} />
+              <span>Anexar Arquivo</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            className="btn-proc-primary-action print-cta"
-            onClick={handleDownloadPdf}
-            disabled={isGeneratingPdf}
-            title="Gerar e Baixar PDF Oficial em A4 Paisagem (Alta Definição)"
-          >
-            {isGeneratingPdf ? (
-              <>
-                <Loader2 size={15} className="spin-animate" />
-                <span>Gerando PDF...</span>
-              </>
-            ) : (
-              <>
-                <FileDown size={15} />
-                <span>Baixar PDF</span>
-              </>
-            )}
-          </button>
+          {isEditorEnabled && (
+            <button
+              type="button"
+              className="btn-proc-primary-action"
+              onClick={onEdit}
+              title="Editar procedimento no Studio Digifarma"
+            >
+              <Edit3 size={15} />
+              <span>Editar</span>
+            </button>
+          )}
+
+          {selectedFormat === 'html' && hasImportedHtml ? (
+            <button
+              type="button"
+              className="btn-proc-primary-action print-cta"
+              onClick={handleDownloadHtml}
+              style={{ background: '#2563eb', color: '#ffffff' }}
+              title="Baixar Manual HTML"
+            >
+              <FileDown size={15} />
+              <span>Baixar HTML</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-proc-primary-action print-cta"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              title="Baixar Documento PDF Oficial"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 size={15} className="spin-animate" />
+                  <span>Baixando PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown size={15} />
+                  <span>Baixar PDF</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* Dropdown Menu com Mais Opções */}
           <div className="proc-more-menu-container" ref={moreMenuRef}>
@@ -783,7 +853,319 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       )}
 
-      {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 ── */}
+      {/* ── BARRA DE SELEÇÃO DE TAGS MARCADAS DO REPOSITÓRIO (PDF / HTML) ── */}
+      <div className="repository-doc-container no-print" style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
+        <div
+          style={{
+            background: '#13161f',
+            border: '1px solid #283347',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Formato no Repositório:
+            </span>
+
+            {/* Tags Marcadas Selecionáveis */}
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedFormat('pdf')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: selectedFormat === 'pdf' ? '1.5px solid #ef4444' : '1px solid #334155',
+                  background: selectedFormat === 'pdf' ? 'rgba(239, 68, 68, 0.22)' : '#1e2433',
+                  color: selectedFormat === 'pdf' ? '#fca5a5' : '#94a3b8',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <FileText size={14} color="#ef4444" />
+                <span>[📄 Documento PDF]</span>
+                {selectedFormat === 'pdf' && (
+                  <span style={{ fontSize: '0.66rem', background: '#ef4444', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
+                    Ativo
+                  </span>
+                )}
+                {hasImportedPdf && (
+                  <span style={{ fontSize: '0.66rem', color: '#10b981' }} title="Arquivo PDF anexado">●</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedFormat('html')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: selectedFormat === 'html' ? '1.5px solid #3b82f6' : '1px solid #334155',
+                  background: selectedFormat === 'html' ? 'rgba(59, 130, 246, 0.22)' : '#1e2433',
+                  color: selectedFormat === 'html' ? '#93c5fd' : '#94a3b8',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Monitor size={14} color="#3b82f6" />
+                <span>[🌐 Manual HTML]</span>
+                {selectedFormat === 'html' && (
+                  <span style={{ fontSize: '0.66rem', background: '#3b82f6', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
+                    Ativo
+                  </span>
+                )}
+                {hasImportedHtml && (
+                  <span style={{ fontSize: '0.66rem', color: '#10b981' }} title="Arquivo HTML anexado">●</span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onOpenImport && (
+              <button
+                type="button"
+                onClick={() => onOpenImport(procedure)}
+                style={{
+                  background: '#1e2433',
+                  border: '1px solid #3b4760',
+                  color: '#e2e8f0',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Upload size={12} />
+                <span>{hasImportedFiles ? 'Substituir / Anexar' : 'Importar PDF / HTML'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── VISUALIZADOR REPOSITÓRIO: ARQUIVO PDF IMPORTADO ── */}
+      {selectedFormat === 'pdf' && procedure.pdfFileUrl && (
+        <div className="repository-viewer-box no-print" style={{ maxWidth: '1120px', width: '100%', margin: '0 auto 24px auto' }}>
+          <div
+            style={{
+              background: '#1a1f2c',
+              border: '1px solid #283347',
+              borderBottom: 'none',
+              borderRadius: '12px 12px 0 0',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={18} color="#ef4444" />
+              <strong style={{ fontSize: '0.88rem', color: '#ffffff' }}>
+                {procedure.pdfFileName || `${procedure.title}.pdf`}
+              </strong>
+              {procedure.pdfFileSize && (
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  ({(procedure.pdfFileSize / (1024 * 1024)).toFixed(2)} MB)
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <a
+                href={procedure.pdfFileUrl}
+                download={procedure.pdfFileName || `${procedure.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`}
+                style={{
+                  background: 'var(--red)',
+                  color: '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                <FileDown size={13} />
+                <span>Baixar PDF</span>
+              </a>
+
+              <a
+                href={procedure.pdfFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: '#283144',
+                  border: '1px solid #3b4760',
+                  color: '#e2e8f0',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <ExternalLink size={13} />
+                <span>Abrir em Nova Aba</span>
+              </a>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: '#0e1117',
+              border: '1px solid #283347',
+              borderRadius: '0 0 12px 12px',
+              overflow: 'hidden',
+              height: '820px',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            <iframe
+              src={procedure.pdfFileUrl}
+              title={procedure.title}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── VISUALIZADOR REPOSITÓRIO: ARQUIVO HTML IMPORTADO ── */}
+      {selectedFormat === 'html' && procedure.htmlFileData && (
+        <div className="repository-viewer-box no-print" style={{ maxWidth: '1120px', width: '100%', margin: '0 auto 24px auto' }}>
+          <div
+            style={{
+              background: '#1a1f2c',
+              border: '1px solid #283347',
+              borderBottom: 'none',
+              borderRadius: '12px 12px 0 0',
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Monitor size={18} color="#3b82f6" />
+              <strong style={{ fontSize: '0.88rem', color: '#ffffff' }}>
+                {procedure.htmlFileName || `${procedure.title}.html`}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleDownloadHtml}
+                style={{
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <FileDown size={13} />
+                <span>Baixar HTML</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const w = window.open('', '_blank');
+                  if (w && procedure.htmlFileData) {
+                    w.document.write(procedure.htmlFileData);
+                    w.document.close();
+                  }
+                }}
+                style={{
+                  background: '#283144',
+                  border: '1px solid #3b4760',
+                  color: '#e2e8f0',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <ExternalLink size={13} />
+                <span>Tela Cheia / Nova Aba</span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #283347',
+              borderRadius: '0 0 12px 12px',
+              overflow: 'hidden',
+              height: '820px',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            <iframe
+              srcDoc={procedure.htmlFileData}
+              title={procedure.title}
+              sandbox="allow-scripts allow-same-origin allow-popups allow-modals"
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── 01 · SLIDE / PÁGINA 1: CAPA EDITORIAL DIGIFARMA V10 (Exibido quando não há arquivo importado ativo) ── */}
+      {(!hasImportedFiles || (!procedure.pdfFileUrl && selectedFormat === 'pdf') || (!procedure.htmlFileData && selectedFormat === 'html')) && (
+        <>
       <section className="slide deep cover" style={{ position: 'relative' }}>
         <div className="inner">
           <div className="logo">
@@ -1197,6 +1579,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
         {getSlideIndicators(stepBlocks.length + 3).map(renderIndicatorViewItem)}
       </section>
+      </>
+      )}
     </article>
   );
 };

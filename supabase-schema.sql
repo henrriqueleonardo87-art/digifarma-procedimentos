@@ -30,6 +30,14 @@ ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "systemPath" TEXT;
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "createdBy" TEXT DEFAULT 'Leonardo';
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "updatedBy" TEXT DEFAULT 'Leonardo';
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "history" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "formatType" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "pdfFileUrl" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "pdfFileName" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "pdfFileSize" BIGINT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "htmlFileData" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "htmlFileName" TEXT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "htmlFileSize" BIGINT;
+ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS "activeViewFormat" TEXT;
 
 -- 2. Tabela de Usuários e Autenticação Simples
 CREATE TABLE IF NOT EXISTS public.app_users (

@@ -13,6 +13,7 @@ import { ReviewView } from './components/ReviewView';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { NewProcedureFormatModal } from './components/NewProcedureFormatModal';
+import { ImportProcedureModal } from './components/ImportProcedureModal';
 import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -40,6 +41,44 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<Procedure | null>(null);
+
+  // Controle de ativação do Editor em Configurações (Modo Repositório vs Modo Estúdio)
+  const [isEditorEnabled, setIsEditorEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('digifarma_enable_editor') === 'true';
+  });
+
+  const handleToggleEditor = (enabled: boolean) => {
+    setIsEditorEnabled(enabled);
+    localStorage.setItem('digifarma_enable_editor', String(enabled));
+  };
+
+  // Modal de Importação de Procedimentos (PDF, HTML ou Ambos)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importTargetProcedure, setImportTargetProcedure] = useState<Procedure | null>(null);
+  const [importDefaultParams, setImportDefaultParams] = useState<{
+    category?: string;
+    menuId?: string;
+    version?: 'v10' | 'r78';
+  } | null>(null);
+
+  const handleOpenImportModal = (
+    targetOrCategory?: Procedure | string,
+    defaultMenuId?: string,
+    version?: 'v10' | 'r78'
+  ) => {
+    if (typeof targetOrCategory === 'object' && targetOrCategory !== null) {
+      setImportTargetProcedure(targetOrCategory);
+      setImportDefaultParams(null);
+    } else {
+      setImportTargetProcedure(null);
+      setImportDefaultParams({
+        category: typeof targetOrCategory === 'string' ? targetOrCategory : undefined,
+        menuId: defaultMenuId,
+        version: version || (currentView === 'r78' ? 'r78' : 'v10'),
+      });
+    }
+    setIsImportModalOpen(true);
+  };
 
   // Visão Ativa do Sistema: 'dashboard' | 'v10' | 'r78' | 'procedure-detail' | 'config' | 'editor'
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -443,6 +482,8 @@ export function App() {
               onUnpublish={() => handleUnpublishProcedure(activeProcedure.id)}
               onSendToReview={() => handleSendToReview(activeProcedure.id)}
               onPublish={() => handlePublishDirectly(activeProcedure.id)}
+              isEditorEnabled={isEditorEnabled}
+              onOpenImport={handleOpenImportModal}
             />
           ) : currentView === 'v10' ? (
             <VersionModulesView
@@ -453,6 +494,8 @@ export function App() {
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
               onOpenConfig={() => setCurrentView('personalize')}
+              isEditorEnabled={isEditorEnabled}
+              onOpenImport={(cat, mId, ver) => handleOpenImportModal(cat, mId, ver || 'v10')}
             />
           ) : currentView === 'r78' ? (
             <VersionModulesView
@@ -463,6 +506,8 @@ export function App() {
               onBackToDashboard={() => setCurrentView('dashboard')}
               onNewProcedure={handleNewProcedure}
               onOpenConfig={() => setCurrentView('personalize')}
+              isEditorEnabled={isEditorEnabled}
+              onOpenImport={(cat, mId, ver) => handleOpenImportModal(cat, mId, ver || 'r78')}
             />
           ) : currentView === 'revision' ? (
             <ReviewView
@@ -477,6 +522,8 @@ export function App() {
               }}
               onApproveProcedure={handleApproveProcedure}
               onRequestAdjustments={handleRequestAdjustments}
+              isEditorEnabled={isEditorEnabled}
+              onOpenImport={handleOpenImportModal}
             />
           ) : currentView === 'personalize' ? (
             <SettingsView
@@ -489,6 +536,8 @@ export function App() {
               onLogout={handleLogout}
               onClose={() => setCurrentView('dashboard')}
               onlyMenus={true}
+              isEditorEnabled={isEditorEnabled}
+              onToggleEditor={handleToggleEditor}
               onSupabaseConnected={() => {
                 checkConnection();
                 loadData();
@@ -505,6 +554,8 @@ export function App() {
               onLogout={handleLogout}
               onClose={() => setCurrentView('dashboard')}
               onlyMenus={false}
+              isEditorEnabled={isEditorEnabled}
+              onToggleEditor={handleToggleEditor}
               onSupabaseConnected={() => {
                 checkConnection();
                 loadData();
@@ -523,6 +574,8 @@ export function App() {
               onPublish={handlePublishDirectly}
               onDelete={handleDeleteClick}
               onEdit={handleEditProcedure}
+              isEditorEnabled={isEditorEnabled}
+              onOpenImport={(cat, mId) => handleOpenImportModal(cat, mId)}
             />
           )}
         </main>
@@ -588,6 +641,23 @@ export function App() {
         onClose={() => setIsFormatModalOpen(false)}
         onSelectFormat={handleSelectProcedureFormat}
         targetVersion={pendingNewProcParams?.version === 'r78' ? 'classico' : 'v10'}
+      />
+
+      {/* Modal de Importação de Procedimentos (PDF, HTML ou Ambos com Tag Seletora) */}
+      <ImportProcedureModal
+        isOpen={isImportModalOpen}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          setImportTargetProcedure(null);
+          setImportDefaultParams(null);
+        }}
+        onSave={handleSaveProcedure}
+        existingProcedure={importTargetProcedure}
+        menus={menus}
+        currentUser={currentUser}
+        defaultVersion={importDefaultParams?.version}
+        defaultCategory={importDefaultParams?.category}
+        defaultMenuId={importDefaultParams?.menuId}
       />
     </div>
   );

@@ -24,6 +24,7 @@ import {
   Layers,
   Folder,
   Sliders,
+  Upload,
 } from 'lucide-react';
 import type { Procedure, SystemMenu } from '../types/procedure';
 
@@ -35,6 +36,8 @@ interface VersionModulesViewProps {
   onBackToDashboard: () => void;
   onNewProcedure: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
   onOpenConfig?: () => void;
+  isEditorEnabled?: boolean;
+  onOpenImport?: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
 }
 
 // Mapeamento dinâmico de ícones para menus e submenus configurados
@@ -83,6 +86,8 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   onBackToDashboard,
   onNewProcedure,
   onOpenConfig,
+  isEditorEnabled = false,
+  onOpenImport,
 }) => {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -197,6 +202,32 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             <span className="crumb-sep">/</span>
             <span className="crumb-active">{activeMenu.label}</span>
           </div>
+
+          {onOpenImport && (
+            <button
+              type="button"
+              className="btn-import-pop-compact"
+              onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
+              style={{
+                marginLeft: 'auto',
+                background: 'var(--red)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+              }}
+            >
+              <Upload size={13} />
+              <span>Importar POP</span>
+            </button>
+          )}
         </div>
 
         {/* Cabeçalho do Módulo */}
@@ -216,24 +247,51 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
 
         {/* Grade de Submenus e Procedimentos em Cards */}
         <div className="image-cards-grid">
-          {/* Card Novo para o Módulo Ativo */}
-          <div
-            className="image-card-item image-card-new-item"
-            onClick={() => onNewProcedure(activeMenu.label, activeMenu.id, version)}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="image-card-icon-center new-icon-center">
-              <Plus size={28} />
+          {/* Card Importar para o Módulo Ativo */}
+          {onOpenImport && (
+            <div
+              className="image-card-item image-card-import-item"
+              onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
+              role="button"
+              tabIndex={0}
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1.5px dashed var(--red)',
+              }}
+            >
+              <div className="image-card-icon-center" style={{ color: 'var(--red)' }}>
+                <Upload size={28} />
+              </div>
+              <h3 className="image-card-title">Importar POP</h3>
+              <p className="image-card-subtitle">
+                Adicionar PDF ou HTML em {activeMenu.label}
+              </p>
+              <span className="image-card-count-badge" style={{ background: 'var(--red)', color: '#fff' }}>
+                + Importar Arquivo
+              </span>
             </div>
-            <h3 className="image-card-title">Novo</h3>
-            <p className="image-card-subtitle">
-              Cadastrar rotina em {activeMenu.label}
-            </p>
-            <span className="image-card-count-badge new-badge">
-              + Novo neste Módulo
-            </span>
-          </div>
+          )}
+
+          {/* Card Novo para o Módulo Ativo (Apenas se editor ativado) */}
+          {isEditorEnabled && (
+            <div
+              className="image-card-item image-card-new-item"
+              onClick={() => onNewProcedure(activeMenu.label, activeMenu.id, version)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="image-card-icon-center new-icon-center">
+                <Plus size={28} />
+              </div>
+              <h3 className="image-card-title">Novo Manual</h3>
+              <p className="image-card-subtitle">
+                Cadastrar no Studio em {activeMenu.label}
+              </p>
+              <span className="image-card-count-badge new-badge">
+                + Novo no Editor
+              </span>
+            </div>
+          )}
 
           {/* Cards para cada Submenu configurado em Configurações */}
           {submenus.map((sub) => {

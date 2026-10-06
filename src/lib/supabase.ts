@@ -140,3 +140,56 @@ export async function uploadProcedureImage(file: File): Promise<string> {
     });
   }
 }
+
+/**
+ * Upload de documentos de procedimento (PDF ou HTML) para o Supabase Storage
+ * com fallback transparente para DataURL se offline ou erro de rede.
+ */
+export async function uploadProcedureDocument(file: File, procedureId: string): Promise<string> {
+  const client = getSupabase();
+  const config = getSavedConfig();
+
+  if (!client || !config.url || !config.anonKey) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  try {
+    const bucket = config.bucketName || 'procedure-media';
+    const ext = file.name.split('.').pop() || 'pdf';
+    const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `documents/${procedureId}_${Date.now()}_${cleanFileName}`;
+
+    const { error: uploadError } = await client.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        contentType: ext === 'pdf' ? 'application/pdf' : 'text/html',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.warn('Falha no upload para Storage Supabase, caindo para DataURL:', uploadError.message);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const { data } = client.storage.from(bucket).getPublicUrl(filePath);
+    return data.publicUrl;
+  } catch (err) {
+    console.error('Erro no upload do documento:', err);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    });
+  }
+}

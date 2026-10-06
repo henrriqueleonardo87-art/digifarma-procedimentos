@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   Ban,
   MoreVertical,
+  Upload,
 } from 'lucide-react';
 import type { Procedure, SystemMenu, SystemVersion } from '../types/procedure';
 
@@ -33,6 +34,8 @@ interface DashboardViewProps {
   onPublish?: (id: string) => void;
   onDelete?: (proc: Procedure) => void;
   onEdit?: (proc: Procedure) => void;
+  isEditorEnabled?: boolean;
+  onOpenImport?: (defaultCategory?: string, defaultMenuId?: string) => void;
 }
 
 // Cores temáticas harmônicas para os módulos
@@ -57,6 +60,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onPublish,
   onDelete,
   onEdit,
+  isEditorEnabled = false,
+  onOpenImport,
 }) => {
   const [hoveredModuleIndex, setHoveredModuleIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -455,15 +460,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
 
-            {/* Botão Novo POP Discreto e Elegante */}
-            <button
-              type="button"
-              className="btn-new-pop-compact"
-              onClick={onNewProcedure}
-            >
-              <Plus size={14} />
-              <span>Novo Procedimento</span>
-            </button>
+            {/* Botão Importar POP para o Repositório */}
+            {onOpenImport && (
+              <button
+                type="button"
+                className="btn-import-pop-compact"
+                onClick={() => onOpenImport()}
+                style={{
+                  background: 'var(--red)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 10px rgba(239, 68, 68, 0.28)',
+                }}
+              >
+                <Upload size={14} />
+                <span>Importar POP</span>
+              </button>
+            )}
+
+            {/* Botão Novo POP Discreto e Elegante (Visível apenas se o editor estiver ativado) */}
+            {isEditorEnabled && (
+              <button
+                type="button"
+                className="btn-new-pop-compact"
+                onClick={onNewProcedure}
+              >
+                <Plus size={14} />
+                <span>Novo Manual</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -536,6 +569,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <strong style={{ opacity: proc.isActive === false ? 0.7 : 1 }}>{proc.title}</strong>
+
+                            {/* Tags de Formato no Repositório */}
+                            {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
+                              <span
+                                style={{
+                                  fontSize: '0.64rem',
+                                  fontWeight: 800,
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  color: '#f87171',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '1px 5px',
+                                }}
+                              >
+                                PDF
+                              </span>
+                            )}
+                            {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
+                              <span
+                                style={{
+                                  fontSize: '0.64rem',
+                                  fontWeight: 800,
+                                  background: 'rgba(59, 130, 246, 0.15)',
+                                  color: '#60a5fa',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '1px 5px',
+                                }}
+                              >
+                                HTML
+                              </span>
+                            )}
+
                             {proc.isActive === false ? (
                               <span className="proc-status-pill inactive">🚫 Inativo</span>
                             ) : proc.status === 'aprovado' ? (
@@ -581,8 +647,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <ArrowRight size={12} />
                         </button>
 
-                        {/* Botão Editar Discreto */}
-                        {onEdit && (
+                        {/* Botão Editar Discreto (Apenas se o editor estiver ativado) */}
+                        {isEditorEnabled && onEdit && (
                           <button
                             type="button"
                             className="btn-dash-action icon-only"

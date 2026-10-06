@@ -30,6 +30,8 @@ import {
   UserCheck,
   AlertCircle,
   LogOut,
+  Sliders,
+  BookOpen,
 } from 'lucide-react';
 import type { SystemMenu, SubmenuItem, SystemVersion, Procedure } from '../types/procedure';
 import type { AppUser } from '../types/auth';
@@ -48,6 +50,8 @@ interface SettingsViewProps {
   onSupabaseConnected?: () => void;
   onLogout?: () => void;
   onlyMenus?: boolean;
+  isEditorEnabled?: boolean;
+  onToggleEditor?: (enabled: boolean) => void;
 }
 
 const AVAILABLE_ICONS = [
@@ -74,8 +78,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSupabaseConnected,
   onLogout,
   onlyMenus = false,
+  isEditorEnabled = false,
+  onToggleEditor,
 }) => {
-  const [activeTab, setActiveTab] = useState<'menus' | 'supabase' | 'backup' | 'account'>('menus');
+  const [activeTab, setActiveTab] = useState<'general' | 'menus' | 'supabase' | 'backup' | 'account'>(
+    onlyMenus ? 'menus' : 'general'
+  );
+
+  const [localEditorEnabled, setLocalEditorEnabled] = useState<boolean>(() => {
+    if (typeof isEditorEnabled === 'boolean') return isEditorEnabled;
+    return localStorage.getItem('digifarma_enable_editor') === 'true';
+  });
+
+  const [editorToggleMsg, setEditorToggleMsg] = useState<string | null>(null);
+
+  const handleToggleEditorInternal = (enabled: boolean) => {
+    setLocalEditorEnabled(enabled);
+    localStorage.setItem('digifarma_enable_editor', String(enabled));
+    onToggleEditor?.(enabled);
+    setEditorToggleMsg(
+      enabled
+        ? 'Editor ativado com sucesso! Botões de edição e criação disponíveis.'
+        : 'Modo Repositório ativo. Botões de criação e edição manual ocultados.'
+    );
+    setTimeout(() => setEditorToggleMsg(null), 4000);
+  };
 
   // Account & Password State
   const [accountNewPass, setAccountNewPass] = useState('');
@@ -400,6 +427,15 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
         <div className="settings-tabs-clean">
           <button
             type="button"
+            className={`settings-tab-item ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            <Sliders size={16} />
+            <span>Geral &amp; Editor</span>
+          </button>
+
+          <button
+            type="button"
             className={`settings-tab-item ${activeTab === 'menus' ? 'active' : ''}`}
             onClick={() => setActiveTab('menus')}
           >
@@ -431,8 +467,151 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('account')}
           >
             <KeyRound size={16} />
-            <span>Minha Conta & Senha</span>
+            <span>Minha Conta &amp; Senha</span>
           </button>
+        </div>
+      )}
+
+      {/* ==============================================================
+          ABA 0: PREFERÊNCIAS GERAIS & MODO EDITOR / REPOSITÓRIO
+          ============================================================== */}
+      {activeTab === 'general' && (
+        <div className="settings-panel-box">
+          <div className="settings-panel-top">
+            <div>
+              <h2 className="settings-section-title">Modo de Operação: Repositório &amp; Editor</h2>
+              <p className="settings-section-desc">
+                Configure se o sistema opera exclusivamente como Repositório Digital ou com o Editor Manual ativado.
+              </p>
+            </div>
+          </div>
+
+          {editorToggleMsg && (
+            <div
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid #10b981',
+                color: '#34d399',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                marginTop: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+              }}
+            >
+              <CheckCircle2 size={18} />
+              <span>{editorToggleMsg}</span>
+            </div>
+          )}
+
+          <div
+            style={{
+              background: '#161c28',
+              border: '1px solid #283449',
+              borderRadius: '14px',
+              padding: '1.4rem',
+              marginTop: '1.2rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ flex: 1, minWidth: '280px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
+                    Ativar Editor de Procedimentos (Studio Digifarma)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      padding: '3px 9px',
+                      borderRadius: '999px',
+                      background: localEditorEnabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)',
+                      color: localEditorEnabled ? '#34d399' : '#38bdf8',
+                      border: localEditorEnabled ? '1px solid #10b981' : '1px solid #38bdf8',
+                    }}
+                  >
+                    {localEditorEnabled ? '✓ Editor Ativado' : '📂 Modo Repositório (Padrão)'}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                  {localEditorEnabled
+                    ? 'O editor manual está ativado. As opções "Novo Procedimento" e "Editar" são exibidas nos painéis para criação de slides e personalização rica.'
+                    : 'O sistema opera estritamente como Repositório de Procedimentos. Os botões de criação e edição manual ficam ocultos na interface, mantendo a experiência focada em consulta, homologação e importação de PDFs/HTMLs.'}
+                </p>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleEditorInternal(!localEditorEnabled)}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: localEditorEnabled ? 'rgba(239, 68, 68, 0.2)' : 'var(--red)',
+                    border: localEditorEnabled ? '1px solid #ef4444' : 'none',
+                    color: '#ffffff',
+                    boxShadow: localEditorEnabled ? 'none' : '0 4px 14px rgba(239, 68, 68, 0.3)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Sliders size={16} />
+                  <span>{localEditorEnabled ? 'Desativar Editor' : 'Ativar Editor'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards Comparativos dos Dois Modos */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '1.5rem' }}>
+            <div
+              style={{
+                background: '#161c28',
+                border: !localEditorEnabled ? '1.5px solid #38bdf8' : '1px solid #283449',
+                borderRadius: '12px',
+                padding: '1.2rem',
+                position: 'relative',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <BookOpen size={18} color="#38bdf8" />
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                  Modo Repositório Digital
+                </h4>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Foco total na visualização, busca e consulta de POPs. Permite importar arquivos oficiais diretamente em PDF ou HTML com tags marcadas.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: '#161c28',
+                border: localEditorEnabled ? '1.5px solid var(--red)' : '1px solid #283449',
+                borderRadius: '12px',
+                padding: '1.2rem',
+                position: 'relative',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Sliders size={18} color="var(--red)" />
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                  Modo Studio &amp; Editor
+                </h4>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Exibe ferramentas visuais completas de edição, permitindo criar novos slides, formatar textos, adicionar mãozinhas e indicadores interativos.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

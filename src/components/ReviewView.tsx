@@ -9,7 +9,10 @@ import {
   Search,
   MessageSquare,
   ShieldCheck,
-  X
+  X,
+  Upload,
+  FileText,
+  Monitor
 } from 'lucide-react';
 import type { Procedure } from '../types/procedure';
 import type { AppUser } from '../types/auth';
@@ -21,6 +24,8 @@ interface ReviewViewProps {
   onApproveProcedure: (procedureId: string, reviewerName: string) => void;
   onRequestAdjustments: (procedureId: string, reviewerName: string, reason: string) => void;
   currentUser?: AppUser | null;
+  isEditorEnabled?: boolean;
+  onOpenImport?: (procedure: Procedure) => void;
 }
 
 export const ReviewView: React.FC<ReviewViewProps> = ({
@@ -30,6 +35,8 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   onApproveProcedure,
   onRequestAdjustments,
   currentUser,
+  isEditorEnabled = false,
+  onOpenImport,
 }) => {
   const [filterTab, setFilterTab] = useState<'pending' | 'adjustments' | 'approved' | 'all'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -232,6 +239,17 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
                     <span className="review-steps-count">
                       {stepCount} etapa{stepCount !== 1 ? 's' : ''}
                     </span>
+
+                    {proc.pdfFileUrl && (
+                      <span className="file-format-badge pdf" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+                        <FileText size={12} /> PDF
+                      </span>
+                    )}
+                    {proc.htmlFileData && (
+                      <span className="file-format-badge html" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+                        <Monitor size={12} /> HTML
+                      </span>
+                    )}
                   </div>
 
                   <div className="review-card-author-info">
@@ -275,15 +293,30 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
                       <span>Visualizar POP</span>
                     </button>
 
-                    <button
-                      type="button"
-                      className="btn-review-action edit"
-                      onClick={() => onEditProcedure(proc)}
-                      title="Editar o procedimento no estúdio"
-                    >
-                      <Edit3 size={14} />
-                      <span>Editar</span>
-                    </button>
+                    {onOpenImport && (
+                      <button
+                        type="button"
+                        className="btn-review-action preview"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                        onClick={() => onOpenImport(proc)}
+                        title="Anexar ou atualizar arquivo PDF/HTML deste procedimento"
+                      >
+                        <Upload size={14} />
+                        <span>Anexar Arquivo</span>
+                      </button>
+                    )}
+
+                    {isEditorEnabled && (
+                      <button
+                        type="button"
+                        className="btn-review-action edit"
+                        onClick={() => onEditProcedure(proc)}
+                        title="Editar o procedimento no estúdio"
+                      >
+                        <Edit3 size={14} />
+                        <span>Editar</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="review-actions-right">

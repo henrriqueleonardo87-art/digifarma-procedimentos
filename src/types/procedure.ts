@@ -275,6 +275,13 @@ export interface Procedure {
   reviewFeedbacks?: ReviewFeedback[];
   signatures?: ProcedureSignatures;
   formatType?: ProcedureFormat;
+  pdfFileUrl?: string;
+  pdfFileName?: string;
+  pdfFileSize?: number;
+  htmlFileData?: string;
+  htmlFileName?: string;
+  htmlFileSize?: number;
+  activeViewFormat?: 'pdf' | 'html';
   checklistItems?: ChecklistItem[];
   coverStats?: SlideStatItem[];
   isActive?: boolean;
