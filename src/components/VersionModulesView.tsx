@@ -92,7 +92,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const versionName = version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico';
+  const versionName = version === 'v10' ? 'v10' : 'Clássico';
 
   // Procedimentos da versão selecionada (APENAS revisados e aprovados/publicados)
   const versionProcedures = useMemo(() => {
@@ -255,12 +255,15 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               role="button"
               tabIndex={0}
               style={{
-                background: 'rgba(239, 68, 68, 0.08)',
+                background: 'var(--bg-secondary)',
                 border: '1.5px dashed var(--red)',
               }}
             >
-              <div className="image-card-icon-center" style={{ color: 'var(--red)' }}>
-                <Upload size={28} />
+              <div
+                className="image-card-icon-center"
+                style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
+              >
+                <Upload size={24} />
               </div>
               <h3 className="image-card-title">Importar POP</h3>
               <p className="image-card-subtitle">
@@ -318,8 +321,11 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 role="button"
                 tabIndex={0}
               >
-                <div className="image-card-icon-center">
-                  <SubIcon size={26} />
+                <div
+                  className="image-card-icon-center"
+                  style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
+                >
+                  <SubIcon size={24} />
                 </div>
                 <h3 className="image-card-title">{sub.label}</h3>
                 <p className="image-card-subtitle">
@@ -490,10 +496,10 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
       <div className="version-modules-hero">
         <div className="version-hero-badge">
           <Sparkles size={13} />
-          <span>{version === 'v10' ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO'}</span>
+          <span>{version === 'v10' ? 'v10' : 'Clássico'}</span>
         </div>
         <h1 className="version-hero-title">
-          {version === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico'}
+          {version === 'v10' ? 'v10' : 'Clássico'}
         </h1>
         <p className="version-hero-sub">
           Repositório de rotinas e procedimentos operacionais padronizados do ERP Digifarma.
@@ -523,7 +529,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               }}
             >
               <Upload size={16} />
-              <span>Importar POP ({version === 'v10' ? 'V10' : 'Clássico'})</span>
+              <span>Importar POP ({version === 'v10' ? 'v10' : 'Clássico'})</span>
             </button>
           )}
 
@@ -647,28 +653,19 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 style={{
                   color: 'var(--red)',
                   background: 'var(--red-soft)',
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 12px',
                 }}
               >
-                <Upload size={26} />
+                <Upload size={24} />
               </div>
               <h3 className="image-card-title">Importar POP</h3>
               <p className="image-card-subtitle">
-                Anexe manuais oficiais em PDF ou HTML para o {versionName}
+                Anexe manuais em PDF ou HTML para o {versionName}
               </p>
               <span
                 className="image-card-count-badge"
                 style={{
                   background: 'var(--red)',
                   color: '#ffffff',
-                  fontWeight: 800,
-                  padding: '4px 10px',
                 }}
               >
                 + Importar Arquivo
@@ -685,7 +682,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
               tabIndex={0}
             >
               <div className="image-card-icon-center new-icon-center">
-                <Plus size={28} />
+                <Plus size={26} />
               </div>
               <h3 className="image-card-title">Novo Manual</h3>
               <p className="image-card-subtitle">Criar slides interativos no estúdio</p>
@@ -720,8 +717,11 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 role="button"
                 tabIndex={0}
               >
-                <div className="image-card-icon-center">
-                  <ModIcon size={26} />
+                <div
+                  className="image-card-icon-center"
+                  style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
+                >
+                  <ModIcon size={24} />
                 </div>
                 <h3 className="image-card-title">{mod.label}</h3>
                 <p className="image-card-subtitle">
@@ -738,7 +738,11 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                   <span className="image-card-count-badge">
                     {mod.submenus.length} submenus
                   </span>
-                ) : null}
+                ) : (
+                  <span className="image-card-count-badge" style={{ opacity: 0.7 }}>
+                    Módulo ativo
+                  </span>
+                )}
               </div>
             );
           })}

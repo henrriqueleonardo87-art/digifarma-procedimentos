@@ -105,8 +105,6 @@ export const DEFAULT_SYSTEM_MENUS: SystemMenu[] = [
   },
 ];
 
-const DATA_VERSION_TAG = 'digifarma_seed_v5_setores';
-
 export const INITIAL_PROCEDURES: Procedure[] = [
   // ==========================================
   // PROCEDIMENTOS DO DIGIFARMA CLÁSSICO
@@ -720,14 +718,6 @@ export async function saveSystemMenus(menus: SystemMenu[]): Promise<void> {
 
 // Gerenciamento de Procedimentos
 export async function fetchAllProcedures(): Promise<Procedure[]> {
-  // Verifica se precisa migrar/atualizar os procedimentos padrão com novos exemplos e caminhos
-  const currentSeedTag = localStorage.getItem('digifarma_seed_version');
-  if (currentSeedTag !== DATA_VERSION_TAG) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_PROCEDURES));
-    localStorage.setItem('digifarma_seed_version', DATA_VERSION_TAG);
-    return INITIAL_PROCEDURES;
-  }
-
   const client = getSupabase();
 
   if (client) {
@@ -737,28 +727,67 @@ export async function fetchAllProcedures(): Promise<Procedure[]> {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        const normalized = (data as Record<string, unknown>[]).map((p) => ({
-          ...p,
-          systemVersion: (p.systemVersion || p.systemversion || 'v10') as SystemVersion,
-          menuId: (p.menuId || p.menuid || 'geral') as string,
-          submenuId: (p.submenuId || p.submenuid || 'geral') as string,
-          systemPath: (p.systemPath || p.systempath || '') as string,
-        })) as unknown as Procedure[];
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
-        return normalized;
+      if (!error && data) {
+        if (data.length > 0) {
+          const normalized = (data as Record<string, unknown>[]).map((p) => {
+            // Se houver metadados salvos dentro dos blocks
+            const blocks = Array.isArray(p.blocks) ? p.blocks : [];
+            const metaBlock = blocks.find((b: Record<string, unknown>) => b && b._isProcMeta) as Record<string, unknown> | undefined;
+
+            return {
+              ...p,
+              systemVersion: (p.systemVersion || p.systemversion || metaBlock?.systemVersion || 'v10') as SystemVersion,
+              menuId: (p.menuId || p.menuid || metaBlock?.menuId || 'geral') as string,
+              submenuId: (p.submenuId || p.submenuid || metaBlock?.submenuId || 'geral') as string,
+              systemPath: (p.systemPath || p.systempath || metaBlock?.systemPath || '') as string,
+              status: (p.status || metaBlock?.status || 'aprovado') as 'aprovado' | 'pendente' | 'ajustes_solicitados' | 'despublicado',
+              isActive: p.isActive !== undefined ? Boolean(p.isActive) : metaBlock?.isActive !== undefined ? Boolean(metaBlock.isActive) : true,
+              formatType: (p.formatType || metaBlock?.formatType || (p.htmlFileData ? (p.pdfFileUrl ? 'both' : 'html') : 'pdf')),
+              pdfFileUrl: (p.pdfFileUrl || metaBlock?.pdfFileUrl) as string | undefined,
+              pdfFileName: (p.pdfFileName || metaBlock?.pdfFileName) as string | undefined,
+              pdfFileSize: (p.pdfFileSize || metaBlock?.pdfFileSize) as number | undefined,
+              htmlFileData: (p.htmlFileData || metaBlock?.htmlFileData) as string | undefined,
+              htmlFileName: (p.htmlFileName || metaBlock?.htmlFileName) as string | undefined,
+              htmlFileSize: (p.htmlFileSize || metaBlock?.htmlFileSize) as number | undefined,
+              activeViewFormat: (p.activeViewFormat || metaBlock?.activeViewFormat || 'pdf') as 'pdf' | 'html',
+              reviewedBy: (p.reviewedBy || metaBlock?.reviewedBy) as string | undefined,
+              blocks: blocks.filter((b: Record<string, unknown>) => !b || !b._isProcMeta),
+            };
+          }) as unknown as Procedure[];
+
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
+          return normalized;
+        } else {
+          // Se o banco retornou 0 procedimentos, verifica se o usuário tem itens no localStorage para sincronizar
+          const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (local) {
+            try {
+              const parsed = JSON.parse(local);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                // Sobe os itens locais para o Supabase para que fiquem disponíveis em qualquer máquina
+                for (const item of parsed) {
+                  await saveProcedure(item);
+                }
+                return parsed;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          return [];
+        }
       }
     } catch (err) {
       console.warn('Falha ao carregar do Supabase, buscando cache local:', err);
     }
   }
 
-  // Fallback LocalStorage
+  // Fallback LocalStorage caso o Supabase não esteja acessível
   const local = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (local) {
     try {
       const parsed = JSON.parse(local);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     } catch {
@@ -766,9 +795,7 @@ export async function fetchAllProcedures(): Promise<Procedure[]> {
     }
   }
 
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_PROCEDURES));
-  localStorage.setItem('digifarma_seed_version', DATA_VERSION_TAG);
-  return INITIAL_PROCEDURES;
+  return [];
 }
 
 export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
@@ -783,6 +810,7 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
 
   if (client) {
     try {
+      // Tentativa 1: upsert completo direto
       const { error } = await client
         .from('procedures')
         .upsert(updatedProcedure)
@@ -790,7 +818,47 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
         .single();
 
       if (error) {
-        console.warn('Erro ao salvar no Supabase:', error.message);
+        // Se falhou por coluna ausente no banco Supabase (ex: isActive ou status não criados ainda via SQL)
+        // Empacotamos os metadados com segurança dentro de blocks para garantir persistência 100% no Supabase!
+        const metaBlock = {
+          _isProcMeta: true,
+          status: updatedProcedure.status || 'aprovado',
+          isActive: updatedProcedure.isActive !== false,
+          systemVersion: updatedProcedure.systemVersion || 'v10',
+          menuId: updatedProcedure.menuId,
+          submenuId: updatedProcedure.submenuId,
+          systemPath: updatedProcedure.systemPath,
+          formatType: updatedProcedure.formatType,
+          pdfFileUrl: updatedProcedure.pdfFileUrl,
+          pdfFileName: updatedProcedure.pdfFileName,
+          pdfFileSize: updatedProcedure.pdfFileSize,
+          htmlFileData: updatedProcedure.htmlFileData,
+          htmlFileName: updatedProcedure.htmlFileName,
+          htmlFileSize: updatedProcedure.htmlFileSize,
+          activeViewFormat: updatedProcedure.activeViewFormat,
+          reviewedBy: updatedProcedure.reviewedBy,
+        };
+
+        const safePayload: Record<string, unknown> = {
+          id: updatedProcedure.id,
+          title: updatedProcedure.title,
+          subtitle: updatedProcedure.subtitle,
+          category: updatedProcedure.category || 'Geral',
+          author: updatedProcedure.author || 'Administrador',
+          blocks: [metaBlock, ...(updatedProcedure.blocks || [])],
+          tags: updatedProcedure.tags || [],
+          is_favorite: Boolean(updatedProcedure.is_favorite),
+          created_at: updatedProcedure.created_at,
+          updated_at: updatedProcedure.updated_at,
+        };
+
+        const { error: safeError } = await client
+          .from('procedures')
+          .upsert(safePayload);
+
+        if (safeError) {
+          console.warn('Erro ao salvar no Supabase (modo compatibilidade):', safeError.message);
+        }
       }
     } catch (err) {
       console.warn('Exceção ao salvar no Supabase:', err);

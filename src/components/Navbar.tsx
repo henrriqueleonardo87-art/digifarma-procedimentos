@@ -8,7 +8,9 @@ interface NavbarProps {
   onLogout?: () => void;
   onUpdateAvatar?: (avatarUrl: string) => Promise<void> | void;
   pendingReviewCount?: number;
+  notesNotificationCount?: number;
   onOpenRevision?: () => void;
+  onOpenNotes?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,10 +19,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onUpdateAvatar,
   pendingReviewCount = 0,
+  notesNotificationCount = 0,
   onOpenRevision,
+  onOpenNotes,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const displayName = currentUser?.name || currentUser?.username || 'Visitante';
+  const totalNotifications = pendingReviewCount + notesNotificationCount;
+
+  const handleNotificationClick = () => {
+    if (notesNotificationCount > 0 && pendingReviewCount === 0 && onOpenNotes) {
+      onOpenNotes();
+    } else if (onOpenRevision) {
+      onOpenRevision();
+    }
+  };
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,26 +69,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             Olá, <span style={{ color: 'var(--red)' }}>{displayName}</span>
           </h1>
           <span className="header-treinamento-sub">
-            Plataforma de Capacitação e Procedimentos Operacionais Digifarma
+            Painel do Treinador · Capacitação e Procedimentos Digifarma
           </span>
         </div>
       </div>
 
       <div className="global-header-right">
-        {/* Notificações de Revisões Pendentes */}
+        {/* Notificações de Revisões Pendentes e Recados */}
         <button
           type="button"
-          className={`header-btn-notification ${pendingReviewCount > 0 ? 'has-notifications' : ''}`}
-          onClick={onOpenRevision}
+          className={`header-btn-notification ${totalNotifications > 0 ? 'has-notifications' : ''}`}
+          onClick={handleNotificationClick}
           title={
-            pendingReviewCount > 0
-              ? `${pendingReviewCount} procedimento(s) pendente(s) de revisão e homologação`
-              : 'Nenhum procedimento pendente de revisão'
+            totalNotifications > 0
+              ? `${pendingReviewCount > 0 ? `${pendingReviewCount} revisão(ões)` : ''}${pendingReviewCount > 0 && notesNotificationCount > 0 ? ' e ' : ''}${notesNotificationCount > 0 ? `${notesNotificationCount} anotação(ões) para você` : ''}`
+              : 'Nenhuma notificação no momento'
           }
         >
           <Bell size={18} />
-          {pendingReviewCount > 0 && (
-            <span className="notification-badge-count">{pendingReviewCount}</span>
+          {totalNotifications > 0 && (
+            <span className="notification-badge-count">{totalNotifications}</span>
           )}
         </button>
 

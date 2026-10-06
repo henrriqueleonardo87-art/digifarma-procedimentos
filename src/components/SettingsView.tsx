@@ -32,6 +32,10 @@ import {
   LogOut,
   Sliders,
   BookOpen,
+  HelpCircle,
+  ShoppingCart,
+  FileText,
+  BarChart3,
 } from 'lucide-react';
 import type { SystemMenu, SubmenuItem, SystemVersion, Procedure } from '../types/procedure';
 import type { AppUser } from '../types/auth';
@@ -55,16 +59,20 @@ interface SettingsViewProps {
 }
 
 const AVAILABLE_ICONS = [
-  { name: 'FolderPlus', label: 'Cadastros / Pastas' },
-  { name: 'Boxes', label: 'Estoque / Armazém' },
-  { name: 'CreditCard', label: 'Caixa / Financeiro' },
-  { name: 'Package', label: 'Produtos / Medicamentos' },
-  { name: 'Users', label: 'Clientes / Equipe' },
-  { name: 'Truck', label: 'Fornecedores / Logística' },
-  { name: 'Wrench', label: 'Utilitários / Ferramentas' },
-  { name: 'Settings', label: 'Configurações' },
-  { name: 'ShieldCheck', label: 'Segurança / Convênios' },
-  { name: 'Database', label: 'Banco de Dados / Backup' },
+  { name: 'FolderPlus', label: 'Cadastros e Pastas', shortLabel: 'Cadastros' },
+  { name: 'Boxes', label: 'Estoque e Armazém', shortLabel: 'Estoque' },
+  { name: 'ShoppingCart', label: 'Vendas e Balcão', shortLabel: 'Vendas' },
+  { name: 'CreditCard', label: 'Caixa e Financeiro', shortLabel: 'Financeiro' },
+  { name: 'FileText', label: 'Fiscal e Tributário', shortLabel: 'Fiscal' },
+  { name: 'Package', label: 'Produtos e Itens', shortLabel: 'Produtos' },
+  { name: 'Users', label: 'Clientes e Equipe', shortLabel: 'Clientes' },
+  { name: 'ShieldCheck', label: 'SNGPC e Controlados', shortLabel: 'Controlados' },
+  { name: 'Settings', label: 'Configurações e Sistema', shortLabel: 'Sistema' },
+  { name: 'Truck', label: 'Fornecedores e Logística', shortLabel: 'Logística' },
+  { name: 'Wrench', label: 'Utilitários e Manutenção', shortLabel: 'Utilitários' },
+  { name: 'Database', label: 'Banco de Dados', shortLabel: 'Banco' },
+  { name: 'BarChart3', label: 'Relatórios e Dashboards', shortLabel: 'Métricas' },
+  { name: 'Layers', label: 'Outros Setores', shortLabel: 'Geral' },
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -281,6 +289,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         return <SettingsIcon size={size} />;
       case 'CreditCard':
         return <CreditCard size={size} />;
+      case 'ShoppingCart':
+        return <ShoppingCart size={size} />;
+      case 'FileText':
+        return <FileText size={size} />;
+      case 'BarChart3':
+        return <BarChart3 size={size} />;
+      case 'Database':
+        return <Database size={size} />;
+      case 'Layers':
+        return <Layers size={size} />;
       default:
         return <Folder size={size} />;
     }
@@ -448,7 +466,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('general')}
           >
             <Sliders size={16} />
-            <span>Geral &amp; Editor</span>
+            <span>Geral</span>
           </button>
 
           <button
@@ -457,7 +475,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('menus')}
           >
             <Layers size={16} />
-            <span>Módulos e Procedimentos</span>
+            <span>Módulos</span>
           </button>
 
           <button
@@ -466,7 +484,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('supabase')}
           >
             <Database size={16} />
-            <span>Conexão Nuvem / Supabase</span>
+            <span>Nuvem</span>
           </button>
 
           <button
@@ -475,7 +493,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('backup')}
           >
             <Download size={16} />
-            <span>Backup e Restauração</span>
+            <span>Backup</span>
           </button>
 
           <button
@@ -484,7 +502,7 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
             onClick={() => setActiveTab('account')}
           >
             <KeyRound size={16} />
-            <span>Minha Conta &amp; Senha</span>
+            <span>Conta</span>
           </button>
         </div>
       )}
@@ -694,58 +712,58 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           </div>
 
           {/* Formulário: Criar Novo Módulo */}
-          <form onSubmit={handleAddMenu} className="add-module-form">
-            <div className="add-module-row">
-              <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
-                <label className="form-label">Nome do Novo Módulo</label>
+          <form onSubmit={handleAddMenu} className="add-module-form" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div className="form-group" style={{ flex: '2 1 240px', marginBottom: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Nome do Módulo</label>
+                  <span
+                    className="help-tooltip-trigger"
+                    title="Nome do setor no ERP (ex: Vendas, Estoque, Fiscal, Cadastros)."
+                  >
+                    <HelpCircle size={14} />
+                  </span>
+                </div>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Ex: Vendas, Financeiro, Fiscal, Delivery..."
+                  placeholder="Ex: Vendas, Financeiro, Fiscal, Cadastros..."
                   value={newMenuLabel}
                   onChange={(e) => setNewMenuLabel(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="form-group" style={{ width: '200px', marginBottom: 0 }}>
-                <label className="form-label">Ícone</label>
-                <select
-                  className="form-select"
-                  value={newMenuIcon}
-                  onChange={(e) => setNewMenuIcon(e.target.value)}
-                >
-                  {AVAILABLE_ICONS.map((i) => (
-                    <option key={i.name} value={i.name}>
-                      {i.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group" style={{ width: '180px', marginBottom: 0 }}>
-                <label className="form-label">Versão do Sistema</label>
+              <div className="form-group" style={{ flex: '1 1 180px', marginBottom: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Versão de Destino</label>
+                  <span
+                    className="help-tooltip-trigger"
+                    title="Define em qual tela este módulo aparecerá: v10, Clássico ou em ambas."
+                  >
+                    <HelpCircle size={14} />
+                  </span>
+                </div>
                 <select
                   className="form-select"
                   value={newMenuVersion}
                   onChange={(e) => setNewMenuVersion(e.target.value as SystemVersion | 'ambos')}
                 >
                   <option value="ambos">Ambas as Versões</option>
-                  <option value="classico">Digifarma Clássico</option>
-                  <option value="v10">Digifarma V10</option>
+                  <option value="v10">v10</option>
+                  <option value="classico">Clássico</option>
                 </select>
               </div>
 
               <button
                 type="submit"
                 style={{
-                  alignSelf: 'flex-end',
-                  height: '38px',
+                  height: '42px',
                   background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
-                  padding: '0 18px',
+                  padding: '0 20px',
                   fontWeight: 800,
                   fontSize: '0.84rem',
                   cursor: 'pointer',
@@ -753,11 +771,45 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
                   alignItems: 'center',
                   gap: '6px',
                   boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
+                  flexShrink: 0,
                 }}
               >
-                <Plus size={15} />
+                <Plus size={16} />
                 <span>Criar Módulo</span>
               </button>
+            </div>
+
+            {/* Galeria Visual de Ícones do Módulo (Monocromático no padrão do site) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label className="form-label" style={{ margin: 0 }}>Ícone Representativo</label>
+                <span
+                  className="help-tooltip-trigger"
+                  title="Selecione o ícone que identifica o setor no card principal. Padrão monocromático do site."
+                >
+                  <HelpCircle size={14} />
+                </span>
+              </div>
+
+              <div className="icon-gallery-grid">
+                {AVAILABLE_ICONS.map((i) => {
+                  const isSelected = newMenuIcon === i.name;
+                  return (
+                    <button
+                      key={i.name}
+                      type="button"
+                      className={`icon-gallery-card ${isSelected ? 'selected' : ''}`}
+                      onClick={() => setNewMenuIcon(i.name)}
+                      title={i.label}
+                    >
+                      <span className="icon-gallery-symbol">
+                        {getIcon(i.name, 18)}
+                      </span>
+                      <span className="icon-gallery-name">{i.shortLabel || i.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </form>
 

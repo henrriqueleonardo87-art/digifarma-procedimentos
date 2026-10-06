@@ -26,7 +26,6 @@ import {
   ClipboardCheck,
   MoreVertical,
   Loader2,
-  ShieldCheck,
   Upload,
   ExternalLink,
   FileText,
@@ -142,7 +141,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   }, [isMoreMenuOpen]);
 
   const isV10 = procedure.systemVersion === 'v10';
-  const versionTag = isV10 ? 'DIGIFARMA V10' : 'DIGIFARMA CLÁSSICO';
+  const versionTag = isV10 ? 'v10' : 'Clássico';
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
@@ -538,8 +537,10 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               </span>
               {procedure.isActive === false ? (
                 <span className="proc-status-pill-clean inactive">🚫 Inativo</span>
-              ) : procedure.status === 'aprovado' ? (
-                <span className="proc-status-pill-clean approved">✓ Publicado</span>
+              ) : procedure.status === 'aprovado' || !procedure.status ? (
+                <span className="proc-status-pill-clean approved">
+                  ✓ Liberado por {procedure.reviewedBy || procedure.author || 'Leonardo'}
+                </span>
               ) : procedure.status === 'pendente' ? (
                 <span className="proc-status-pill-clean pending">⏳ Em Revisão</span>
               ) : procedure.status === 'ajustes_solicitados' ? (
@@ -550,7 +551,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
               {procedure.systemPath && (
                 <span className="proc-action-breadcrumb-text" title={procedure.systemPath}>
-                  {procedure.systemPath}
+                  {procedure.systemPath.replace('Digifarma V10', 'v10').replace('Digifarma Clássico', 'Clássico')}
                 </span>
               )}
             </div>
@@ -561,19 +562,77 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </div>
         </div>
 
-
-
-        {/* Ações Primárias e Menu Secundário */}
+        {/* Ações Primárias e Controles de Leitura Despoluídos */}
         <div className="proc-action-right-group">
+          {/* Seletor de Formato Discreto (Se ambos existirem ou arquivo importado) */}
+          {(hasImportedPdf && hasImportedHtml) && (
+            <div className="proc-format-segmented-pill">
+              <button
+                type="button"
+                className={`format-seg-btn ${selectedFormat === 'pdf' ? 'active' : ''}`}
+                onClick={() => setSelectedFormat('pdf')}
+                title="Visualizar documento em formato PDF"
+              >
+                <FileText size={13} />
+                <span>PDF</span>
+              </button>
+              <button
+                type="button"
+                className={`format-seg-btn ${selectedFormat === 'html' ? 'active' : ''}`}
+                onClick={() => setSelectedFormat('html')}
+                title="Visualizar documento em formato HTML"
+              >
+                <Monitor size={13} />
+                <span>HTML</span>
+              </button>
+            </div>
+          )}
+
+          {/* Botão de Download Único */}
+          {selectedFormat === 'html' && hasImportedHtml ? (
+            <button
+              type="button"
+              className="btn-proc-primary-action print-cta"
+              onClick={handleDownloadHtml}
+              style={{ background: 'var(--red)', color: '#ffffff', border: 'none' }}
+              title="Baixar Manual HTML"
+            >
+              <FileDown size={14} />
+              <span>Baixar HTML</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-proc-primary-action print-cta"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              style={{ background: 'var(--red)', color: '#ffffff', border: 'none' }}
+              title="Baixar Documento PDF Oficial"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 size={14} className="spin-animate" />
+                  <span>Baixando...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown size={14} />
+                  <span>Baixar PDF</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Botão de Anexar / Importar POP (único e no topo) */}
           {onOpenImport && (
             <button
               type="button"
               className="btn-proc-primary-action"
               onClick={() => onOpenImport(procedure)}
-              style={{ background: 'var(--red-soft)', borderColor: 'rgba(231, 76, 60, 0.35)', color: 'var(--red)' }}
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               title="Anexar ou atualizar arquivos PDF e HTML deste procedimento"
             >
-              <Upload size={14} />
+              <Upload size={14} color="var(--red)" />
               <span>Anexar Arquivo</span>
             </button>
           )}
@@ -585,41 +644,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               onClick={onEdit}
               title="Editar procedimento no Studio Digifarma"
             >
-              <Edit3 size={15} />
+              <Edit3 size={14} />
               <span>Editar</span>
-            </button>
-          )}
-
-          {selectedFormat === 'html' && hasImportedHtml ? (
-            <button
-              type="button"
-              className="btn-proc-primary-action print-cta"
-              onClick={handleDownloadHtml}
-              style={{ background: '#2563eb', color: '#ffffff' }}
-              title="Baixar Manual HTML"
-            >
-              <FileDown size={15} />
-              <span>Baixar HTML</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-proc-primary-action print-cta"
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              title="Baixar Documento PDF Oficial"
-            >
-              {isGeneratingPdf ? (
-                <>
-                  <Loader2 size={15} className="spin-animate" />
-                  <span>Baixando PDF...</span>
-                </>
-              ) : (
-                <>
-                  <FileDown size={15} />
-                  <span>Baixar PDF</span>
-                </>
-              )}
             </button>
           )}
 
@@ -838,133 +864,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       )}
 
-      {/* Selo Oficial de Homologação e Responsável pela Liberação */}
-      {(procedure.status === 'aprovado' || !procedure.status) && (
-        <div className="homologation-status-bar no-print" style={{ margin: '12px auto 16px', maxWidth: '1120px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShieldCheck size={20} color="#10b981" />
-            <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)' }}>
-              Procedimento <strong>Homologado e Publicado</strong> oficialmente no repositório
-            </span>
-          </div>
-          <span style={{ fontSize: '0.78rem', color: 'var(--green-ink)', fontWeight: 700 }}>
-            ✓ Liberado por: <u>{procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}</u>
-          </span>
-        </div>
-      )}
 
-      {/* ── BARRA DE SELEÇÃO DE TAGS MARCADAS DO REPOSITÓRIO (PDF / HTML) ── */}
-      <div className="repository-doc-container no-print" style={{ maxWidth: '1120px', margin: '0 auto 16px auto', width: '100%' }}>
-        <div
-          style={{
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: '14px',
-            padding: '12px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Formato de Leitura:
-            </span>
-
-            {/* Tags Marcadas Selecionáveis */}
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedFormat('pdf')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  border: selectedFormat === 'pdf' ? '1.5px solid var(--red)' : '1px solid var(--border)',
-                  background: selectedFormat === 'pdf' ? 'var(--red-soft)' : 'var(--bg-secondary)',
-                  color: selectedFormat === 'pdf' ? 'var(--red)' : 'var(--text-secondary)',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <FileText size={14} color="var(--red)" />
-                <span>Documento PDF</span>
-                {selectedFormat === 'pdf' && (
-                  <span style={{ fontSize: '0.66rem', background: 'var(--red)', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
-                    Ativo
-                  </span>
-                )}
-                {hasImportedPdf && (
-                  <span style={{ fontSize: '0.66rem', color: '#10b981' }} title="Arquivo PDF anexado">●</span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedFormat('html')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  border: selectedFormat === 'html' ? '1.5px solid var(--red)' : '1px solid var(--border)',
-                  background: selectedFormat === 'html' ? 'var(--red-soft)' : 'var(--bg-secondary)',
-                  color: selectedFormat === 'html' ? 'var(--red)' : 'var(--text-secondary)',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Monitor size={14} color="var(--red)" />
-                <span>Manual HTML</span>
-                {selectedFormat === 'html' && (
-                  <span style={{ fontSize: '0.66rem', background: 'var(--red)', color: '#fff', borderRadius: '4px', padding: '1px 5px' }}>
-                    Ativo
-                  </span>
-                )}
-                {hasImportedHtml && (
-                  <span style={{ fontSize: '0.66rem', color: '#10b981' }} title="Arquivo HTML anexado">●</span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {onOpenImport && (
-              <button
-                type="button"
-                onClick={() => onOpenImport(procedure)}
-                style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  borderRadius: '8px',
-                  padding: '6px 14px',
-                  fontSize: '0.76rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Upload size={13} color="var(--red)" />
-                <span>{hasImportedFiles ? 'Substituir / Anexar' : 'Importar PDF / HTML'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* ── VISUALIZADOR REPOSITÓRIO: ARQUIVO PDF IMPORTADO ── */}
       {selectedFormat === 'pdf' && procedure.pdfFileUrl && (

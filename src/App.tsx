@@ -14,6 +14,8 @@ import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { NewProcedureFormatModal } from './components/NewProcedureFormatModal';
 import { ImportProcedureModal } from './components/ImportProcedureModal';
+import { InternalFilesView } from './components/InternalFilesView';
+import { NotesView } from './components/NotesView';
 import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -33,6 +35,7 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('digifarma_sidebar_collapsed') === 'true';
   });
+  const [notesNotificationCount, setNotesNotificationCount] = useState<number>(0);
 
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [menus, setMenus] = useState<SystemMenu[]>([]);
@@ -421,6 +424,7 @@ export function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         pendingReviewCount={pendingReviewCount}
+        notesNotificationCount={notesNotificationCount}
       />
 
       {/* Backdrop para fechar o menu lateral no celular ao tocar fora */}
@@ -440,8 +444,14 @@ export function App() {
           onUpdateAvatar={handleUpdateAvatar}
           onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           pendingReviewCount={pendingReviewCount}
+          notesNotificationCount={notesNotificationCount}
           onOpenRevision={() => {
             setCurrentView('revision');
+            setActiveId(null);
+            setIsEditing(false);
+          }}
+          onOpenNotes={() => {
+            setCurrentView('notes');
             setActiveId(null);
             setIsEditing(false);
           }}
@@ -524,6 +534,17 @@ export function App() {
               onRequestAdjustments={handleRequestAdjustments}
               isEditorEnabled={isEditorEnabled}
               onOpenImport={handleOpenImportModal}
+            />
+          ) : currentView === 'internal' ? (
+            <InternalFilesView
+              currentUser={currentUser}
+              onBackToDashboard={() => setCurrentView('dashboard')}
+            />
+          ) : currentView === 'notes' ? (
+            <NotesView
+              currentUser={currentUser}
+              onBackToDashboard={() => setCurrentView('dashboard')}
+              onNotesNotificationChange={(count) => setNotesNotificationCount(count)}
             />
           ) : currentView === 'personalize' ? (
             <SettingsView

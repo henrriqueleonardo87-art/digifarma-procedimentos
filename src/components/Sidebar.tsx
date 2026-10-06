@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck, Sliders } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck, Sliders, FolderKanban, StickyNote } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface SidebarProps {
@@ -14,6 +14,7 @@ interface SidebarProps {
   currentUser?: AppUser | null;
   onLogout?: () => void;
   pendingReviewCount?: number;
+  notesNotificationCount?: number;
 }
 
 function navIcon(name: string) {
@@ -50,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUser,
   onLogout,
   pendingReviewCount = 0,
+  notesNotificationCount = 0,
 }) => {
   const handleNavClick = (view: string) => {
     onChangeView(view);
@@ -70,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div
               className="brand-logo-area"
               onClick={() => handleNavClick('dashboard')}
-              title="Digifarma - Início"
+              title="Painel do Treinador - Início"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -81,11 +83,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             >
               <div className="brand-logo-icon">
-                <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+                <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>P</span>
               </div>
               <div style={{ overflow: 'hidden' }}>
-                <div className="name">Digifarma</div>
-                <div className="sub brand-product">Treinamento & POPs</div>
+                <div className="name" style={{ fontSize: '0.98rem', fontWeight: 800 }}>Painel do Treinador</div>
+                <div className="sub brand-product">Digifarma ERP</div>
               </div>
             </div>
 
@@ -129,10 +131,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div
               className="brand-logo-icon"
               onClick={() => handleNavClick('dashboard')}
-              title="Digifarma - Início"
+              title="Painel do Treinador - Início"
               style={{ cursor: 'pointer' }}
             >
-              <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>D</span>
+              <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>P</span>
             </div>
 
             {onToggleCollapse && (
@@ -151,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Lista de Navegação Principal: Somente Tela Inicial, Digifarma V10 e Digifarma R78 */}
+      {/* Lista de Navegação Principal */}
       <div className="nav-items-scroll">
         <button
           type="button"
@@ -167,20 +169,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'v10' ? 'active' : ''}`}
           onClick={() => handleNavClick('v10')}
-          title="Digifarma V10"
+          title="v10"
         >
           <span className="ic">{navIcon('rocket')}</span>
-          {!isCollapsed && <span>Digifarma V10</span>}
+          {!isCollapsed && <span>v10</span>}
         </button>
 
         <button
           type="button"
           className={`nav-item ${currentView === 'r78' ? 'active' : ''}`}
           onClick={() => handleNavClick('r78')}
-          title="Digifarma Clássico"
+          title="Clássico"
         >
           <span className="ic">{navIcon('monitor')}</span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Digifarma Clássico</span>}
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Clássico</span>}
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'internal' ? 'active' : ''}`}
+          onClick={() => handleNavClick('internal')}
+          title="Interno - Arquivos e Imagens"
+        >
+          <span className="ic">
+            <FolderKanban size={18} />
+          </span>
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Interno</span>}
+        </button>
+
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'notes' ? 'active' : ''}`}
+          onClick={() => handleNavClick('notes')}
+          title="Anotações e Clientes"
+        >
+          <span className="ic" style={{ position: 'relative' }}>
+            <StickyNote size={18} />
+            {isCollapsed && notesNotificationCount > 0 ? (
+              <span className="sidebar-pending-badge dot" title={`${notesNotificationCount} recados`} />
+            ) : null}
+          </span>
+          {!isCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
+              <span style={{ whiteSpace: 'nowrap' }}>Anotações</span>
+              {notesNotificationCount > 0 ? (
+                <span className="sidebar-pending-badge">{notesNotificationCount}</span>
+              ) : null}
+            </div>
+          )}
         </button>
 
         <button
@@ -209,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           className={`nav-item ${currentView === 'personalize' ? 'active' : ''}`}
           onClick={() => handleNavClick('personalize')}
-          title="Gerenciar Módulos, Rotinas e Menus"
+          title="Gerenciar Módulos e Rotinas"
         >
           <span className="ic">
             <Sliders size={18} />
