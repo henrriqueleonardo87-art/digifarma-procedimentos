@@ -521,145 +521,157 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
   return (
     <article className="presentation-manual-root" id="printable-procedure">
       {/* ── BARRA FIXA DE AÇÕES DO POP (MODERNA, LIMPA & DESPOLUÍDA) ── */}
+      {/* ── BARRA FIXA DE AÇÕES DO POP (ORGANIZADA, LIMPA & MINIMALISTA) ── */}
       <div className="proc-action-bar-clean no-print">
-        <div className="proc-action-left-group">
-          {onBack && (
-            <button type="button" className="btn-proc-back" onClick={onBack} title="Voltar para a listagem">
-              <ArrowLeft size={16} />
-              <span>Voltar</span>
-            </button>
-          )}
+        {/* Linha 1: Navegação de Retorno, Breadcrumb e Status */}
+        <div className="proc-bar-top-row">
+          <div className="proc-bar-nav-left">
+            {onBack && (
+              <button
+                type="button"
+                className="btn-proc-back"
+                onClick={onBack}
+                title="Voltar para a listagem"
+              >
+                <ArrowLeft size={13} />
+                <span>Voltar</span>
+              </button>
+            )}
 
-          <div className="proc-action-header-info">
-            <div className="proc-action-meta-row">
+            <div className="proc-bar-breadcrumbs">
               <span className={`version-pill-compact ${isV10 ? 'v10' : 'classico'}`}>
                 {versionTag}
               </span>
-              {procedure.isActive === false ? (
-                <span className="proc-status-pill-clean inactive">🚫 Inativo</span>
-              ) : procedure.status === 'aprovado' || !procedure.status ? (
-                <span className="proc-status-pill-clean approved">
-                  ✓ Liberado por {procedure.reviewedBy || procedure.author || 'Leonardo'}
-                </span>
-              ) : procedure.status === 'pendente' ? (
-                <span className="proc-status-pill-clean pending">⏳ Em Revisão</span>
-              ) : procedure.status === 'ajustes_solicitados' ? (
-                <span className="proc-status-pill-clean adjustments">⚠️ Ajustes Solicitados</span>
-              ) : procedure.status === 'despublicado' ? (
-                <span className="proc-status-pill-clean unpublished">📄 Despublicado</span>
-              ) : null}
-
-              {procedure.systemPath && (
-                <span className="proc-action-breadcrumb-text" title={procedure.systemPath}>
-                  {procedure.systemPath.replace('Digifarma V10', 'v10').replace('Digifarma Clássico', 'Clássico')}
-                </span>
-              )}
+              <span className="crumb-sep">/</span>
+              <span className="proc-breadcrumb-path" title={procedure.systemPath || procedure.category}>
+                {procedure.systemPath
+                  ? procedure.systemPath.replace('Digifarma V10', 'v10').replace('Digifarma Clássico', 'Clássico')
+                  : procedure.category || 'Módulo'}
+              </span>
             </div>
+          </div>
 
+          <div className="proc-bar-status-right">
+            {procedure.isActive === false ? (
+              <span className="proc-status-pill-clean inactive">🚫 Inativo</span>
+            ) : procedure.status === 'aprovado' || !procedure.status ? (
+              <span className="proc-status-pill-clean approved">
+                ✓ Liberado por {procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}
+              </span>
+            ) : procedure.status === 'pendente' ? (
+              <span className="proc-status-pill-clean pending">⏳ Em Revisão</span>
+            ) : procedure.status === 'ajustes_solicitados' ? (
+              <span className="proc-status-pill-clean adjustments">⚠️ Ajustes Solicitados</span>
+            ) : procedure.status === 'despublicado' ? (
+              <span className="proc-status-pill-clean unpublished">📄 Despublicado</span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Linha 2: Título do Procedimento à Esquerda e Ações Minimalistas à Direita */}
+        <div className="proc-bar-main-row">
+          <div className="proc-bar-title-block">
             <h1 className="proc-action-heading-title" title={procedure.title}>
               {procedure.title}
             </h1>
           </div>
-        </div>
 
-        {/* Ações Primárias e Controles de Leitura Despoluídos */}
-        <div className="proc-action-right-group">
-          {/* Seletor de Formato Discreto (Se ambos existirem ou arquivo importado) */}
-          {(hasImportedPdf && hasImportedHtml) && (
-            <div className="proc-format-segmented-pill">
+          {/* Ações Primárias Minimalistas */}
+          <div className="proc-action-right-group">
+            {/* Seletor de Formato Discreto (Se ambos existirem) */}
+            {(hasImportedPdf && hasImportedHtml) && (
+              <div className="proc-format-segmented-pill">
+                <button
+                  type="button"
+                  className={`format-seg-btn ${selectedFormat === 'pdf' ? 'active' : ''}`}
+                  onClick={() => setSelectedFormat('pdf')}
+                  title="Visualizar documento em formato PDF"
+                >
+                  <FileText size={12} />
+                  <span>PDF</span>
+                </button>
+                <button
+                  type="button"
+                  className={`format-seg-btn ${selectedFormat === 'html' ? 'active' : ''}`}
+                  onClick={() => setSelectedFormat('html')}
+                  title="Visualizar documento em formato HTML"
+                >
+                  <Monitor size={12} />
+                  <span>HTML</span>
+                </button>
+              </div>
+            )}
+
+            {/* Botão de Download Minimalista */}
+            {selectedFormat === 'html' && hasImportedHtml ? (
               <button
                 type="button"
-                className={`format-seg-btn ${selectedFormat === 'pdf' ? 'active' : ''}`}
-                onClick={() => setSelectedFormat('pdf')}
-                title="Visualizar documento em formato PDF"
+                className="btn-proc-action"
+                onClick={handleDownloadHtml}
+                title="Baixar Manual HTML"
               >
-                <FileText size={13} />
-                <span>PDF</span>
+                <FileDown size={13} />
+                <span>Baixar HTML</span>
               </button>
+            ) : (
               <button
                 type="button"
-                className={`format-seg-btn ${selectedFormat === 'html' ? 'active' : ''}`}
-                onClick={() => setSelectedFormat('html')}
-                title="Visualizar documento em formato HTML"
+                className="btn-proc-action"
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                title="Baixar Documento PDF Oficial"
               >
-                <Monitor size={13} />
-                <span>HTML</span>
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 size={13} className="spin-animate" />
+                    <span>Baixando...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown size={13} />
+                    <span>Baixar PDF</span>
+                  </>
+                )}
               </button>
-            </div>
-          )}
+            )}
 
-          {/* Botão de Download Único */}
-          {selectedFormat === 'html' && hasImportedHtml ? (
-            <button
-              type="button"
-              className="btn-proc-primary-action print-cta"
-              onClick={handleDownloadHtml}
-              style={{ background: 'var(--red)', color: '#ffffff', border: 'none' }}
-              title="Baixar Manual HTML"
-            >
-              <FileDown size={14} />
-              <span>Baixar HTML</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-proc-primary-action print-cta"
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              style={{ background: 'var(--red)', color: '#ffffff', border: 'none' }}
-              title="Baixar Documento PDF Oficial"
-            >
-              {isGeneratingPdf ? (
-                <>
-                  <Loader2 size={14} className="spin-animate" />
-                  <span>Baixando...</span>
-                </>
-              ) : (
-                <>
-                  <FileDown size={14} />
-                  <span>Baixar PDF</span>
-                </>
-              )}
-            </button>
-          )}
+            {/* Botão de Anexar / Importar POP (Minimalista) */}
+            {onOpenImport && (
+              <button
+                type="button"
+                className="btn-proc-action"
+                onClick={() => onOpenImport(procedure)}
+                title="Anexar ou atualizar arquivos PDF e HTML deste procedimento"
+              >
+                <Upload size={13} />
+                <span>Anexar Arquivo</span>
+              </button>
+            )}
 
-          {/* Botão de Anexar / Importar POP (único e no topo) */}
-          {onOpenImport && (
-            <button
-              type="button"
-              className="btn-proc-primary-action"
-              onClick={() => onOpenImport(procedure)}
-              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              title="Anexar ou atualizar arquivos PDF e HTML deste procedimento"
-            >
-              <Upload size={14} color="var(--red)" />
-              <span>Anexar Arquivo</span>
-            </button>
-          )}
+            {/* Botão de Editar (Minimalista) */}
+            {isEditorEnabled && (
+              <button
+                type="button"
+                className="btn-proc-action"
+                onClick={onEdit}
+                title="Editar procedimento no Studio Digifarma"
+              >
+                <Edit3 size={13} />
+                <span>Editar</span>
+              </button>
+            )}
 
-          {isEditorEnabled && (
-            <button
-              type="button"
-              className="btn-proc-primary-action"
-              onClick={onEdit}
-              title="Editar procedimento no Studio Digifarma"
-            >
-              <Edit3 size={14} />
-              <span>Editar</span>
-            </button>
-          )}
-
-          {/* Dropdown Menu com Mais Opções */}
-          <div className="proc-more-menu-container" ref={moreMenuRef}>
-            <button
-              type="button"
-              className={`btn-proc-more-trigger ${isMoreMenuOpen ? 'open' : ''}`}
-              onClick={() => setIsMoreMenuOpen((v) => !v)}
-              title="Mais opções do procedimento"
-              aria-label="Mais opções"
-            >
-              <MoreVertical size={16} />
-            </button>
+            {/* Dropdown Menu com Mais Opções */}
+            <div className="proc-more-menu-container" ref={moreMenuRef}>
+              <button
+                type="button"
+                className={`btn-proc-more-trigger ${isMoreMenuOpen ? 'open' : ''}`}
+                onClick={() => setIsMoreMenuOpen((v) => !v)}
+                title="Mais opções do procedimento"
+                aria-label="Mais opções"
+              >
+                <MoreVertical size={15} />
+              </button>
 
             {isMoreMenuOpen && (
               <div className="proc-more-menu-popover">
@@ -787,6 +799,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
           </div>
         </div>
       </div>
+    </div>
 
       {/* Modal / Drawer de Histórico e Linha do Tempo */}
       <ProcedureTimelineModal
@@ -900,19 +913,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <a
                 href={procedure.pdfFileUrl}
                 download={procedure.pdfFileName || `${procedure.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`}
-                style={{
-                  background: 'var(--red)',
-                  color: '#ffffff',
-                  padding: '7px 16px',
-                  borderRadius: '8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
-                }}
+                className="btn-proc-action"
+                style={{ textDecoration: 'none' }}
+                title="Baixar arquivo PDF"
               >
                 <FileDown size={13} />
                 <span>Baixar PDF</span>
@@ -922,19 +925,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 href={procedure.pdfFileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  padding: '7px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="btn-proc-action"
+                style={{ textDecoration: 'none' }}
+                title="Abrir PDF em nova aba do navegador"
               >
                 <ExternalLink size={13} />
                 <span>Abrir em Nova Aba</span>
@@ -995,20 +988,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadHtml}
-                style={{
-                  background: 'var(--red)',
-                  color: '#ffffff',
-                  padding: '7px 16px',
-                  borderRadius: '8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
-                }}
+                className="btn-proc-action"
+                title="Baixar arquivo HTML"
               >
                 <FileDown size={13} />
                 <span>Baixar HTML</span>
@@ -1023,19 +1004,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                     w.document.close();
                   }
                 }}
-                style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  padding: '7px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="btn-proc-action"
+                title="Abrir HTML em tela cheia / nova aba"
               >
                 <ExternalLink size={13} />
                 <span>Tela Cheia / Nova Aba</span>
