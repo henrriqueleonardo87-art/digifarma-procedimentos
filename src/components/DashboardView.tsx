@@ -108,6 +108,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [versionFilter, setVersionFilter] = useState<'todas' | 'v10' | 'classico'>('todas');
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
 
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const currentDateStr = useMemo(() => {
     try {
       return new Intl.DateTimeFormat('pt-BR', {
@@ -117,11 +126,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-      }).format(new Date());
+        second: '2-digit',
+      }).format(currentDate);
     } catch {
       return 'Hoje';
     }
-  }, []);
+  }, [currentDate]);
 
   useEffect(() => {
     const handleGlobalClick = () => setActiveRowMenuId(null);
