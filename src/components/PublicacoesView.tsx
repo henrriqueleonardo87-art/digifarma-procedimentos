@@ -6,26 +6,24 @@ import {
   X,
   MessageSquare,
   Send,
+  Loader2,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
+import {
+  type PublicacaoItem,
+  type PublicacaoComment,
+  getCachedPublicacoes,
+  createPublicacao,
+  updatePublicacaoComments,
+  deletePublicacao,
+  subscribeToPublicacoes,
+  fetchTeamMembers,
+  isUserTargeted,
+  isUserAuthor,
+} from '../lib/publicacoesService';
 
-export interface PublicacaoComment {
-  id: string;
-  author: string;
-  content: string;
-  createdAt: string;
-}
-
-export interface PublicacaoItem {
-  id: string;
-  title: string;
-  content: string;
-  author: string;
-  createdAt: string;
-  targetUsers: string[]; // [] = todos, ou ['Leonardo', 'Icaro', ...]
-  comments: PublicacaoComment[];
-}
+export type { PublicacaoItem, PublicacaoComment };
 
 interface PublicacoesViewProps {
   currentUser?: AppUser | null;
@@ -33,49 +31,18 @@ interface PublicacoesViewProps {
   onNotificationChange?: (count: number) => void;
 }
 
-const STORAGE_KEY_PUBLICACOES = 'digifarma_publicacoes_feed_list';
-const TEAM_MEMBERS = ['Leonardo', 'Icaro', 'Wallace', 'Whitalo'];
-
-const INITIAL_PUBLICACOES: PublicacaoItem[] = [
-  {
-    id: 'pub-1',
-    title: 'Atualização nas Regras de Validação de NF-e 4.0',
-    content:
-      'Atenção equipe de implantação: os clientes do regime Simples Nacional agora exigem o preenchimento obrigatório do código de benefício fiscal em itens desonerados. Procedimento documentado.',
-    author: 'Leonardo',
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    targetUsers: [], // Todos
-    comments: [
-      {
-        id: 'c-1',
-        author: 'Icaro',
-        content: 'Perfeito, já estou repassando aos operadores da Drogaria Santa Luzia.',
-        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-      },
-    ],
-  },
-  {
-    id: 'pub-2',
-    title: 'Revisão Técnica Pendente do POP de Fechamento Cego',
-    content:
-      'Favor validar os parâmetros de sangria e conferência de lote antes da reunião de homologação com a gerência amanhã.',
-    author: 'Wallace',
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    targetUsers: ['Leonardo', 'Whitalo'],
-    comments: [],
-  },
-];
-
 export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   currentUser,
   onNotificationChange,
 }) => {
   const currentUserName = currentUser?.name || currentUser?.username || 'Leonardo';
 
-  const [publicacoes, setPublicacoes] = useState<PublicacaoItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_PUBLICACOES);
-    return saved ? JSON.parse(saved) : INITIAL_PUBLICACOES;
-  });
+  // Lista de publicações (inicia com cache e sincroniza com Supabase)
+  const [publicacoes, setPublicacoes] = useState<PublicacaoItem[]>(() => getCachedPublicacoes());
+  const [loading, setLoading] = useState(false);
+
+  // Lista dinâmica de membros da equipe para o modal de destinatários
+  const [teamMembers, setTeamMembers] = useState<Array<{ username: string; name: string }>>([]);
 
   // Filtros
   const [filterTab, setFilterTab] = useState<'all' | 'mine' | 'targeted'>('all');
@@ -87,22 +54,36 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const [content, setContent] = useState('');
   const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estado de novos comentários por publicação (id -> text)
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [isSendingComment, setIsSendingComment] = useState<Record<string, boolean>>({});
 
-  // Sincronizar com LocalStorage
-  const savePublicacoes = (items: PublicacaoItem[]) => {
-    setPublicacoes(items);
-    localStorage.setItem(STORAGE_KEY_PUBLICACOES, JSON.stringify(items));
-  };
+  // Carregar membros da equipe do Supabase
+  useEffect(() => {
+    fetchTeamMembers().then((members) => {
+      setTeamMembers(members);
+    });
+  }, []);
+
+  // Assinar mudanças no Supabase (Realtime + polling automático a cada 10s)
+  useEffect(() => {
+    setLoading(true);
+    const unsubscribe = subscribeToPublicacoes((items) => {
+      setPublicacoes(items);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Contar publicações direcionadas ao usuário ativo
   const targetedToMeCount = useMemo(() => {
-    return publicacoes.filter(
-      (p) => p.targetUsers.length > 0 && p.targetUsers.includes(currentUserName)
-    ).length;
-  }, [publicacoes, currentUserName]);
+    return publicacoes.filter((p) => isUserTargeted(p.targetUsers, currentUser)).length;
+  }, [publicacoes, currentUser]);
 
   useEffect(() => {
     onNotificationChange?.(targetedToMeCount);
@@ -112,11 +93,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const filteredList = useMemo(() => {
     return publicacoes.filter((p) => {
       // Filtro de aba
-      if (filterTab === 'mine' && p.author !== currentUserName) return false;
-      if (filterTab === 'targeted') {
-        const isForMe = p.targetUsers.includes(currentUserName);
-        if (!isForMe) return false;
-      }
+      if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
+      if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
 
       // Filtro de busca
       if (searchTerm.trim()) {
@@ -124,40 +102,49 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         const matchTitle = p.title.toLowerCase().includes(q);
         const matchContent = p.content.toLowerCase().includes(q);
         const matchAuthor = p.author.toLowerCase().includes(q);
-        return matchTitle || matchContent || matchAuthor;
+        const matchTargets = p.targetUsers?.some((t) => t.toLowerCase().includes(q));
+        return matchTitle || matchContent || matchAuthor || matchTargets;
       }
       return true;
     });
-  }, [publicacoes, filterTab, currentUserName, searchTerm]);
+  }, [publicacoes, filterTab, currentUser, searchTerm]);
 
   // Submeter Nova Publicação
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
-    const targets = targetType === 'all' ? [] : selectedTargets;
+    setIsSubmitting(true);
+    try {
+      const targets = targetType === 'all' ? [] : selectedTargets;
 
-    const newItem: PublicacaoItem = {
-      id: `pub-${Date.now()}`,
-      title: title.trim(),
-      content: content.trim(),
-      author: currentUserName,
-      createdAt: new Date().toISOString(),
-      targetUsers: targets,
-      comments: [],
-    };
+      const newItem: PublicacaoItem = {
+        id: `pub-${Date.now()}`,
+        title: title.trim(),
+        content: content.trim(),
+        author: currentUserName,
+        createdAt: new Date().toISOString(),
+        targetUsers: targets,
+        comments: [],
+      };
 
-    const updated = [newItem, ...publicacoes];
-    savePublicacoes(updated);
+      await createPublicacao(newItem);
+      setPublicacoes((prev) => [newItem, ...prev.filter((p) => p.id !== newItem.id)]);
 
-    // Tocar som de confirmação/notificação
-    playNotificationSound();
+      // Tocar som de confirmação/notificação
+      playNotificationSound();
 
-    setTitle('');
-    setContent('');
-    setTargetType('all');
-    setSelectedTargets([]);
-    setIsModalOpen(false);
+      setTitle('');
+      setContent('');
+      setTargetType('all');
+      setSelectedTargets([]);
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Erro ao criar publicação:', err);
+      alert('Erro ao publicar comunicado. Verifique sua conexão.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Alternar Destinatário
@@ -170,17 +157,20 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   };
 
   // Excluir Publicação
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Deseja excluir esta publicação?')) {
-      const updated = publicacoes.filter((p) => p.id !== id);
-      savePublicacoes(updated);
+      setPublicacoes((prev) => prev.filter((p) => p.id !== id));
+      await deletePublicacao(id);
     }
   };
 
   // Adicionar Comentário
-  const handleAddComment = (pubId: string) => {
+  const handleAddComment = async (pubId: string) => {
     const text = commentInputs[pubId]?.trim();
     if (!text) return;
+
+    const pub = publicacoes.find((p) => p.id === pubId);
+    if (!pub) return;
 
     const newComment: PublicacaoComment = {
       id: `comment-${Date.now()}`,
@@ -189,19 +179,23 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    const updated = publicacoes.map((p) => {
-      if (p.id === pubId) {
-        return {
-          ...p,
-          comments: [...p.comments, newComment],
-        };
-      }
-      return p;
-    });
+    const updatedComments = [...pub.comments, newComment];
 
-    savePublicacoes(updated);
+    // Atualização otimista
+    setPublicacoes((prev) =>
+      prev.map((p) => (p.id === pubId ? { ...p, comments: updatedComments } : p))
+    );
     setCommentInputs((prev) => ({ ...prev, [pubId]: '' }));
-    playNotificationSound();
+    setIsSendingComment((prev) => ({ ...prev, [pubId]: true }));
+
+    try {
+      await updatePublicacaoComments(pubId, updatedComments);
+      playNotificationSound();
+    } catch (err) {
+      console.error('Erro ao enviar comentário:', err);
+    } finally {
+      setIsSendingComment((prev) => ({ ...prev, [pubId]: false }));
+    }
   };
 
   return (
@@ -212,12 +206,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           <span className="eyebrow">COMUNICAÇÃO &amp; AVISOS</span>
           <h1 id="pageTitle">Publicações da Equipe</h1>
           <p id="pageSubtitle">
-            Mural de avisos internos, atualizações fiscais e direcionamentos para a equipe.
+            Mural de avisos internos, comunicados gerais e direcionamentos específicos sincronizados em tempo real.
           </p>
         </div>
         <div className="capture">
           <span className="live-dot" /> Mural de avisos
-          <span id="captured">{publicacoes.length} publicações ativas</span>
+          <span id="captured">
+            {loading ? 'Sincronizando...' : `${publicacoes.length} publicações ativas`}
+          </span>
         </div>
       </section>
 
@@ -242,7 +238,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             <input
               id="pub-search"
               type="text"
-              placeholder="Buscar publicações..."
+              placeholder="Buscar por título, autor, menção ou conteúdo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -271,34 +267,35 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       </section>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              background: 'var(--red)',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#ffffff',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={16} />
-            <span>Nova Publicação</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 14px',
+            background: 'var(--red)',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#ffffff',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(231, 76, 60, 0.25)',
+          }}
+        >
+          <Plus size={16} />
+          <span>Nova Publicação</span>
+        </button>
+      </div>
 
       {/* Feed de Publicações */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {filteredList.map((pub) => {
-          const isTargetedToMe = pub.targetUsers.includes(currentUserName);
-          const isEveryone = pub.targetUsers.length === 0;
+          const isTargetedToMe = isUserTargeted(pub.targetUsers, currentUser);
+          const isEveryone = !pub.targetUsers || pub.targetUsers.length === 0;
+          const isAuthor = isUserAuthor(pub.author, currentUser);
 
           return (
             <div
@@ -344,7 +341,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   </div>
 
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {pub.author}
                       </span>
@@ -406,7 +403,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   </div>
                 </div>
 
-                {pub.author === currentUserName && (
+                {isAuthor && (
                   <button
                     type="button"
                     onClick={() => handleDelete(pub.id)}
@@ -522,6 +519,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   />
                   <button
                     type="button"
+                    disabled={isSendingComment[pub.id]}
                     onClick={() => handleAddComment(pub.id)}
                     style={{
                       display: 'inline-flex',
@@ -534,10 +532,15 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       color: '#fff',
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: isSendingComment[pub.id] ? 'not-allowed' : 'pointer',
+                      opacity: isSendingComment[pub.id] ? 0.7 : 1,
                     }}
                   >
-                    <Send size={13} />
+                    {isSendingComment[pub.id] ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Send size={13} />
+                    )}
                     <span>Responder</span>
                   </button>
                 </div>
@@ -644,13 +647,17 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       Selecione quem deve receber e visualizar esta notificação:
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {TEAM_MEMBERS.map((member) => {
-                        const isChecked = selectedTargets.includes(member);
+                      {teamMembers.map((member) => {
+                        const targetKey = member.name || member.username;
+                        const isChecked =
+                          selectedTargets.includes(targetKey) ||
+                          selectedTargets.includes(member.username);
+
                         return (
                           <button
                             type="button"
-                            key={member}
-                            onClick={() => handleToggleTargetUser(member)}
+                            key={member.username}
+                            onClick={() => handleToggleTargetUser(targetKey)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -663,10 +670,11 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                               fontSize: '0.78rem',
                               fontWeight: 700,
                               cursor: 'pointer',
+                              transition: 'all 0.12s ease',
                             }}
                           >
                             <span>{isChecked ? '✓' : '+'}</span>
-                            <span>{member}</span>
+                            <span>{member.name || member.username}</span>
                           </button>
                         );
                       })}
@@ -717,6 +725,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   style={{
                     padding: '8px 18px',
                     borderRadius: '8px',
@@ -724,11 +733,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     background: 'var(--red)',
                     color: '#fff',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
                     fontSize: '0.84rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    opacity: isSubmitting ? 0.7 : 1,
                   }}
                 >
-                  Publicar
+                  {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+                  <span>Publicar</span>
                 </button>
               </div>
             </form>

@@ -209,3 +209,27 @@ VALUES (
     ]'::jsonb
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- ==============================================================================
+-- 4. TABELA DE PUBLICAÇÕES DA EQUIPE (MURAL DE AVISOS E COMUNICAÇÃO)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.publicacoes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    author TEXT NOT NULL,
+    "targetUsers" TEXT[] DEFAULT '{}',
+    comments JSONB DEFAULT '[]'::jsonb,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.publicacoes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir acesso completo a publicacoes" ON public.publicacoes;
+CREATE POLICY "Permitir acesso completo a publicacoes"
+    ON public.publicacoes FOR ALL
+    USING (true)
+    WITH CHECK (true);
+

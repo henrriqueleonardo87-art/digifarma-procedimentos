@@ -31,6 +31,7 @@ import {
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { initThemeColor } from './lib/themeService';
+import { subscribeToPublicacoes, isUserTargeted } from './lib/publicacoesService';
 import { Loader2 } from 'lucide-react';
 
 export function App() {
@@ -237,6 +238,21 @@ export function App() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
     localStorage.setItem('digifarma_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Sincronizar contagem de notificações de avisos direcionados em tempo real
+  useEffect(() => {
+    if (!currentUser) {
+      setNotesNotificationCount(0);
+      return;
+    }
+    const unsubscribe = subscribeToPublicacoes((items) => {
+      const count = items.filter((p) => isUserTargeted(p.targetUsers, currentUser)).length;
+      setNotesNotificationCount(count);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser]);
 
   // Procedimento Ativo Atual
   const activeProcedure = procedures.find((p) => p.id === activeId) || null;
