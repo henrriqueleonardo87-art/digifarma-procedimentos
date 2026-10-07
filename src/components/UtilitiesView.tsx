@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Sliders,
   Users,
-  Building,
   Plus,
   Trash2,
   Edit2,
@@ -439,124 +437,52 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
-      {/* Barra Superior Minimalista com Abas */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'var(--red-soft)',
-              color: 'var(--red)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">FERRAMENTAS &amp; GESTÃO</span>
+          <h1 id="pageTitle">Utilitários do Sistema</h1>
+          <p id="pageSubtitle">
+            Gerencie módulos operacionais, cadastro de clientes com colaboradores e usuários do sistema.
+          </p>
+        </div>
+        <div className="capture">
+          <span className="live-dot" /> Recursos do sistema
+          <span id="captured">
+            {activeTab === 'modules'
+              ? `${menus.length} módulos ativos`
+              : activeTab === 'clients'
+              ? `${clients.length} farmácias cadastradas`
+              : `${usersList.length} contas de acesso`}
+          </span>
+        </div>
+      </section>
+
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter">
+          <label htmlFor="util-tab-select">SEÇÃO DE UTILITÁRIOS</label>
+          <select
+            id="util-tab-select"
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value as any)}
           >
-            <Wrench size={18} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-              Utilitários do Sistema
-            </h2>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              Gerencie módulos operacionais, carteira de clientes com colaboradores e acessos
-            </span>
-          </div>
+            <option value="modules">Módulos do Sistema ({menus.length})</option>
+            <option value="clients">Cadastro de Clientes ({clients.length})</option>
+            <option value="users">Usuários do Sistema ({usersList.length})</option>
+          </select>
         </div>
 
-        {/* Seletor de Abas no Topo */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'var(--bg-secondary)',
-            padding: '4px',
-            borderRadius: '10px',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('modules')}
-            style={{
-              border: 'none',
-              background: activeTab === 'modules' ? 'var(--bg-primary)' : 'transparent',
-              color: activeTab === 'modules' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'modules' ? 700 : 500,
-              padding: '6px 14px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'modules' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            <Sliders size={14} />
-            <span>Módulos</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('clients')}
-            style={{
-              border: 'none',
-              background: activeTab === 'clients' ? 'var(--bg-primary)' : 'transparent',
-              color: activeTab === 'clients' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'clients' ? 700 : 500,
-              padding: '6px 14px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'clients' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            <Building size={14} />
-            <span>Cadastro de Clientes</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('users')}
-            style={{
-              border: 'none',
-              background: activeTab === 'users' ? 'var(--bg-primary)' : 'transparent',
-              color: activeTab === 'users' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'users' ? 700 : 500,
-              padding: '6px 14px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'users' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            <Users size={14} />
-            <span>Usuários</span>
-          </button>
+        <div className="status" style={{ marginLeft: 'auto' }}>
+          <span className="live-dot" />{' '}
+          {activeTab === 'modules'
+            ? `${menus.length} Módulos`
+            : activeTab === 'clients'
+            ? `${clients.length} Clientes`
+            : `${usersList.length} Usuários`}
         </div>
-      </div>
+      </section>
 
       {/* ---------------------------------------------------- */}
       {/* ABA 1: MÓDULOS E ROTINAS */}
@@ -1632,6 +1558,6 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

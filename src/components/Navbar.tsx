@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   Menu,
   LogOut,
@@ -14,6 +14,7 @@ import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
 
 interface NavbarProps {
+  currentView?: string;
   onToggleSidebarMobile?: () => void;
   currentUser?: AppUser | null;
   onLogout?: () => void;
@@ -26,6 +27,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  currentView = 'dashboard',
   onToggleSidebarMobile,
   currentUser,
   onLogout,
@@ -87,6 +89,60 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const eyebrowText = useMemo(() => {
+    switch (currentView) {
+      case 'conteudos':
+      case 'v10':
+      case 'r78':
+        return 'DIGIFARMA / CONTEÚDOS';
+      case 'arquivos':
+        return 'DIGIFARMA / ARQUIVOS';
+      case 'publicacoes':
+        return 'DIGIFARMA / PUBLICAÇÕES';
+      case 'mural':
+        return 'DIGIFARMA / MURAL';
+      case 'revision':
+        return 'DIGIFARMA / REVISÕES';
+      case 'utilitarios':
+        return 'DIGIFARMA / UTILITÁRIOS';
+      case 'studio':
+      case 'editor':
+        return 'DIGIFARMA / STUDIO';
+      case 'config':
+        return 'DIGIFARMA / CONFIGURAÇÕES';
+      case 'procedure-detail':
+        return 'DIGIFARMA / PROCEDIMENTO';
+      default:
+        return 'DIGIFARMA / GESTÃO';
+    }
+  }, [currentView]);
+
+  const privateTagText = useMemo(() => {
+    switch (currentView) {
+      case 'conteudos':
+      case 'v10':
+      case 'r78':
+        return 'Repositório de POPs';
+      case 'arquivos':
+        return 'Explorador';
+      case 'publicacoes':
+        return 'Mural de Avisos';
+      case 'mural':
+        return 'Quadro de Tarefas';
+      case 'revision':
+        return 'Homologação';
+      case 'utilitarios':
+        return 'Ferramentas';
+      case 'studio':
+      case 'editor':
+        return 'Editor Oficial';
+      case 'config':
+        return 'Parâmetros';
+      default:
+        return 'Painel privado';
+    }
+  }, [currentView]);
+
   return (
     <header className="topbar no-print">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -111,8 +167,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         <div>
-          <span className="eyebrow">DIGIFARMA / PROCEDIMENTOS</span>
-          <span className="private-tag">Painel do Treinador</span>
+          <span className="eyebrow">{eyebrowText}</span>
+          <span className="private-tag">{privateTagText}</span>
         </div>
       </div>
 

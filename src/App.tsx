@@ -31,7 +31,7 @@ import {
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { initThemeColor } from './lib/themeService';
-import { Loader2, Menu } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => getCurrentUser());
@@ -441,11 +441,17 @@ export function App() {
         />
       )}
 
-      {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "OLÁ, PESSOA" ── */}
-      <div className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isEditing ? 'is-editing-mode' : ''}`}>
-        {/* Barra superior exibida SOMENTE no Dashboard conforme solicitado */}
-        {currentView === 'dashboard' && !isEditing && (
+      {/* ── CONTEÚDO PRINCIPAL (MAIN) CONFORME PADRÃO DIGIFARMA GESTOR ── */}
+      <main
+        className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${
+          isEditing ? 'is-editing-mode editing-main' : ''
+        }`}
+        id="main"
+      >
+        {/* Barra superior (Topbar) unificada no topo de todas as páginas */}
+        {!isEditing && (
           <Navbar
+            currentView={currentView}
             currentUser={currentUser}
             onLogout={handleLogout}
             onUpdateAvatar={handleUpdateAvatar}
@@ -469,45 +475,6 @@ export function App() {
             }}
           />
         )}
-
-        {/* Header compacto e responsivo para telas móveis nas outras páginas */}
-        {currentView !== 'dashboard' && !isEditing && (
-          <div className="mobile-only-header no-print">
-            <button
-              type="button"
-              className="mobile-menu-btn"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              title="Abrir navegação lateral"
-              aria-label="Abrir menu"
-            >
-              <Menu size={18} />
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Digifarma
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--red)', fontWeight: 700 }}>
-                {currentView === 'conteudos'
-                  ? '· Conteúdos'
-                  : currentView === 'arquivos'
-                  ? '· Arquivos'
-                  : currentView === 'publicacoes'
-                  ? '· Publicações'
-                  : currentView === 'mural'
-                  ? '· Mural'
-                  : currentView === 'revision'
-                  ? '· Revisões'
-                  : currentView === 'utilitarios'
-                  ? '· Utilitários'
-                  : currentView === 'studio'
-                  ? '· Studio'
-                  : ''}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <main className={`main ${isEditing ? 'editing-main' : ''}`} id="main">
           {loading ? (
             <div className="empty-state">
               <Loader2 size={36} className="animate-spin" color="var(--primary-500)" />
@@ -649,8 +616,15 @@ export function App() {
               onOpenImport={(cat, mId) => handleOpenImportModal(cat, mId)}
             />
           )}
-        </main>
-      </div>
+
+        {/* Rodapé Oficial Digifarma */}
+        {!isEditing && (
+          <footer>
+            <span>Digifarma · Visão gerencial e procedimentos</span>
+            <span id="footerMeta">v10.4 &amp; Clássico · Treinamento Operacional</span>
+          </footer>
+        )}
+      </main>
 
       {/* Modal de Supabase */}
       <SupabaseModal

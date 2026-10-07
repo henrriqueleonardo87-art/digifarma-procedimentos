@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   Plus,
   Trash2,
-  Search,
   X,
   MessageSquare,
   ArrowRight,
@@ -337,116 +336,72 @@ export const MuralView: React.FC<MuralViewProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
-      {/* Barra de Ações Superior Minimalista */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '20px',
-        }}
-      >
-        {/* Filtros de Membro */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-          <button
-            type="button"
-            onClick={() => setFilterMember('all')}
-            style={{
-              border: 'none',
-              background: filterMember === 'all' ? 'var(--bg-primary)' : 'transparent',
-              color: filterMember === 'all' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterMember === 'all' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              boxShadow: filterMember === 'all' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            Todos os Cartões
-          </button>
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">EQUIPE &amp; PROJETOS</span>
+          <h1 id="pageTitle">Mural de Atividades</h1>
+          <p id="pageSubtitle">
+            Quadro colaborativo Kanban para acompanhamento de tarefas, implantações e rotinas.
+          </p>
+        </div>
+        <div className="capture">
+          <span className="live-dot" /> Quadro Kanban
+          <span id="captured">{cards.length} cartões no mural</span>
+        </div>
+      </section>
 
-          <button
-            type="button"
-            onClick={() => setFilterMember('mine')}
-            style={{
-              border: 'none',
-              background: filterMember === 'mine' ? 'var(--bg-primary)' : 'transparent',
-              color: filterMember === 'mine' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterMember === 'mine' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              boxShadow: filterMember === 'mine' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter">
+          <label htmlFor="mural-filter-member">FILTRO DE MEMBRO</label>
+          <select
+            id="mural-filter-member"
+            value={filterMember}
+            onChange={(e) => setFilterMember(e.target.value as any)}
           >
-            Meus Cartões
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterMember('shared')}
-            style={{
-              border: 'none',
-              background: filterMember === 'shared' ? 'var(--bg-primary)' : 'transparent',
-              color: filterMember === 'shared' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterMember === 'shared' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              boxShadow: filterMember === 'shared' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            Compartilhados Comigo
-          </button>
+            <option value="all">Todos os Cartões</option>
+            <option value="mine">Meus Cartões</option>
+            <option value="shared">Compartilhados Comigo</option>
+          </select>
         </div>
 
-        {/* Busca e Botões de Ação */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              minWidth: '200px',
-            }}
-          >
-            <Search size={15} style={{ color: 'var(--text-muted)' }} />
+        <div className="filter store-filter" style={{ flex: 1 }}>
+          <label htmlFor="mural-search">BUSCA NO MURAL</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input
+              id="mural-search"
               type="text"
               placeholder="Buscar no Mural..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '0.84rem',
-                color: 'var(--text-primary)',
-                width: '100%',
-              }}
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
               >
-                <X size={14} />
+                ✕
               </button>
             )}
           </div>
+        </div>
+
+        <div className="status">
+          <span className="live-dot" /> {filteredCards.length} Atividades
+        </div>
+      </section>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
 
           {/* + Nova Coluna */}
           <button
@@ -495,7 +450,6 @@ export const MuralView: React.FC<MuralViewProps> = ({
             <span>Novo Cartão</span>
           </button>
         </div>
-      </div>
 
       {/* Kanban Board Colunas */}
       <div
@@ -1283,6 +1237,6 @@ export const MuralView: React.FC<MuralViewProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

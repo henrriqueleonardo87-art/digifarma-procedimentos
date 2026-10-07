@@ -411,54 +411,69 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
   });
 
   return (
-    <div className="settings-page-container">
-      {/* Topo com botão Voltar */}
-      <div className="settings-nav-header">
-        <button
-          type="button"
-          className="btn-back-clean"
-          onClick={onClose}
-          title="Voltar aos manuais"
-        >
-          <ArrowLeft size={16} />
-          <span>Voltar aos Manuais</span>
-        </button>
-
-        {menuSaveMessage && (
-          <div className="settings-toast-pill">
-            <Check size={14} />
-            <span>{menuSaveMessage}</span>
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">SISTEMA &amp; CONFIGURAÇÕES</span>
+          <h1 id="pageTitle">
+            {onlyMenus ? 'Módulos e Rotinas do Sistema' : 'Configurações do Digifarma'}
+          </h1>
+          <p id="pageSubtitle">
+            {onlyMenus
+              ? 'Crie, organize e edite a estrutura de módulos e rotinas operacionais do Digifarma V10 e Digifarma Clássico.'
+              : 'Gerencie o modo de operação do repositório, módulos do sistema, rotinas, conexão em nuvem e backups.'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div className="capture">
+            <span className="live-dot" /> Parâmetros do sistema
+            <span id="captured">Versão 10.4 · Repositório</span>
           </div>
-        )}
-      </div>
+          {onClose && (
+            <button
+              type="button"
+              className="button subtle"
+              onClick={onClose}
+              title="Voltar aos manuais"
+            >
+              <ArrowLeft size={13} />
+              <span>Voltar aos Manuais</span>
+            </button>
+          )}
+        </div>
+      </section>
 
-      <div className="settings-page-title-box">
-        <span
-          style={{
-            fontSize: '0.68rem',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            padding: '2px 8px',
-            borderRadius: '6px',
-            background: 'var(--red-soft)',
-            color: 'var(--red)',
-            border: '1px solid rgba(231, 76, 60, 0.25)',
-            display: 'inline-block',
-            marginBottom: '8px',
-          }}
-        >
-          PAINEL DE CONFIGURAÇÕES &amp; REPOSITÓRIO
-        </span>
-        <h1 className="settings-page-title">
-          {onlyMenus ? 'Módulos e Rotinas do Sistema' : 'Configurações do Digifarma'}
-        </h1>
-        <p className="settings-page-subtitle">
-          {onlyMenus
-            ? 'Crie, organize e edite a estrutura de módulos e rotinas operacionais do Digifarma V10 e Digifarma Clássico.'
-            : 'Gerencie o modo de operação do repositório, módulos do sistema, rotinas, conexão em nuvem e backups.'}
-        </p>
-      </div>
+      {menuSaveMessage && (
+        <div className="notice info" style={{ marginBottom: '16px' }}>
+          <Check size={14} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} />
+          {menuSaveMessage}
+        </div>
+      )}
+
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      {!onlyMenus && (
+        <section className="filters" aria-label="Filtros globais">
+          <div className="filter">
+            <label htmlFor="settings-tab-select">SEÇÃO DE CONFIGURAÇÃO</label>
+            <select
+              id="settings-tab-select"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+            >
+              <option value="general">Geral (Modo de Operação)</option>
+              <option value="menus">Módulos &amp; Rotinas</option>
+              <option value="supabase">Nuvem (Supabase)</option>
+              <option value="backup">Backup &amp; Restauração</option>
+              <option value="account">Conta &amp; Segurança</option>
+              <option value="theme">Aparência &amp; Tema</option>
+            </select>
+          </div>
+          <div className="status" style={{ marginLeft: 'auto' }}>
+            <span className="live-dot" /> Configuração ativa
+          </div>
+        </section>
+      )}
 
       {/* Abas Limpas (Ocultas no modo Personalizar) */}
       {!onlyMenus && (
@@ -1289,6 +1304,6 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

@@ -13,8 +13,6 @@ import {
   ChevronRight,
   BookOpen,
   Printer,
-  Sparkles,
-  Search,
   Plus,
   FolderPlus,
   Boxes,
@@ -491,93 +489,83 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   // CENÁRIO 1: GRADE DE MÓDULOS PRINCIPAIS EM CARDS (BASEADA EM CONFIGURAÇÕES)
   // =========================================================================
   return (
-    <div className="modules-drilldown-container">
-      {/* Topo do Módulo da Versão */}
-      <div className="version-modules-hero">
-        <div className="version-hero-badge">
-          <Sparkles size={13} />
-          <span>{version === 'v10' ? 'v10' : 'Clássico'}</span>
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">REPOSITÓRIO &amp; MÓDULOS</span>
+          <h1 id="pageTitle">Digifarma {version === 'v10' ? 'v10' : 'Clássico'}</h1>
+          <p id="pageSubtitle">
+            Repositório de rotinas e procedimentos operacionais padronizados do ERP Digifarma.
+          </p>
         </div>
-        <h1 className="version-hero-title">
-          {version === 'v10' ? 'v10' : 'Clássico'}
-        </h1>
-        <p className="version-hero-sub">
-          Repositório de rotinas e procedimentos operacionais padronizados do ERP Digifarma.
-        </p>
+        <div className="capture">
+          <span className="live-dot" /> Módulos cadastrados
+          <span id="captured">
+            {versionMenus.length} módulos · {versionProcedures.length} procedimentos
+          </span>
+        </div>
+      </section>
 
-        {/* Barra de Ações do Topo: Importar POP em Destaque */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
-          {onOpenImport && (
-            <button
-              type="button"
-              className="btn-import-pop-hero"
-              onClick={() => onOpenImport(undefined, undefined, version)}
-              style={{
-                background: 'linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '9px 20px',
-                fontSize: '0.86rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <Upload size={16} />
-              <span>Importar POP ({version === 'v10' ? 'v10' : 'Clássico'})</span>
-            </button>
-          )}
-
-          {isEditorEnabled && onNewProcedure && (
-            <button
-              type="button"
-              onClick={() => onNewProcedure(undefined, undefined, version)}
-              style={{
-                background: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-                border: '1.5px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 18px',
-                fontSize: '0.86rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <Plus size={16} color="var(--red)" />
-              <span>Novo no Editor Manual</span>
-            </button>
-          )}
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter store-filter" style={{ flex: 1, borderRight: 'none' }}>
+          <label htmlFor="ver-search">BUSCA POR ROTINA OU PALAVRA-CHAVE</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              id="ver-search"
+              type="text"
+              placeholder="Pesquise por nome do procedimento, palavra-chave ou rotina..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Barra de Pesquisa Rápida */}
-        <div className="version-search-wrap" style={{ marginTop: '20px' }}>
-          <Search size={16} className="version-search-ic" />
-          <input
-            type="text"
-            className="version-search-input"
-            placeholder="Pesquise por nome do procedimento, palavra-chave ou rotina..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="version-search-clear"
-              onClick={() => setSearchTerm('')}
-            >
-              ✕
-            </button>
-          )}
+        <div className="status" style={{ marginLeft: 'auto' }}>
+          <span className="live-dot" /> {versionProcedures.length} Homologados
         </div>
+      </section>
+
+      {/* Ações Rápidas */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '22px', flexWrap: 'wrap' }}>
+        {onOpenImport && (
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => onOpenImport(undefined, undefined, version)}
+          >
+            <Upload size={14} />
+            <span>Importar POP ({version === 'v10' ? 'v10' : 'Clássico'})</span>
+          </button>
+        )}
+
+        {isEditorEnabled && onNewProcedure && (
+          <button
+            type="button"
+            className="button subtle"
+            onClick={() => onNewProcedure(undefined, undefined, version)}
+          >
+            <Plus size={14} />
+            <span>Novo no Editor</span>
+          </button>
+        )}
       </div>
 
       {/* Se houver pesquisa ativa, mostra os resultados diretos */}
@@ -840,6 +828,6 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           )}
         </div>
       )}
-    </div>
+    </>
   );
 };

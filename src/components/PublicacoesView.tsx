@@ -3,7 +3,6 @@ import {
   StickyNote,
   Plus,
   Trash2,
-  Search,
   X,
   MessageSquare,
   Send,
@@ -206,133 +205,72 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
-      {/* Barra Superior Minimalista com Filtros e Ações */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '20px',
-        }}
-      >
-        {/* Abas de Filtro Rápidas */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-          <button
-            type="button"
-            onClick={() => setFilterTab('all')}
-            style={{
-              border: 'none',
-              background: filterTab === 'all' ? 'var(--bg-primary)' : 'transparent',
-              color: filterTab === 'all' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterTab === 'all' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              boxShadow: filterTab === 'all' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            Todas ({publicacoes.length})
-          </button>
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">COMUNICAÇÃO &amp; AVISOS</span>
+          <h1 id="pageTitle">Publicações da Equipe</h1>
+          <p id="pageSubtitle">
+            Mural de avisos internos, atualizações fiscais e direcionamentos para a equipe.
+          </p>
+        </div>
+        <div className="capture">
+          <span className="live-dot" /> Mural de avisos
+          <span id="captured">{publicacoes.length} publicações ativas</span>
+        </div>
+      </section>
 
-          <button
-            type="button"
-            onClick={() => setFilterTab('targeted')}
-            style={{
-              border: 'none',
-              background: filterTab === 'targeted' ? 'var(--bg-primary)' : 'transparent',
-              color: filterTab === 'targeted' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterTab === 'targeted' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: filterTab === 'targeted' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter">
+          <label htmlFor="pub-filter-tab">VISUALIZAÇÃO</label>
+          <select
+            id="pub-filter-tab"
+            value={filterTab}
+            onChange={(e) => setFilterTab(e.target.value as any)}
           >
-            <span>Direcionadas a Mim</span>
-            {targetedToMeCount > 0 && (
-              <span
-                style={{
-                  background: 'var(--red)',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  padding: '1px 6px',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                }}
-              >
-                {targetedToMeCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterTab('mine')}
-            style={{
-              border: 'none',
-              background: filterTab === 'mine' ? 'var(--bg-primary)' : 'transparent',
-              color: filterTab === 'mine' ? 'var(--red)' : 'var(--text-secondary)',
-              fontWeight: filterTab === 'mine' ? 700 : 500,
-              padding: '6px 12px',
-              borderRadius: '7px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              boxShadow: filterTab === 'mine' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            Minhas
-          </button>
+            <option value="all">Todas ({publicacoes.length})</option>
+            <option value="targeted">Direcionadas a Mim ({targetedToMeCount})</option>
+            <option value="mine">Minhas Publicações</option>
+          </select>
         </div>
 
-        {/* Busca e Botão + Nova Publicação */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              minWidth: '220px',
-            }}
-          >
-            <Search size={15} style={{ color: 'var(--text-muted)' }} />
+        <div className="filter store-filter" style={{ flex: 1 }}>
+          <label htmlFor="pub-search">BUSCA EM PUBLICAÇÕES</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input
+              id="pub-search"
               type="text"
               placeholder="Buscar publicações..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '0.84rem',
-                color: 'var(--text-primary)',
-                width: '100%',
-              }}
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
               >
-                <X size={14} />
+                ✕
               </button>
             )}
           </div>
+        </div>
+
+        <div className="status">
+          <span className="live-dot" /> {filteredList.length} Publicações
+        </div>
+      </section>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
 
           <button
             type="button"
@@ -355,7 +293,6 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             <span>Nova Publicação</span>
           </button>
         </div>
-      </div>
 
       {/* Feed de Publicações */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -798,6 +735,6 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

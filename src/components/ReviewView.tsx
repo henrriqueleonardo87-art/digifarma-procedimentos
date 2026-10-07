@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
-  Clock,
   Eye,
   Edit3,
   FileCheck,
-  Search,
   MessageSquare,
   X,
   Upload,
@@ -82,153 +80,92 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   };
 
   return (
-    <div className="review-dashboard-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
-      {/* Topo Limpo e Minimalista */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '20px',
-        }}
-      >
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
         <div>
-          <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
-            Painel de Revisão
-          </h1>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Controle de validação e aprovação de procedimentos operacionais antes da publicação oficial.
+          <span className="eyebrow">HOMOLOGAÇÃO &amp; QUALIDADE</span>
+          <h1 id="pageTitle">Painel de Revisão</h1>
+          <p id="pageSubtitle">
+            Controle de validação técnica, aprovação e devolução de procedimentos operacionais.
           </p>
         </div>
-
-        {/* Métricas Rápidas Compactas */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setFilterTab('pending')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: filterTab === 'pending' ? '1.5px solid var(--red)' : '1px solid var(--border)',
-              background: filterTab === 'pending' ? 'var(--red-soft)' : 'var(--bg-primary)',
-              color: filterTab === 'pending' ? 'var(--red)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-            }}
-          >
-            <Clock size={15} />
-            <span>Pendentes ({pendingList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterTab('adjustments')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: filterTab === 'adjustments' ? '1.5px solid #f59e0b' : '1px solid var(--border)',
-              background: filterTab === 'adjustments' ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-primary)',
-              color: filterTab === 'adjustments' ? '#d97706' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-            }}
-          >
-            <AlertTriangle size={15} />
-            <span>Ajustes ({adjustmentsList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterTab('approved')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: filterTab === 'approved' ? '1.5px solid #10b981' : '1px solid var(--border)',
-              background: filterTab === 'approved' ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-primary)',
-              color: filterTab === 'approved' ? '#059669' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-            }}
-          >
-            <CheckCircle2 size={15} />
-            <span>Aprovados ({approvedList.length})</span>
-          </button>
+        <div className="capture">
+          <span className="live-dot" /> Snapshot de homologação
+          <span id="captured">{pendingList.length} aguardando revisão</span>
         </div>
-      </div>
+      </section>
 
-      {/* Barra de Filtros e Busca */}
-      <div className="review-filter-toolbar">
-        <div className="review-tabs-group">
-          <button
-            type="button"
-            className={`review-tab-btn ${filterTab === 'pending' ? 'active' : ''}`}
-            onClick={() => setFilterTab('pending')}
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter">
+          <label htmlFor="rev-status">STATUS DA REVISÃO</label>
+          <select
+            id="rev-status"
+            value={filterTab}
+            onChange={(e) => setFilterTab(e.target.value as any)}
           >
-            <Clock size={14} />
-            <span>Pendentes ({pendingList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            className={`review-tab-btn ${filterTab === 'adjustments' ? 'active' : ''}`}
-            onClick={() => setFilterTab('adjustments')}
-          >
-            <AlertTriangle size={14} />
-            <span>Ajustes Solicitados ({adjustmentsList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            className={`review-tab-btn ${filterTab === 'approved' ? 'active' : ''}`}
-            onClick={() => setFilterTab('approved')}
-          >
-            <CheckCircle2 size={14} />
-            <span>Homologados ({approvedList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            className={`review-tab-btn ${filterTab === 'all' ? 'active' : ''}`}
-            onClick={() => setFilterTab('all')}
-          >
-            <span>Todos ({procedures.length})</span>
-          </button>
+            <option value="pending">Pendentes ({pendingList.length})</option>
+            <option value="adjustments">Ajustes Solicitados ({adjustmentsList.length})</option>
+            <option value="approved">Homologados ({approvedList.length})</option>
+            <option value="all">Todos ({procedures.length})</option>
+          </select>
         </div>
 
-        <div className="review-search-wrap">
-          <Search size={15} className="review-search-icon" />
-          <input
-            type="text"
-            className="review-search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por título, autor, módulo..."
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="review-search-clear"
-              onClick={() => setSearchTerm('')}
-            >
-              ✕
-            </button>
-          )}
+        <div className="filter store-filter" style={{ flex: 1 }}>
+          <label htmlFor="rev-search">BUSCA POR TÍTULO OU AUTOR</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              id="rev-search"
+              type="text"
+              placeholder="Buscar por rotina, autor, categoria..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className={`status ${pendingList.length > 0 ? 'partial' : ''}`}>
+          <span className="live-dot" /> {pendingList.length} Pendentes
+        </div>
+      </section>
+
+      {/* ── 3. Cartões de Métricas (.cards) ── */}
+      <div className="cards">
+        <div className="metric emphasis">
+          <label>AGUARDANDO REVISÃO</label>
+          <strong>{pendingList.length}</strong>
+          <small>
+            Procedimentos enviados por treinadores <span className="chip">Fila ativa</span>
+          </small>
+        </div>
+
+        <div className="metric">
+          <label>AJUSTES SOLICITADOS</label>
+          <strong>{adjustmentsList.length}</strong>
+          <small>Devolvidos com apontamentos técnicos</small>
+        </div>
+
+        <div className="metric">
+          <label>HOMOLOGADOS</label>
+          <strong>{approvedList.length}</strong>
+          <small>Rotinas aprovadas e em conformidade</small>
         </div>
       </div>
 
@@ -445,6 +382,6 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

@@ -6,7 +6,6 @@ import {
   FileText,
   Trash2,
   ChevronRight,
-  Search,
   ArrowLeft,
   X,
   File,
@@ -275,22 +274,25 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
-      {/* Barra de Ações Superior Minimalista */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '20px',
-        }}
-      >
-        {/* Breadcrumb Navegável Estilo Explorer */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+    <>
+      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
+      <section className="heading">
+        <div>
+          <span className="eyebrow">DOCUMENTOS &amp; ANEXOS</span>
+          <h1 id="pageTitle">Explorador de Arquivos</h1>
+          <p id="pageSubtitle">
+            Gerencie documentos, manuais, planilhas e anotações operacionais do Digifarma.
+          </p>
+        </div>
+        <div className="capture">
+          <span className="live-dot" /> Repositório de arquivos
+          <span id="captured">{items.length} itens armazenados</span>
+        </div>
+      </section>
+
+      {/* ── 2. Barra Contínua de Filtros e Breadcrumbs (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter" style={{ minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {currentFolderId && (
             <button
               type="button"
@@ -299,20 +301,10 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
                 setCurrentFolderId(currentFolder?.parentId || null);
               }}
               title="Voltar pasta anterior"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-primary)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className="button subtle"
+              style={{ padding: '6px 8px' }}
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={14} />
             </button>
           )}
 
@@ -331,59 +323,55 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
                       padding: '4px 8px',
                       borderRadius: '6px',
                       fontWeight: isLast ? 700 : 500,
-                      fontSize: '0.86rem',
+                      fontSize: '11px',
                       cursor: 'pointer',
                     }}
                   >
                     {crumb.name}
                   </button>
-                  {!isLast && <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
+                  {!isLast && <ChevronRight size={12} style={{ color: 'var(--text-muted)' }} />}
                 </React.Fragment>
               );
             })}
           </nav>
         </div>
 
-        {/* Busca e Botões de Ação Diretos */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          {/* Campo de Busca Rápida (sem tags) */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              minWidth: '220px',
-            }}
-          >
-            <Search size={15} style={{ color: 'var(--text-muted)' }} />
+        <div className="filter store-filter" style={{ flex: 1 }}>
+          <label htmlFor="file-search">BUSCA EM ARQUIVOS</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input
+              id="file-search"
               type="text"
               placeholder="Buscar arquivos ou pastas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '0.84rem',
-                color: 'var(--text-primary)',
-                width: '100%',
-              }}
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
               >
-                <X size={14} />
+                ✕
               </button>
             )}
           </div>
+        </div>
+
+        <div className="status">
+          <span className="live-dot" /> {currentItems.length + currentFolders.length} Itens na pasta
+        </div>
+      </section>
+
+      {/* Botões de Ação da Pasta */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
 
           {/* + Nova Pasta */}
           <button
@@ -466,7 +454,6 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
             <span>Nova Anotação</span>
           </button>
         </div>
-      </div>
 
       {/* Grid de Pastas e Itens (Windows Explorer Style) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1035,6 +1022,6 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

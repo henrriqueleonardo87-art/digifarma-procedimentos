@@ -675,12 +675,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* ── 5. Rodapé Executivo (.app-footer) ── */}
-      <footer className="app-footer">
-        <div>Digifarma · Repositório de Procedimentos e Manuais</div>
-        <span>v10.4 &amp; Clássico · Treinamento Operacional</span>
-      </footer>
     </>
   );
 };
