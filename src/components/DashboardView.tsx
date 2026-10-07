@@ -69,21 +69,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }, 0);
   }, [procedures]);
 
-  const checklistStats = useMemo(() => {
-    let total = 0;
-    let completed = 0;
-    procedures.forEach((p) => {
-      p.blocks.forEach((b) => {
-        if (b.type === 'step') {
-          total++;
-          if (b.completed) completed++;
-        }
-      });
-    });
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 100;
-    return { total, completed, percentage };
-  }, [procedures]);
-
   // Distribuição por Módulo
   const moduleDistribution = useMemo(() => {
     const list = menus.map((menu, index) => {
@@ -267,7 +252,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <p id="pageSubtitle">Base consolidada de procedimentos, conformidade e homologações do Digifarma.</p>
         </div>
         <div className="capture">
-          <span className="live-dot" /> Snapshot de rotinas
+          <span className="live-dot" /> Base Homologada
           <span id="captured">{currentDateStr}</span>
         </div>
       </section>
@@ -352,9 +337,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="metric">
-          <label>CONFORMIDADE BPF</label>
-          <strong>{checklistStats.percentage}%</strong>
-          <small>{totalSteps} etapas documentadas no sistema</small>
+          <label>ETAPAS OPERACIONAIS</label>
+          <strong>{totalSteps}</strong>
+          <small>{publishedCount} rotinas homologadas para treinamento</small>
         </div>
       </div>
 

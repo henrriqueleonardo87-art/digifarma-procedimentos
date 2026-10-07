@@ -185,11 +185,6 @@ export const ContentsView: React.FC<ContentsViewProps> = ({
           </div>
         </div>
       </div>
-
-      <footer className="app-footer">
-        <div>Digifarma · Repositório de Procedimentos e Manuais</div>
-        <span>v10.4 &amp; Clássico · Treinamento Operacional</span>
-      </footer>
     </>
   );
 };

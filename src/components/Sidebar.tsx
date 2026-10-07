@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <span>
             digifarma
-            <small>PAINEL DO GESTOR</small>
+            <small>PAINEL DO TREINADOR</small>
           </span>
         )}
       </a>
@@ -206,21 +206,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </nav>
 
-      {/* Rodapé Padrão Digifarma Gestor */}
+      {/* Rodapé Padrão Digifarma */}
       <div className="sidebar-bottom">
-        {!isCollapsed && (
-          <>
-            <div>
-              <span className="live-dot" /> Dados por snapshots
-            </div>
-            <p>
-              Leitura consolidada do ERP.<br />
-              Atualização manual via MCP.
-            </p>
-          </>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
             type="button"
             className="side-action"

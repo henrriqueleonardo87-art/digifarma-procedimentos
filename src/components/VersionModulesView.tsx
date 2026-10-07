@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Settings,
   ArrowLeft,
-  ChevronRight,
   BookOpen,
   Printer,
   Plus,
@@ -25,6 +24,7 @@ import {
   Upload,
 } from 'lucide-react';
 import type { Procedure, SystemMenu } from '../types/procedure';
+import { downloadProcedureHtml } from '../lib/htmlExporter';
 
 interface VersionModulesViewProps {
   version: 'v10' | 'r78';
@@ -180,49 +180,43 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
       <div className="modules-drilldown-container">
         {/* Breadcrumb e Navegação de Retorno */}
         <div className="drilldown-nav-bar">
-          <button
-            type="button"
-            className="btn-back-drilldown"
-            onClick={() => setSelectedModuleId(null)}
-          >
-            <ArrowLeft size={16} />
-            <span>Voltar aos Módulos</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-back-drilldown"
+              onClick={() => setSelectedModuleId(null)}
+              title="Voltar para a lista de módulos"
+            >
+              <ArrowLeft size={14} />
+              <span>Voltar aos Módulos</span>
+            </button>
 
-          <div className="drilldown-breadcrumbs">
-            <span className="crumb-root" onClick={onBackToDashboard}>
-              Início
-            </span>
-            <span className="crumb-sep">/</span>
-            <span className="crumb-version" onClick={() => setSelectedModuleId(null)}>
-              {versionName}
-            </span>
-            <span className="crumb-sep">/</span>
-            <span className="crumb-active">{activeMenu.label}</span>
+            <div className="drilldown-breadcrumbs">
+              <span className="crumb-root" onClick={onBackToDashboard} title="Ir para a Visão Geral">
+                Início
+              </span>
+              <span className="crumb-sep">/</span>
+              <span className="crumb-version" onClick={() => setSelectedModuleId(null)} title={`Módulos ${versionName}`}>
+                {versionName}
+              </span>
+              <span className="crumb-sep">/</span>
+              <span className="crumb-active">{activeMenu.label}</span>
+            </div>
           </div>
 
           {onOpenImport && (
             <button
               type="button"
-              className="btn-import-pop-compact"
+              className="button subtle"
               onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
               style={{
                 marginLeft: 'auto',
-                background: 'var(--red)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '6px 14px',
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                padding: '6px 12px',
+                fontSize: '11px',
               }}
+              title="Importar POP em PDF ou HTML para este módulo"
             >
-              <Upload size={13} />
+              <Upload size={12} />
               <span>Importar POP</span>
             </button>
           )}
@@ -338,21 +332,30 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                       type="button"
                       className="btn-subcard-action"
                       onClick={() => onSelectProcedure(subProcs[0].id, false)}
-                      title="Abrir passo a passo completo"
+                      title="Abrir passo a passo interativo"
                     >
-                      <BookOpen size={13} />
+                      <BookOpen size={12} />
                       <span>Abrir</span>
-                      <ChevronRight size={12} />
                     </button>
 
                     <button
                       type="button"
                       className="btn-subcard-print"
                       onClick={() => onSelectProcedure(subProcs[0].id, true)}
-                      title="Imprimir ou gerar PDF deste procedimento"
+                      title="Visualizar / Imprimir em PDF"
                     >
-                      <Printer size={13} />
+                      <Printer size={12} />
                       <span>PDF</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-subcard-html"
+                      onClick={() => downloadProcedureHtml(subProcs[0])}
+                      title="Baixar versão HTML offline deste procedimento"
+                    >
+                      <FileText size={12} />
+                      <span>HTML</span>
                     </button>
                   </div>
                 ) : (
@@ -379,9 +382,12 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 >
                   <div className="proc-clean-top-bar">
                     <div className="proc-clean-icon">
-                      <ActiveIcon size={20} />
+                      <ActiveIcon size={18} />
                     </div>
-                    <span className="proc-reviewer-tag">
+                    <span
+                      className="proc-reviewer-tag"
+                      title={`Liberado por: ${reviewerName}`}
+                    >
                       ✓ Liberado por: <strong>{reviewerName}</strong>
                     </span>
                   </div>
@@ -395,21 +401,30 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                       type="button"
                       className="btn-subcard-action"
                       onClick={() => onSelectProcedure(proc.id, false)}
-                      title="Abrir passo a passo completo"
+                      title="Abrir passo a passo interativo"
                     >
-                      <BookOpen size={13} />
+                      <BookOpen size={12} />
                       <span>Abrir</span>
-                      <ChevronRight size={12} />
                     </button>
 
                     <button
                       type="button"
                       className="btn-subcard-print"
                       onClick={() => onSelectProcedure(proc.id, true)}
-                      title="Imprimir ou gerar PDF deste procedimento"
+                      title="Visualizar / Imprimir em PDF"
                     >
-                      <Printer size={13} />
+                      <Printer size={12} />
                       <span>PDF</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-subcard-html"
+                      onClick={() => downloadProcedureHtml(proc)}
+                      title="Baixar versão HTML offline deste procedimento"
+                    >
+                      <FileText size={12} />
+                      <span>HTML</span>
                     </button>
                   </div>
                 </div>
@@ -587,9 +602,12 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 >
                   <div className="proc-clean-top-bar">
                     <div className="proc-clean-icon">
-                      <FileText size={20} />
+                      <FileText size={18} />
                     </div>
-                    <span className="proc-reviewer-tag">
+                    <span
+                      className="proc-reviewer-tag"
+                      title={`Liberado por: ${reviewerName}`}
+                    >
                       ✓ Liberado por: <strong>{reviewerName}</strong>
                     </span>
                   </div>
@@ -601,18 +619,30 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                       type="button"
                       className="btn-subcard-action"
                       onClick={() => onSelectProcedure(proc.id, false)}
+                      title="Abrir passo a passo interativo"
                     >
-                      <BookOpen size={13} />
+                      <BookOpen size={12} />
                       <span>Abrir</span>
-                      <ChevronRight size={12} />
                     </button>
+
                     <button
                       type="button"
                       className="btn-subcard-print"
                       onClick={() => onSelectProcedure(proc.id, true)}
+                      title="Visualizar / Imprimir em PDF"
                     >
-                      <Printer size={13} />
+                      <Printer size={12} />
                       <span>PDF</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-subcard-html"
+                      onClick={() => downloadProcedureHtml(proc)}
+                      title="Baixar versão HTML offline deste procedimento"
+                    >
+                      <FileText size={12} />
+                      <span>HTML</span>
                     </button>
                   </div>
                 </div>

@@ -620,7 +620,7 @@ export function App() {
         {/* Rodapé Oficial Digifarma */}
         {!isEditing && (
           <footer>
-            <span>Digifarma · Visão gerencial e procedimentos</span>
+            <span>Digifarma · Repositório de Procedimentos e Manuais</span>
             <span id="footerMeta">v10.4 &amp; Clássico · Treinamento Operacional</span>
           </footer>
         )}
