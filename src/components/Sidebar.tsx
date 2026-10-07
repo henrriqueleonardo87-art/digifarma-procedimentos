@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
+  Grid,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
@@ -29,25 +30,6 @@ interface SidebarProps {
   onLogout?: () => void;
   pendingReviewCount?: number;
   notesNotificationCount?: number;
-}
-
-function navIcon(name: string) {
-  const paths: Record<string, string> = {
-    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-  };
-  return (
-    <svg
-      className="nav-svg"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      dangerouslySetInnerHTML={{ __html: paths[name] || paths.grid }}
-    />
-  );
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -79,316 +61,376 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
       id="sidebar"
     >
-      {/* Brand Header */}
-      <div className={`brand ${isCollapsed ? 'brand-collapsed' : ''}`}>
-        {!isCollapsed ? (
-          <>
-            <div
-              className="brand-logo-area"
-              onClick={() => handleNavClick('dashboard')}
-              title="Painel do Treinador - Início"
+      {/* Brand Header idêntico ao modelo Digifarma Gestor */}
+      <div
+        className={`brand ${isCollapsed ? 'brand-collapsed' : ''}`}
+        style={{
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center',
+          cursor: 'pointer',
+          margin: isCollapsed ? '0 0 20px 0' : '0 4px 28px 4px',
+          textDecoration: 'none',
+        }}
+        onClick={() => handleNavClick('dashboard')}
+        title="Painel Digifarma"
+      >
+        <span className="brand-mark">+</span>
+        {!isCollapsed && (
+          <div style={{ overflow: 'hidden' }}>
+            <span
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                cursor: 'pointer',
-                flex: 1,
-                overflow: 'hidden',
+                display: 'block',
+                color: 'var(--red)',
+                fontWeight: 750,
+                fontSize: '24px',
+                letterSpacing: '-1px',
+                lineHeight: 1.1,
               }}
             >
-              <div className="brand-logo-icon">
-                <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>P</span>
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <div className="name" style={{ fontSize: '0.96rem', fontWeight: 800 }}>Painel Treinador</div>
-                <div className="sub brand-product">Digifarma ERP</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {onToggleCollapse && (
-                <button
-                  type="button"
-                  className="sidebar-header-collapse-btn no-print"
-                  onClick={onToggleCollapse}
-                  title="Recolher menu lateral"
-                  aria-label="Recolher menu lateral"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              )}
-
-              {onCloseMobile && (
-                <button
-                  type="button"
-                  className="sidebar-mobile-close-btn"
-                  onClick={onCloseMobile}
-                  aria-label="Fechar menu lateral"
-                  title="Fechar menu"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-            }}
-          >
-            <div
-              className="brand-logo-icon"
-              onClick={() => handleNavClick('dashboard')}
-              title="Painel do Treinador - Início"
-              style={{ cursor: 'pointer' }}
+              digifarma
+            </span>
+            <small
+              style={{
+                display: 'block',
+                fontSize: '9px',
+                fontWeight: 600,
+                letterSpacing: '1.5px',
+                color: 'var(--muted)',
+                marginTop: '3px',
+                textTransform: 'uppercase',
+              }}
             >
-              <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>P</span>
-            </div>
+              PAINEL DO TREINADOR
+            </small>
+          </div>
+        )}
 
+        {/* Botão de recolher/fechar se não colapsado */}
+        {!isCollapsed && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
             {onToggleCollapse && (
               <button
                 type="button"
-                className="sidebar-header-collapse-btn collapsed no-print"
-                onClick={onToggleCollapse}
-                title="Expandir menu lateral"
-                aria-label="Expandir menu lateral"
-                style={{ margin: 0 }}
+                className="sidebar-header-collapse-btn no-print"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapse();
+                }}
+                title="Recolher menu"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
               >
-                <ChevronRight size={14} />
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            {onCloseMobile && (
+              <button
+                type="button"
+                className="sidebar-mobile-close-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseMobile();
+                }}
+                title="Fechar menu"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ✕
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Navegação Principal Reestruturada */}
-      <div className="nav-items-scroll">
-        {/* 1. Tela Inicial */}
+      {isCollapsed && onToggleCollapse && (
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <button
+            type="button"
+            className="sidebar-header-collapse-btn collapsed no-print"
+            onClick={onToggleCollapse}
+            title="Expandir menu"
+            style={{
+              border: '1px solid var(--line)',
+              background: '#fff',
+              borderRadius: '6px',
+              padding: '4px',
+              cursor: 'pointer',
+              color: 'var(--muted)',
+            }}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Nav Caption Padrão Gestor */}
+      {!isCollapsed && <div className="nav-caption">OPERAÇÃO &amp; CONTEÚDOS</div>}
+
+      {/* Navegação Principal */}
+      <nav aria-label="Seções do painel" id="nav">
+        {/* 1. Visão Geral (Dashboard) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+          className={currentView === 'dashboard' ? 'active' : ''}
           onClick={() => handleNavClick('dashboard')}
-          title="Tela inicial"
+          title="Visão Geral"
         >
-          <span className="ic">{navIcon('grid')}</span>
-          {!isCollapsed && <span>Tela inicial</span>}
-        </button>
-
-        {/* 2. Conteúdos (v10 e Clássico unificados em cards) */}
-        <button
-          type="button"
-          className={`nav-item ${isConteudosActive ? 'active' : ''}`}
-          onClick={() => handleNavClick('conteudos')}
-          title="Conteúdos (Digifarma v10 e Clássico)"
-        >
-          <span className="ic">
-            <BookOpen size={18} />
+          <span className="nav-icon-glyph">
+            <Grid size={16} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Conteúdos</span>}
+          {!isCollapsed && <span>Visão geral</span>}
         </button>
 
-        {/* 3. Arquivos (Substitui Interno: Pastas, arquivos e anotações diretas) */}
+        {/* 2. Conteúdos (v10 e Clássico) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'arquivos' ? 'active' : ''}`}
+          className={isConteudosActive ? 'active' : ''}
+          onClick={() => handleNavClick('conteudos')}
+          title="Conteúdos Operacionais"
+        >
+          <span className="nav-icon-glyph">
+            <BookOpen size={16} />
+          </span>
+          {!isCollapsed && <span>Conteúdos</span>}
+        </button>
+
+        {/* 3. Arquivos */}
+        <button
+          type="button"
+          className={currentView === 'arquivos' ? 'active' : ''}
           onClick={() => handleNavClick('arquivos')}
           title="Arquivos e Documentos"
         >
-          <span className="ic">
-            <FolderKanban size={18} />
+          <span className="nav-icon-glyph">
+            <FolderKanban size={16} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Arquivos</span>}
+          {!isCollapsed && <span>Arquivos</span>}
         </button>
 
-        {/* 4. Publicações (Feed de comunicados, direcionamento e comentários) */}
+        {/* 4. Publicações */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'publicacoes' ? 'active' : ''}`}
+          className={currentView === 'publicacoes' ? 'active' : ''}
           onClick={() => handleNavClick('publicacoes')}
           title="Publicações da Equipe"
         >
-          <span className="ic" style={{ position: 'relative' }}>
-            <StickyNote size={18} />
+          <span className="nav-icon-glyph" style={{ position: 'relative' }}>
+            <StickyNote size={16} />
             {isCollapsed && notesNotificationCount > 0 ? (
-              <span className="sidebar-pending-badge dot" title={`${notesNotificationCount} novas`} />
+              <span className="sidebar-pending-badge dot" />
             ) : null}
           </span>
           {!isCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
-              <span style={{ whiteSpace: 'nowrap' }}>Publicações</span>
-              {notesNotificationCount > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>Publicações</span>
+              {notesNotificationCount > 0 && (
                 <span className="sidebar-pending-badge">{notesNotificationCount}</span>
-              ) : null}
+              )}
             </div>
           )}
         </button>
 
-        {/* 5. Mural (Kanban Trello: A Fazer, Em Andamento, Concluído + Personalizados) */}
+        {/* 5. Mural (Kanban) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'mural' ? 'active' : ''}`}
+          className={currentView === 'mural' ? 'active' : ''}
           onClick={() => handleNavClick('mural')}
-          title="Mural de Atividades e Tarefas"
+          title="Mural de Atividades"
         >
-          <span className="ic">
-            <LayoutDashboard size={18} />
+          <span className="nav-icon-glyph">
+            <LayoutDashboard size={16} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Mural</span>}
+          {!isCollapsed && <span>Mural</span>}
         </button>
 
-        {/* 6. Revisões (Central de Homologação / Aprovação de Procedimentos) */}
+        {/* 6. Revisões */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'revision' ? 'active' : ''}`}
+          className={currentView === 'revision' ? 'active' : ''}
           onClick={() => handleNavClick('revision')}
           title="Painel de Revisão"
         >
-          <span className="ic" style={{ position: 'relative' }}>
-            <ClipboardCheck size={18} />
+          <span className="nav-icon-glyph" style={{ position: 'relative' }}>
+            <ClipboardCheck size={16} />
             {isCollapsed && pendingReviewCount > 0 ? (
-              <span className="sidebar-pending-badge dot" title={`${pendingReviewCount} pendentes`} />
+              <span className="sidebar-pending-badge dot" />
             ) : null}
           </span>
           {!isCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
-              <span style={{ whiteSpace: 'nowrap' }}>Revisões</span>
-              {pendingReviewCount > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>Revisões</span>
+              {pendingReviewCount > 0 && (
                 <span className="sidebar-pending-badge">{pendingReviewCount}</span>
-              ) : null}
+              )}
             </div>
           )}
         </button>
 
-        {/* 7. Utilitários (Módulos, Cadastro de Clientes e Usuários) */}
+        {/* 7. Utilitários */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'utilitarios' ? 'active' : ''}`}
+          className={currentView === 'utilitarios' ? 'active' : ''}
           onClick={() => handleNavClick('utilitarios')}
           title="Utilitários do Sistema"
         >
-          <span className="ic">
-            <Wrench size={18} />
+          <span className="nav-icon-glyph">
+            <Wrench size={16} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Utilitários</span>}
+          {!isCollapsed && <span>Utilitários</span>}
         </button>
 
-        {/* 8. Studio (Editor e Criação de Procedimentos) */}
+        {/* 8. Studio */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'studio' ? 'active' : ''}`}
+          className={currentView === 'studio' ? 'active' : ''}
           onClick={() => handleNavClick('studio')}
           title="Studio - Editor de Criação"
         >
-          <span className="ic">
-            <PenTool size={18} />
+          <span className="nav-icon-glyph">
+            <PenTool size={16} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Studio</span>}
+          {!isCollapsed && <span>Studio</span>}
         </button>
-      </div>
+      </nav>
 
-      {/* Rodapé Compacto: Configurações e Claro/Escuro lado a lado como ÍCONES */}
-      <div className="sidebar-foot" style={{ padding: '10px 10px 12px 10px' }}>
+      {/* Rodapé Padrão Digifarma Gestor */}
+      <div className="sidebar-bottom">
+        {!isCollapsed && (
+          <>
+            <div>
+              <span className="live-dot" />
+              <strong style={{ color: 'var(--ink)' }}>Procedimentos ativos</strong>
+            </div>
+            <p>
+              Repositório operacional.<br />
+              Digifarma v10 &amp; Clássico.
+            </p>
+          </>
+        )}
+
+        {/* Controles de Configurações e Tema Lado a Lado */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: isCollapsed ? 'center' : 'space-between',
             gap: '8px',
-            marginBottom: '8px',
+            marginBottom: '10px',
+            marginTop: '8px',
           }}
         >
-          {/* Botão Configurações como Ícone */}
           <button
             type="button"
-            className={`sidebar-compact-icon-action ${currentView === 'config' ? 'active' : ''}`}
+            className="side-action"
             onClick={() => handleNavClick('config')}
-            title="Configurações do Sistema"
-            aria-label="Configurações"
+            title="Configurações"
             style={{
-              flex: isCollapsed ? 'none' : '1',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '6px',
-              padding: '8px 10px',
-              borderRadius: '8px',
-              border: currentView === 'config' ? '1px solid var(--red)' : '1px solid var(--border)',
-              background: currentView === 'config' ? 'var(--red-soft)' : 'var(--bg-secondary)',
-              color: currentView === 'config' ? 'var(--red)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              fontSize: '0.8rem',
+              padding: '6px 10px',
+              borderRadius: '7px',
+              border: currentView === 'config' ? '1px solid var(--red)' : '1px solid var(--line)',
+              background: currentView === 'config' ? '#fff0f0' : '#fff',
+              color: currentView === 'config' ? 'var(--red)' : 'var(--muted)',
+              flex: isCollapsed ? 'none' : '1',
               fontWeight: 600,
             }}
           >
-            <SettingsIcon size={16} />
+            <SettingsIcon size={14} />
             {!isCollapsed && <span>Configurações</span>}
           </button>
 
-          {/* Botão Claro / Escuro como Ícone ao lado */}
           <button
             type="button"
-            className="sidebar-compact-icon-action"
+            className="side-action"
             onClick={onToggleDarkMode}
-            title={darkMode ? 'Mudar para tema Claro' : 'Mudar para tema Escuro'}
-            aria-label="Alternar Tema Claro/Escuro"
+            title={darkMode ? 'Modo Claro' : 'Modo Escuro'}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '8px 10px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: darkMode ? '#fbbf24' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              minWidth: '38px',
+              padding: '6px 10px',
+              borderRadius: '7px',
+              border: '1px solid var(--line)',
+              background: '#fff',
+              color: darkMode ? '#f59e0b' : 'var(--muted)',
+              minWidth: '34px',
             }}
           >
-            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
 
-        {/* Usuário no Rodapé */}
-        {currentUser && (
-          <div className={`sidebar-user-bottom ${isCollapsed ? 'collapsed' : ''}`} style={{ margin: 0 }}>
-            <div className="sidebar-user-avatar-wrap" title={`Conectado como ${currentUser.name || currentUser.username}`}>
-              {currentUser.avatar_url ? (
-                <img
-                  src={currentUser.avatar_url}
-                  alt={currentUser.name || currentUser.username}
-                  className="sidebar-avatar-img"
-                />
-              ) : (
-                <div className="sidebar-avatar-circle">
-                  <span>{(currentUser.name || currentUser.username).charAt(0).toUpperCase()}</span>
-                </div>
-              )}
+        {/* Identificação de Usuário */}
+        {currentUser && !isCollapsed && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '8px',
+              borderTop: '1px solid var(--line)',
+              marginTop: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: 'var(--red)',
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {(currentUser.name || currentUser.username).charAt(0).toUpperCase()}
+              </div>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  color: 'var(--ink)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {currentUser.name || currentUser.username}
+              </span>
             </div>
 
-            {!isCollapsed && (
-              <div className="sidebar-user-info-clean">
-                <span className="sidebar-user-name">{currentUser.name || currentUser.username}</span>
-                <span className="sidebar-user-role">Usuário Ativo</span>
-              </div>
-            )}
-
-            {!isCollapsed && onLogout && (
+            {onLogout && (
               <button
                 type="button"
-                className="sidebar-logout-icon-btn"
                 onClick={onLogout}
-                title="Desconectar do sistema"
-                aria-label="Sair"
+                title="Sair"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                }}
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
               </button>
             )}
           </div>

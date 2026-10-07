@@ -1,14 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Layers,
   CheckCircle2,
-  Clock,
   ArrowRight,
   Plus,
-  BookOpen,
-  PieChart as PieIcon,
-  TrendingUp,
-  Search,
   Printer,
   Edit3,
   Trash2,
@@ -16,7 +10,6 @@ import {
   EyeOff,
   FileX,
   ClipboardCheck,
-  Ban,
   MoreVertical,
   Upload,
 } from 'lucide-react';
@@ -63,7 +56,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   isEditorEnabled = false,
   onOpenImport,
 }) => {
-  const [hoveredModuleIndex, setHoveredModuleIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Métricas calculadas
@@ -128,7 +120,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [totalProcedures]);
 
   const [statusFilter, setStatusFilter] = useState<'todos' | 'publicados' | 'revisao' | 'inativos'>('todos');
+  const [versionFilter, setVersionFilter] = useState<'todas' | 'v10' | 'classico'>('todas');
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
+
+  const currentDateStr = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date());
+    } catch {
+      return 'Hoje';
+    }
+  }, []);
 
   useEffect(() => {
     const handleGlobalClick = () => setActiveRowMenuId(null);
@@ -156,6 +164,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Procedimentos filtrados para a listagem
   const filteredProcedures = useMemo(() => {
     let list = procedures;
+    if (versionFilter === 'v10') {
+      list = list.filter((p) => p.systemVersion === 'v10' || !p.systemVersion);
+    } else if (versionFilter === 'classico') {
+      list = list.filter((p) => p.systemVersion === 'classico' || p.systemVersion === 'r78');
+    }
+
     if (statusFilter === 'publicados') {
       list = list.filter((p) => p.status === 'aprovado' && p.isActive !== false);
     } else if (statusFilter === 'revisao') {
@@ -175,7 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         p.category?.toLowerCase().includes(q) ||
         p.systemPath?.toLowerCase().includes(q)
     );
-  }, [procedures, searchTerm, statusFilter]);
+  }, [procedures, searchTerm, statusFilter, versionFilter]);
 
   // Renderizador: Gráfico de Área / Linha
   const renderAreaChart = () => {
@@ -243,542 +257,430 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   };
 
-  // Renderizador: Gráfico Donut
-  const renderDonutChart = () => {
-    const size = 150;
-    const radius = 52;
-    const strokeWidth = 18;
-    const activeStrokeWidth = 24;
-    const circumference = 2 * Math.PI * radius;
-    const totalCount = moduleDistribution.reduce((acc, d) => acc + d.count, 0) || 1;
-
-    let cumulativeOffset = 0;
-    const activeItem =
-      hoveredModuleIndex !== null && moduleDistribution[hoveredModuleIndex]
-        ? moduleDistribution[hoveredModuleIndex]
-        : null;
-
-    return (
-      <div className="donut-chart-container">
-        <div className="donut-chart-svg-wrap">
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke="var(--border)"
-              strokeWidth={strokeWidth}
-              opacity={0.35}
-            />
-
-            {moduleDistribution.map((item, idx) => {
-              const sliceLength = (item.count / totalCount) * circumference;
-              const strokeDasharray = `${Math.max(sliceLength - 1.5, 0)} ${circumference - Math.max(sliceLength - 1.5, 0)}`;
-              const strokeDashoffset = -cumulativeOffset;
-              cumulativeOffset += sliceLength;
-              const isHovered = hoveredModuleIndex === idx;
-
-              return (
-                <circle
-                  key={item.id}
-                  cx={size / 2}
-                  cy={size / 2}
-                  r={radius}
-                  fill="none"
-                  stroke={item.color}
-                  strokeWidth={isHovered ? activeStrokeWidth : strokeWidth}
-                  strokeDasharray={strokeDasharray}
-                  strokeDashoffset={strokeDashoffset}
-                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                  style={{ transition: 'all 0.2s ease', cursor: 'pointer' }}
-                  onMouseEnter={() => setHoveredModuleIndex(idx)}
-                  onMouseLeave={() => setHoveredModuleIndex(null)}
-                />
-              );
-            })}
-
-            <text
-              x={size / 2}
-              y={size / 2 - 2}
-              textAnchor="middle"
-              style={{ fontSize: '1.4rem', fontWeight: 800, fill: 'var(--text-primary)' }}
-            >
-              {activeItem ? activeItem.count : totalProcedures}
-            </text>
-            <text
-              x={size / 2}
-              y={size / 2 + 15}
-              textAnchor="middle"
-              style={{
-                fontSize: '0.66rem',
-                fontWeight: 600,
-                fill: 'var(--text-muted)',
-                textTransform: 'uppercase',
-              }}
-            >
-              {activeItem ? `${activeItem.percentage}%` : 'POPs'}
-            </text>
-          </svg>
-        </div>
-
-        <div className="donut-legend-list">
-          {moduleDistribution.slice(0, 5).map((item, idx) => {
-            const isHovered = hoveredModuleIndex === idx;
-            return (
-              <div
-                key={item.id}
-                className={`donut-legend-item ${isHovered ? 'active' : ''}`}
-                onMouseEnter={() => setHoveredModuleIndex(idx)}
-                onMouseLeave={() => setHoveredModuleIndex(null)}
-              >
-                <div className="donut-legend-left">
-                  <span className="donut-legend-bullet" style={{ backgroundColor: item.color }} />
-                  <span className="donut-legend-label">{item.label}</span>
-                </div>
-                <div className="donut-legend-right">
-                  <span className="donut-legend-count">{item.count}</span>
-                  <span className="donut-legend-pct">({item.percentage}%)</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="dashboard-container">
-      {/* Cabeçalho Executivo do Dashboard */}
-      <div className="dashboard-banner-clean">
+    <>
+      {/* ── 1. Heading com Eyebrow, H1, Subtítulo e Capture com Live Dot ── */}
+      <section className="heading">
         <div>
-          <span className="dashboard-eyebrow">PAINEL OPERACIONAL</span>
-          <h1 className="dashboard-title-clean">Indicadores & Procedimentos</h1>
-          <p className="dashboard-sub-clean">
-            Visão consolidada da conformidade operacional, rotinas homologadas e documentação do Digifarma.
-          </p>
+          <span className="eyebrow">DECISÕES COM CONTEXTO</span>
+          <h1 id="pageTitle">Visão Operacional</h1>
+          <p id="pageSubtitle">Base consolidada de procedimentos, conformidade e homologações do Digifarma.</p>
+        </div>
+        <div className="capture">
+          <span className="live-dot" /> Snapshot de rotinas
+          <span id="captured">{currentDateStr}</span>
+        </div>
+      </section>
+
+      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais">
+        <div className="filter">
+          <label htmlFor="dash-version">VERSÃO</label>
+          <select
+            id="dash-version"
+            value={versionFilter}
+            onChange={(e) => setVersionFilter(e.target.value as any)}
+          >
+            <option value="todas">Todas as versões</option>
+            <option value="v10">Digifarma v10</option>
+            <option value="classico">Digifarma Clássico</option>
+          </select>
+        </div>
+
+        <div className="filter">
+          <label htmlFor="dash-status">STATUS</label>
+          <select
+            id="dash-status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+          >
+            <option value="todos">Todos os status</option>
+            <option value="publicados">Publicados ({publishedCount})</option>
+            <option value="revisao">Em Revisão ({reviewCount})</option>
+            <option value="inativos">Inativos ({inactiveCount})</option>
+          </select>
+        </div>
+
+        <div className="filter store-filter" style={{ flex: 1 }}>
+          <label htmlFor="dash-search">BUSCA OPERACIONAL</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              id="dash-search"
+              type="text"
+              placeholder="Buscar por rotina, módulo, rota de acesso..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="status">
+          <span className="live-dot" /> {publishedCount} Homologados
+        </div>
+      </section>
+
+      {/* ── 3. Cartões de Métricas (.cards com .metric.emphasis) ── */}
+      <div className="cards">
+        <div className="metric emphasis">
+          <label>TOTAL DE PROCEDIMENTOS</label>
+          <strong>{totalProcedures}</strong>
+          <small>
+            Rotinas cadastradas no repositório <span className="chip green">Ativo</span>
+          </small>
+        </div>
+
+        <div className="metric">
+          <label>MÓDULOS ESTRUTURADOS</label>
+          <strong>{totalModules}</strong>
+          <small>Categorias e áreas do ERP mapeadas</small>
+        </div>
+
+        <div className="metric">
+          <label>CONFORMIDADE BPF</label>
+          <strong>{checklistStats.percentage}%</strong>
+          <small>{totalSteps} etapas documentadas no sistema</small>
         </div>
       </div>
 
-      {/* Grid de 4 Totalizadores Limpos e Profissionais */}
-      <div className="clean-kpi-grid">
-        <div className="clean-kpi-card">
-          <div className="clean-kpi-icon red">
-            <BookOpen size={18} />
-          </div>
-          <div className="clean-kpi-body">
-            <span className="clean-kpi-number">{totalProcedures}</span>
-            <span className="clean-kpi-title">Procedimentos Homologados</span>
-          </div>
-        </div>
-
-        <div className="clean-kpi-card">
-          <div className="clean-kpi-icon blue">
-            <Layers size={18} />
-          </div>
-          <div className="clean-kpi-body">
-            <span className="clean-kpi-number">{totalModules}</span>
-            <span className="clean-kpi-title">Módulos Estruturados</span>
-          </div>
-        </div>
-
-        <div className="clean-kpi-card">
-          <div className="clean-kpi-icon emerald">
-            <CheckCircle2 size={18} />
-          </div>
-          <div className="clean-kpi-body">
-            <span className="clean-kpi-number">{totalSteps}</span>
-            <span className="clean-kpi-title">Etapas Documentadas</span>
-          </div>
-        </div>
-
-        <div className="clean-kpi-card">
-          <div className="clean-kpi-icon purple">
-            <Clock size={18} />
-          </div>
-          <div className="clean-kpi-body">
-            <span className="clean-kpi-number">{checklistStats.percentage}%</span>
-            <span className="clean-kpi-title">Conformidade BPF</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Grade de 2 Gráficos Executivos Organizados */}
-      <div className="clean-charts-grid">
-        <div className="clean-chart-card">
-          <div className="clean-chart-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={16} color="#ef4444" />
-              <h3>Evolução da Base de Manuais</h3>
+      {/* ── 4. Grade Principal com Painéis (.grid 1.7fr 1fr) ── */}
+      <div className="grid">
+        {/* Painel Esquerdo: Base de Procedimentos (.panel) */}
+        <div className="panel">
+          <div className="panel-title">
+            <div>
+              <h3>Base de Procedimentos Operacionais</h3>
+              <p>Rotinas homologadas com atalhos, módulos e status.</p>
             </div>
-            <span className="clean-chart-badge">Últimos meses</span>
-          </div>
-          <p className="clean-chart-desc">Crescimento cumulativo de rotinas homologadas.</p>
-          {renderAreaChart()}
-        </div>
-
-        <div className="clean-chart-card">
-          <div className="clean-chart-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <PieIcon size={16} color="#3b82f6" />
-              <h3>Distribuição por Módulo</h3>
-            </div>
-            <span className="clean-chart-badge">{totalProcedures} POPs</span>
-          </div>
-          <p className="clean-chart-desc">Proporção de rotinas por área do ERP.</p>
-          {renderDonutChart()}
-        </div>
-      </div>
-
-      {/* Tabela / Lista Compacta e Profissional da Base de Procedimentos */}
-      <div className="clean-procedures-section">
-        <div className="clean-section-header">
-          <div>
-            <h2 className="clean-section-title">Base de Procedimentos</h2>
-            <p className="clean-section-sub">Consulte e acesse rapidamente as rotinas operacionais.</p>
-          </div>
-
-          <div className="clean-header-actions">
-            <div className="clean-search-wrap">
-              <Search size={14} className="clean-search-ic" />
-              <input
-                type="text"
-                className="clean-search-input"
-                placeholder="Buscar por nome, atalho, rota..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {onOpenImport && (
                 <button
                   type="button"
-                  className="clean-search-clear"
-                  onClick={() => setSearchTerm('')}
+                  className="button subtle"
+                  onClick={() => onOpenImport()}
+                  title="Importar POP em PDF ou HTML"
                 >
-                  ✕
+                  <Upload size={12} />
+                  <span>Importar POP</span>
+                </button>
+              )}
+              {isEditorEnabled && (
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={onNewProcedure}
+                  title="Criar novo manual no Studio"
+                >
+                  <Plus size={13} />
+                  <span>Novo Manual</span>
                 </button>
               )}
             </div>
+          </div>
 
-            {/* Botão Importar POP para o Repositório */}
-            {onOpenImport && (
-              <button
-                type="button"
-                className="btn-import-pop-compact"
-                onClick={() => onOpenImport()}
-                style={{
-                  background: 'var(--red)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 10px rgba(239, 68, 68, 0.28)',
-                }}
-              >
-                <Upload size={14} />
-                <span>Importar POP</span>
-              </button>
-            )}
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '45%' }}>PROCEDIMENTO</th>
+                  <th style={{ width: '18%' }}>MÓDULO</th>
+                  <th style={{ width: '15%' }}>VERSÃO</th>
+                  <th style={{ width: '10%' }}>STATUS</th>
+                  <th style={{ width: '12%', textAlign: 'right' }}>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProcedures.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '36px 12px', color: 'var(--muted)' }}>
+                      Nenhum procedimento encontrado com os filtros selecionados.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProcedures.map((proc) => {
+                    const isV10 = proc.systemVersion === 'v10' || !proc.systemVersion;
+                    return (
+                      <tr
+                        key={proc.id}
+                        onClick={() => onSelectProcedure(proc.id, false)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <strong style={{ opacity: proc.isActive === false ? 0.6 : 1 }}>
+                                {proc.title}
+                              </strong>
+                              {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
+                                <span className="tag" style={{ background: '#fff0f0', color: 'var(--red)' }}>
+                                  PDF
+                                </span>
+                              )}
+                              {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
+                                <span className="tag" style={{ background: '#eef5fc', color: '#3b82f6' }}>
+                                  HTML
+                                </span>
+                              )}
+                            </div>
+                            {proc.systemPath && (
+                              <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                                {proc.systemPath}
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-            {/* Botão Novo POP Discreto e Elegante (Visível apenas se o editor estiver ativado) */}
-            {isEditorEnabled && (
-              <button
-                type="button"
-                className="btn-new-pop-compact"
-                onClick={onNewProcedure}
-              >
-                <Plus size={14} />
-                <span>Novo Manual</span>
-              </button>
-            )}
+                        <td>
+                          <span className="tag">{proc.category || 'Geral'}</span>
+                        </td>
+
+                        <td>
+                          <span
+                            className="tag"
+                            style={{
+                              background: isV10 ? '#fff0f0' : '#eef1f6',
+                              color: isV10 ? 'var(--red)' : 'var(--muted)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {isV10 ? 'v10' : 'Clássico'}
+                          </span>
+                        </td>
+
+                        <td>
+                          {proc.isActive === false ? (
+                            <span className="tag warn">Inativo</span>
+                          ) : proc.status === 'aprovado' ? (
+                            <span className="tag success">Publicado</span>
+                          ) : proc.status === 'pendente' ? (
+                            <span className="tag warn">Em Revisão</span>
+                          ) : proc.status === 'ajustes_solicitados' ? (
+                            <span className="tag danger">Ajustes</span>
+                          ) : (
+                            <span className="tag">Rascunho</span>
+                          )}
+                        </td>
+
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                            <button
+                              type="button"
+                              className="button subtle"
+                              style={{ padding: '6px 10px', fontSize: '10px' }}
+                              onClick={() => onSelectProcedure(proc.id, false)}
+                              title="Visualizar rotina"
+                            >
+                              <span>Abrir</span>
+                              <ArrowRight size={11} />
+                            </button>
+
+                            {isEditorEnabled && onEdit && (
+                              <button
+                                type="button"
+                                className="button subtle"
+                                style={{ padding: '6px 8px', fontSize: '10px' }}
+                                onClick={() => onEdit(proc)}
+                                title="Editar no Studio"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="button subtle"
+                              style={{ padding: '6px 8px', fontSize: '10px' }}
+                              onClick={() => onSelectProcedure(proc.id, true)}
+                              title="Imprimir / PDF Oficial"
+                            >
+                              <Printer size={12} />
+                            </button>
+
+                            {/* Menu de Mais Ações */}
+                            <div className="dash-row-menu-container" style={{ position: 'relative' }}>
+                              <button
+                                type="button"
+                                className="button subtle"
+                                style={{ padding: '6px 7px', fontSize: '10px' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveRowMenuId(activeRowMenuId === proc.id ? null : proc.id);
+                                }}
+                                title="Mais ações"
+                              >
+                                <MoreVertical size={12} />
+                              </button>
+
+                              {activeRowMenuId === proc.id && (
+                                <div
+                                  className="dash-row-dropdown-popover"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: '100%',
+                                    background: '#fff',
+                                    border: '1px solid var(--line)',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                                    zIndex: 50,
+                                    minWidth: '150px',
+                                    padding: '4px',
+                                  }}
+                                >
+                                  {proc.status !== 'aprovado' && onPublish && (
+                                    <button
+                                      type="button"
+                                      className="dash-dropdown-item success"
+                                      onClick={() => {
+                                        setActiveRowMenuId(null);
+                                        onPublish(proc.id);
+                                      }}
+                                    >
+                                      <CheckCircle2 size={13} color="#10b981" />
+                                      <span>Publicar</span>
+                                    </button>
+                                  )}
+
+                                  {proc.status === 'aprovado' && onUnpublish && (
+                                    <button
+                                      type="button"
+                                      className="dash-dropdown-item"
+                                      onClick={() => {
+                                        setActiveRowMenuId(null);
+                                        onUnpublish(proc.id);
+                                      }}
+                                    >
+                                      <FileX size={13} />
+                                      <span>Despublicar</span>
+                                    </button>
+                                  )}
+
+                                  {proc.status !== 'pendente' && onSendToReview && (
+                                    <button
+                                      type="button"
+                                      className="dash-dropdown-item"
+                                      onClick={() => {
+                                        setActiveRowMenuId(null);
+                                        onSendToReview(proc.id);
+                                      }}
+                                    >
+                                      <ClipboardCheck size={13} />
+                                      <span>Mandar p/ Revisão</span>
+                                    </button>
+                                  )}
+
+                                  {onToggleActive && (
+                                    <button
+                                      type="button"
+                                      className="dash-dropdown-item"
+                                      onClick={() => {
+                                        setActiveRowMenuId(null);
+                                        onToggleActive(proc.id);
+                                      }}
+                                    >
+                                      {proc.isActive === false ? (
+                                        <>
+                                          <Eye size={13} color="#10b981" />
+                                          <span>Reativar</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff size={13} color="#94a3b8" />
+                                          <span>Inativar</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+
+                                  {onDelete && (
+                                    <>
+                                      <div className="dash-dropdown-divider" />
+                                      <button
+                                        type="button"
+                                        className="dash-dropdown-item danger"
+                                        onClick={() => {
+                                          setActiveRowMenuId(null);
+                                          onDelete(proc);
+                                        }}
+                                      >
+                                        <Trash2 size={13} color="#ef4444" />
+                                        <span>Excluir</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Abas Rápidas de Filtragem por Status */}
-        <div className="dash-status-filter-tabs">
-          <button
-            type="button"
-            className={`dash-filter-tab ${statusFilter === 'todos' ? 'active' : ''}`}
-            onClick={() => setStatusFilter('todos')}
-          >
-            <span>Todos</span>
-            <span className="tab-count">{totalProcedures}</span>
-          </button>
+        {/* Painel Direito: Distribuição por Módulo (.panel) */}
+        <div className="panel">
+          <div className="panel-title">
+            <div>
+              <h3>Distribuição por Módulo</h3>
+              <p>Proporção de rotinas por área do ERP.</p>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            className={`dash-filter-tab ${statusFilter === 'publicados' ? 'active' : ''}`}
-            onClick={() => setStatusFilter('publicados')}
-          >
-            <CheckCircle2 size={13} color="#10b981" />
-            <span>Publicados</span>
-            <span className="tab-count">{publishedCount}</span>
-          </button>
+          <div style={{ marginTop: '8px' }}>
+            {moduleDistribution.map((item) => (
+              <div key={item.id} className="bar-row">
+                <div className="bar-head">
+                  <span>{item.label}</span>
+                  <strong>{item.count} ({item.percentage}%)</strong>
+                </div>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill"
+                    style={{ width: `${item.percentage}%`, background: item.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
 
-          <button
-            type="button"
-            className={`dash-filter-tab ${statusFilter === 'revisao' ? 'active' : ''}`}
-            onClick={() => setStatusFilter('revisao')}
-          >
-            <Clock size={13} color="#f59e0b" />
-            <span>Em Revisão</span>
-            <span className="tab-count">{reviewCount}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`dash-filter-tab ${statusFilter === 'inativos' ? 'active' : ''}`}
-            onClick={() => setStatusFilter('inativos')}
-          >
-            <Ban size={13} color="#94a3b8" />
-            <span>Inativos</span>
-            <span className="tab-count">{inactiveCount}</span>
-          </button>
-        </div>
-
-        {/* Tabela Compacta de Linhas */}
-        <div className="compact-table-container">
-          <table className="compact-table">
-            <thead>
-              <tr>
-                <th style={{ width: '42%' }}>Procedimento / Rotina</th>
-                <th style={{ width: '16%' }}>Módulo</th>
-                <th style={{ width: '15%' }}>Versão</th>
-                <th style={{ width: '10%' }}>Etapas</th>
-                <th style={{ width: '17%', textAlign: 'right' }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProcedures.map((proc) => {
-                const stepCount = proc.blocks.filter(
-                  (b) => b.type === 'step' || b.type === 'heading'
-                ).length;
-                const isV10 = proc.systemVersion === 'v10';
-
-                return (
-                  <tr key={proc.id} onClick={() => onSelectProcedure(proc.id, false)} className={proc.isActive === false ? 'row-inactive' : ''}>
-                    <td>
-                      <div className="proc-cell-title">
-                        <span className={`proc-cell-bullet ${proc.isActive === false ? 'inactive' : ''}`} />
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <strong style={{ opacity: proc.isActive === false ? 0.7 : 1 }}>{proc.title}</strong>
-
-                            {/* Tags de Formato no Repositório */}
-                            {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
-                              <span
-                                style={{
-                                  fontSize: '0.64rem',
-                                  fontWeight: 800,
-                                  background: 'rgba(239, 68, 68, 0.15)',
-                                  color: '#f87171',
-                                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                                  borderRadius: '4px',
-                                  padding: '1px 5px',
-                                }}
-                              >
-                                PDF
-                              </span>
-                            )}
-                            {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
-                              <span
-                                style={{
-                                  fontSize: '0.64rem',
-                                  fontWeight: 800,
-                                  background: 'rgba(59, 130, 246, 0.15)',
-                                  color: '#60a5fa',
-                                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                                  borderRadius: '4px',
-                                  padding: '1px 5px',
-                                }}
-                              >
-                                HTML
-                              </span>
-                            )}
-
-                            {proc.isActive === false ? (
-                              <span className="proc-status-pill inactive">🚫 Inativo</span>
-                            ) : proc.status === 'aprovado' ? (
-                              <span className="proc-status-pill approved">✓ Publicado</span>
-                            ) : proc.status === 'pendente' ? (
-                              <span className="proc-status-pill pending">⏳ Em Revisão</span>
-                            ) : proc.status === 'ajustes_solicitados' ? (
-                              <span className="proc-status-pill adjustments">⚠️ Ajustes Solicitados</span>
-                            ) : proc.status === 'despublicado' ? (
-                              <span className="proc-status-pill unpublished">📄 Despublicado</span>
-                            ) : null}
-                          </div>
-                          {proc.systemPath && (
-                            <span className="proc-cell-route">{proc.systemPath}</span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="proc-cell-badge mod">{proc.category || 'Geral'}</span>
-                    </td>
-                    <td>
-                      <span className={`proc-cell-badge ver ${isV10 ? 'v10' : 'r78'}`}>
-                        {isV10 ? 'Digifarma V10' : 'Digifarma Clássico'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="proc-cell-steps">{stepCount} etapas</span>
-                    </td>
-                    <td>
-                      <div
-                        className="proc-cell-actions"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {/* Botão Abrir Minimalista */}
-                        <button
-                          type="button"
-                          className="btn-dash-action open"
-                          onClick={() => onSelectProcedure(proc.id, false)}
-                          title="Abrir procedimento"
-                        >
-                          <span>Abrir</span>
-                          <ArrowRight size={12} />
-                        </button>
-
-                        {/* Botão Editar Discreto (Apenas se o editor estiver ativado) */}
-                        {isEditorEnabled && onEdit && (
-                          <button
-                            type="button"
-                            className="btn-dash-action icon-only"
-                            onClick={() => onEdit(proc)}
-                            title="Editar no Studio Digifarma"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                        )}
-
-                        {/* Botão Imprimir / PDF Discreto */}
-                        <button
-                          type="button"
-                          className="btn-dash-action icon-only"
-                          onClick={() => onSelectProcedure(proc.id, true)}
-                          title="Imprimir ou gerar PDF Oficial (A4)"
-                        >
-                          <Printer size={13} />
-                        </button>
-
-                        {/* Dropdown Menu Minimalista para Ações Secundárias */}
-                        <div className="dash-row-menu-container">
-                          <button
-                            type="button"
-                            className={`btn-dash-action icon-only ${activeRowMenuId === proc.id ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveRowMenuId(activeRowMenuId === proc.id ? null : proc.id);
-                            }}
-                            title="Mais opções e homologação"
-                            aria-label="Mais opções"
-                          >
-                            <MoreVertical size={13} />
-                          </button>
-
-                          {activeRowMenuId === proc.id && (
-                            <div className="dash-row-dropdown-popover" onClick={(e) => e.stopPropagation()}>
-                              {proc.status !== 'aprovado' && onPublish && (
-                                <button
-                                  type="button"
-                                  className="dash-dropdown-item success"
-                                  onClick={() => {
-                                    setActiveRowMenuId(null);
-                                    onPublish(proc.id);
-                                  }}
-                                >
-                                  <CheckCircle2 size={13} color="#10b981" />
-                                  <span>Publicar</span>
-                                </button>
-                              )}
-
-                              {proc.status === 'aprovado' && onUnpublish && (
-                                <button
-                                  type="button"
-                                  className="dash-dropdown-item"
-                                  onClick={() => {
-                                    setActiveRowMenuId(null);
-                                    onUnpublish(proc.id);
-                                  }}
-                                >
-                                  <FileX size={13} />
-                                  <span>Despublicar</span>
-                                </button>
-                              )}
-
-                              {proc.status !== 'pendente' && onSendToReview && (
-                                <button
-                                  type="button"
-                                  className="dash-dropdown-item"
-                                  onClick={() => {
-                                    setActiveRowMenuId(null);
-                                    onSendToReview(proc.id);
-                                  }}
-                                >
-                                  <ClipboardCheck size={13} />
-                                  <span>Mandar p/ Revisão</span>
-                                </button>
-                              )}
-
-                              {onToggleActive && (
-                                <button
-                                  type="button"
-                                  className="dash-dropdown-item"
-                                  onClick={() => {
-                                    setActiveRowMenuId(null);
-                                    onToggleActive(proc.id);
-                                  }}
-                                >
-                                  {proc.isActive === false ? (
-                                    <>
-                                      <Eye size={13} color="#10b981" />
-                                      <span>Reativar</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <EyeOff size={13} color="#94a3b8" />
-                                      <span>Inativar</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-
-                              {onDelete && (
-                                <>
-                                  <div className="dash-dropdown-divider" />
-                                  <button
-                                    type="button"
-                                    className="dash-dropdown-item danger"
-                                    onClick={() => {
-                                      setActiveRowMenuId(null);
-                                      onDelete(proc);
-                                    }}
-                                  >
-                                    <Trash2 size={13} color="#ef4444" />
-                                    <span>Excluir</span>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div style={{ marginTop: '28px', paddingTop: '18px', borderTop: '1px solid var(--line)' }}>
+            <div className="panel-title" style={{ marginBottom: '12px' }}>
+              <div>
+                <h3>Evolução da Base</h3>
+                <p>Crescimento cumulativo de rotinas homologadas.</p>
+              </div>
+            </div>
+            {renderAreaChart()}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ── 5. Rodapé Executivo (.app-footer) ── */}
+      <footer className="app-footer">
+        <div>Digifarma · Repositório de Procedimentos e Manuais</div>
+        <span>v10.4 &amp; Clássico · Treinamento Operacional</span>
+      </footer>
+    </>
   );
 };

@@ -3,7 +3,6 @@ import {
   Menu,
   LogOut,
   User as UserIcon,
-  Camera,
   Bell,
   ClipboardCheck,
   StickyNote,
@@ -89,8 +88,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="global-header no-print">
-      <div className="global-header-left">
+    <header className="topbar no-print">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {onToggleSidebarMobile && (
           <button
             type="button"
@@ -98,37 +97,60 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onToggleSidebarMobile}
             title="Abrir navegação lateral"
             aria-label="Abrir menu lateral"
+            style={{
+              border: '1px solid var(--line)',
+              background: '#fff',
+              borderRadius: '8px',
+              padding: '6px 8px',
+              cursor: 'pointer',
+              display: 'none',
+            }}
           >
             <Menu size={18} />
           </button>
         )}
 
-        <div className="global-brand-desc">
-          <h1 className="header-treinamento-title">
-            Olá, <span style={{ color: 'var(--red)' }}>{displayName}</span>
-          </h1>
-          <span className="header-treinamento-sub">
-            Painel do Treinador · Capacitação e Procedimentos Digifarma
-          </span>
+        <div>
+          <span className="eyebrow">DIGIFARMA / PROCEDIMENTOS</span>
+          <span className="private-tag">Painel do Treinador</span>
         </div>
       </div>
 
-      <div className="global-header-right">
+      <div className="top-actions">
         {/* Notificações Interativas com Som e Redirecionamento */}
         <div style={{ position: 'relative' }} ref={notificationRef}>
           <button
             type="button"
-            className={`header-btn-notification ${totalNotifications > 0 ? 'has-notifications' : ''}`}
+            className="button subtle"
             onClick={handleNotificationBellClick}
             title={
               totalNotifications > 0
                 ? `${totalNotifications} notificações ativas`
                 : 'Central de Notificações'
             }
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
           >
-            <Bell size={18} />
+            <Bell size={13} color={totalNotifications > 0 ? 'var(--red)' : '#627086'} />
+            <span>Notificações</span>
             {totalNotifications > 0 && (
-              <span className="notification-badge-count">{totalNotifications}</span>
+              <span
+                style={{
+                  background: 'var(--red)',
+                  color: '#ffffff',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  borderRadius: '999px',
+                  padding: '2px 5px',
+                  lineHeight: 1,
+                }}
+              >
+                {totalNotifications}
+              </span>
             )}
           </button>
 
@@ -329,7 +351,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {currentUser && (
-          <div className="header-user-pill">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: '#fff',
+              border: '1px solid var(--line)',
+              borderRadius: '8px',
+              padding: '4px 10px 4px 6px',
+            }}
+          >
             <input
               type="file"
               ref={fileInputRef}
@@ -339,38 +371,55 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
 
             <div
-              className="header-user-avatar-wrap"
               onClick={() => fileInputRef.current?.click()}
               title="Clique para importar/alterar sua foto de perfil"
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                background: 'var(--red-soft)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--red)',
+                flexShrink: 0,
+              }}
             >
               {currentUser.avatar_url ? (
                 <img
                   src={currentUser.avatar_url}
                   alt={displayName}
-                  className="header-avatar-img"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <div className="header-avatar-circle">
-                  <UserIcon size={14} />
-                </div>
+                <UserIcon size={12} />
               )}
-              <div className="header-avatar-camera-badge" title="Importar foto">
-                <Camera size={9} />
-              </div>
             </div>
 
-            <span className="header-username-text">{displayName}</span>
+            <span style={{ fontSize: '11px', fontWeight: 650, color: 'var(--ink)' }}>
+              {displayName}
+            </span>
 
             {onLogout && (
               <button
                 type="button"
-                className="header-btn-logout"
                 onClick={onLogout}
                 title="Sair da conta"
                 aria-label="Sair"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginLeft: '4px',
+                }}
               >
-                <LogOut size={13} />
-                <span className="logout-text">Sair</span>
+                <LogOut size={12} />
               </button>
             )}
           </div>
