@@ -8,7 +8,6 @@ import {
   FileCheck,
   Search,
   MessageSquare,
-  ShieldCheck,
   X,
   Upload,
   FileText,
@@ -83,60 +82,93 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   };
 
   return (
-    <div className="review-dashboard-container">
-      {/* Topo Executivo */}
-      <div className="review-hero-header">
-        <div className="review-hero-left">
-          <div className="review-hero-badge">
-            <ShieldCheck size={14} color="var(--red)" />
-            <span>CENTRAL DE HOMOLOGAÇÃO ISO 9001 & BPF</span>
-          </div>
-          <h1 className="review-hero-title">Painel de Revisão & Aprovação de POPs</h1>
-          <p className="review-hero-desc">
-            Controle de qualidade e validação de procedimentos operacionais antes da publicação oficial aos colaboradores.
+    <div className="review-dashboard-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px 20px 40px 20px' }}>
+      {/* Topo Limpo e Minimalista */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          paddingBottom: '16px',
+          borderBottom: '1px solid var(--border)',
+          marginBottom: '20px',
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
+            Painel de Revisão
+          </h1>
+          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0 }}>
+            Controle de validação e aprovação de procedimentos operacionais antes da publicação oficial.
           </p>
         </div>
 
-        {/* Métricas / Cards Rápidos */}
-        <div className="review-stats-grid">
-          <div
-            className={`review-stat-card pending ${filterTab === 'pending' ? 'selected' : ''}`}
+        {/* Métricas Rápidas Compactas */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
             onClick={() => setFilterTab('pending')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: filterTab === 'pending' ? '1.5px solid var(--red)' : '1px solid var(--border)',
+              background: filterTab === 'pending' ? 'var(--red-soft)' : 'var(--bg-primary)',
+              color: filterTab === 'pending' ? 'var(--red)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+            }}
           >
-            <div className="review-stat-ico">
-              <Clock size={20} />
-            </div>
-            <div>
-              <span className="review-stat-number">{pendingList.length}</span>
-              <span className="review-stat-label">Aguardando Revisão</span>
-            </div>
-          </div>
+            <Clock size={15} />
+            <span>Pendentes ({pendingList.length})</span>
+          </button>
 
-          <div
-            className={`review-stat-card adjustments ${filterTab === 'adjustments' ? 'selected' : ''}`}
+          <button
+            type="button"
             onClick={() => setFilterTab('adjustments')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: filterTab === 'adjustments' ? '1.5px solid #f59e0b' : '1px solid var(--border)',
+              background: filterTab === 'adjustments' ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-primary)',
+              color: filterTab === 'adjustments' ? '#d97706' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+            }}
           >
-            <div className="review-stat-ico">
-              <AlertTriangle size={20} />
-            </div>
-            <div>
-              <span className="review-stat-number">{adjustmentsList.length}</span>
-              <span className="review-stat-label">Ajustes Solicitados</span>
-            </div>
-          </div>
+            <AlertTriangle size={15} />
+            <span>Ajustes ({adjustmentsList.length})</span>
+          </button>
 
-          <div
-            className={`review-stat-card approved ${filterTab === 'approved' ? 'selected' : ''}`}
+          <button
+            type="button"
             onClick={() => setFilterTab('approved')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: filterTab === 'approved' ? '1.5px solid #10b981' : '1px solid var(--border)',
+              background: filterTab === 'approved' ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-primary)',
+              color: filterTab === 'approved' ? '#059669' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+            }}
           >
-            <div className="review-stat-ico">
-              <CheckCircle2 size={20} />
-            </div>
-            <div>
-              <span className="review-stat-number">{approvedList.length}</span>
-              <span className="review-stat-label">Homologados & Ativos</span>
-            </div>
-          </div>
+            <CheckCircle2 size={15} />
+            <span>Aprovados ({approvedList.length})</span>
+          </button>
         </div>
       </div>
 

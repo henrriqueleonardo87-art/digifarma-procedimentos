@@ -236,3 +236,67 @@ export async function updateUserAvatar(
 
   return { success: true };
 }
+
+export async function addUser(data: {
+  name: string;
+  username: string;
+  password?: string;
+  role?: string;
+}): Promise<AppUser> {
+  const users = await getLocalUsers();
+  const newUser: AppUser = {
+    id: `user-${Date.now()}`,
+    name: data.name.trim(),
+    username: data.username.trim(),
+    password: data.password?.trim() || 'Trein@mento123',
+    must_change_password: true,
+    created_at: new Date().toISOString(),
+  };
+
+  const updated = [...users, newUser];
+  saveLocalUsers(updated);
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      await supabase.from('app_users').insert([
+        {
+          id: newUser.id,
+          name: newUser.name,
+          username: newUser.username,
+          password: newUser.password,
+          must_change_password: true,
+        },
+      ]);
+    } catch (err) {
+      console.warn('Erro ao inserir usuário no Supabase:', err);
+    }
+  }
+
+  return newUser;
+}
+
+export async function deleteUser(userId: string): Promise<boolean> {
+  const users = await getLocalUsers();
+  const updated = users.filter((u) => u.id !== userId);
+  saveLocalUsers(updated);
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      await supabase.from('app_users').delete().eq('id', userId);
+    } catch (err) {
+      console.warn('Erro ao deletar usuário no Supabase:', err);
+    }
+  }
+
+  return true;
+}
+
+export async function resetUserPasswordDirect(
+  userId: string,
+  newPassword: string
+): Promise<boolean> {
+  const res = await updatePassword(userId, newPassword);
+  return res.success;
+}

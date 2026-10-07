@@ -1,5 +1,19 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LogOut, ClipboardCheck, Sliders, FolderKanban, StickyNote } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  ClipboardCheck,
+  FolderKanban,
+  StickyNote,
+  BookOpen,
+  LayoutDashboard,
+  Wrench,
+  PenTool,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+} from 'lucide-react';
 import type { AppUser } from '../types/auth';
 
 interface SidebarProps {
@@ -20,9 +34,6 @@ interface SidebarProps {
 function navIcon(name: string) {
   const paths: Record<string, string> = {
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>',
-    monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-2.6V20a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H6v-2.6h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V5h2.6v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v2.6h-.2a1.7 1.7 0 0 0-1.6 1z"/>',
   };
   return (
     <svg
@@ -58,6 +69,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onCloseMobile?.();
   };
 
+  const isConteudosActive =
+    currentView === 'conteudos' || currentView === 'v10' || currentView === 'r78';
+
   return (
     <aside
       className={`sidebar no-print ${isOpenMobile ? 'mobile-open' : ''} ${
@@ -65,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
       id="sidebar"
     >
-      {/* Brand Header com visual limpo e sem sobreposição */}
+      {/* Brand Header */}
       <div className={`brand ${isCollapsed ? 'brand-collapsed' : ''}`}>
         {!isCollapsed ? (
           <>
@@ -86,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span style={{ color: 'var(--red)', fontWeight: 900, fontSize: '1.25rem' }}>P</span>
               </div>
               <div style={{ overflow: 'hidden' }}>
-                <div className="name" style={{ fontSize: '0.98rem', fontWeight: 800 }}>Painel do Treinador</div>
+                <div className="name" style={{ fontSize: '0.96rem', fontWeight: 800 }}>Painel Treinador</div>
                 <div className="sub brand-product">Digifarma ERP</div>
               </div>
             </div>
@@ -153,8 +167,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Lista de Navegação Principal */}
+      {/* Navegação Principal Reestruturada */}
       <div className="nav-items-scroll">
+        {/* 1. Tela Inicial */}
         <button
           type="button"
           className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
@@ -165,53 +180,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && <span>Tela inicial</span>}
         </button>
 
+        {/* 2. Conteúdos (v10 e Clássico unificados em cards) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'v10' ? 'active' : ''}`}
-          onClick={() => handleNavClick('v10')}
-          title="v10"
+          className={`nav-item ${isConteudosActive ? 'active' : ''}`}
+          onClick={() => handleNavClick('conteudos')}
+          title="Conteúdos (Digifarma v10 e Clássico)"
         >
-          <span className="ic">{navIcon('rocket')}</span>
-          {!isCollapsed && <span>v10</span>}
+          <span className="ic">
+            <BookOpen size={18} />
+          </span>
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Conteúdos</span>}
         </button>
 
+        {/* 3. Arquivos (Substitui Interno: Pastas, arquivos e anotações diretas) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'r78' ? 'active' : ''}`}
-          onClick={() => handleNavClick('r78')}
-          title="Clássico"
-        >
-          <span className="ic">{navIcon('monitor')}</span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Clássico</span>}
-        </button>
-
-        <button
-          type="button"
-          className={`nav-item ${currentView === 'internal' ? 'active' : ''}`}
-          onClick={() => handleNavClick('internal')}
-          title="Interno - Arquivos e Imagens"
+          className={`nav-item ${currentView === 'arquivos' ? 'active' : ''}`}
+          onClick={() => handleNavClick('arquivos')}
+          title="Arquivos e Documentos"
         >
           <span className="ic">
             <FolderKanban size={18} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Interno</span>}
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Arquivos</span>}
         </button>
 
+        {/* 4. Publicações (Feed de comunicados, direcionamento e comentários) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'notes' ? 'active' : ''}`}
-          onClick={() => handleNavClick('notes')}
-          title="Anotações e Clientes"
+          className={`nav-item ${currentView === 'publicacoes' ? 'active' : ''}`}
+          onClick={() => handleNavClick('publicacoes')}
+          title="Publicações da Equipe"
         >
           <span className="ic" style={{ position: 'relative' }}>
             <StickyNote size={18} />
             {isCollapsed && notesNotificationCount > 0 ? (
-              <span className="sidebar-pending-badge dot" title={`${notesNotificationCount} recados`} />
+              <span className="sidebar-pending-badge dot" title={`${notesNotificationCount} novas`} />
             ) : null}
           </span>
           {!isCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
-              <span style={{ whiteSpace: 'nowrap' }}>Anotações</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Publicações</span>
               {notesNotificationCount > 0 ? (
                 <span className="sidebar-pending-badge">{notesNotificationCount}</span>
               ) : null}
@@ -219,91 +229,136 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
 
+        {/* 5. Mural (Kanban Trello: A Fazer, Em Andamento, Concluído + Personalizados) */}
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'mural' ? 'active' : ''}`}
+          onClick={() => handleNavClick('mural')}
+          title="Mural de Atividades e Tarefas"
+        >
+          <span className="ic">
+            <LayoutDashboard size={18} />
+          </span>
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Mural</span>}
+        </button>
+
+        {/* 6. Revisões (Central de Homologação / Aprovação de Procedimentos) */}
         <button
           type="button"
           className={`nav-item ${currentView === 'revision' ? 'active' : ''}`}
           onClick={() => handleNavClick('revision')}
-          title="Central de Revisões"
+          title="Painel de Revisão"
         >
           <span className="ic" style={{ position: 'relative' }}>
             <ClipboardCheck size={18} />
-            {isCollapsed && pendingReviewCount && pendingReviewCount > 0 ? (
+            {isCollapsed && pendingReviewCount > 0 ? (
               <span className="sidebar-pending-badge dot" title={`${pendingReviewCount} pendentes`} />
             ) : null}
           </span>
           {!isCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
               <span style={{ whiteSpace: 'nowrap' }}>Revisões</span>
-              {pendingReviewCount && pendingReviewCount > 0 ? (
+              {pendingReviewCount > 0 ? (
                 <span className="sidebar-pending-badge">{pendingReviewCount}</span>
               ) : null}
             </div>
           )}
         </button>
 
+        {/* 7. Utilitários (Módulos, Cadastro de Clientes e Usuários) */}
         <button
           type="button"
-          className={`nav-item ${currentView === 'personalize' ? 'active' : ''}`}
-          onClick={() => handleNavClick('personalize')}
-          title="Gerenciar Módulos e Rotinas"
+          className={`nav-item ${currentView === 'utilitarios' ? 'active' : ''}`}
+          onClick={() => handleNavClick('utilitarios')}
+          title="Utilitários do Sistema"
         >
           <span className="ic">
-            <Sliders size={18} />
+            <Wrench size={18} />
           </span>
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Módulos</span>}
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Utilitários</span>}
+        </button>
+
+        {/* 8. Studio (Editor e Criação de Procedimentos) */}
+        <button
+          type="button"
+          className={`nav-item ${currentView === 'studio' ? 'active' : ''}`}
+          onClick={() => handleNavClick('studio')}
+          title="Studio - Editor de Criação"
+        >
+          <span className="ic">
+            <PenTool size={18} />
+          </span>
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Studio</span>}
         </button>
       </div>
 
-      {/* Rodapé do Menu Lateral */}
-      <div className="sidebar-foot">
-        {!isCollapsed ? (
-          <div className="theme-toggle">
-            <button
-              type="button"
-              data-theme="light"
-              className={!darkMode ? 'active' : ''}
-              onClick={() => {
-                if (darkMode) onToggleDarkMode();
-              }}
-            >
-              ☀ Claro
-            </button>
-            <button
-              type="button"
-              data-theme="dark"
-              className={darkMode ? 'active' : ''}
-              onClick={() => {
-                if (!darkMode) onToggleDarkMode();
-              }}
-            >
-              ☾ Escuro
-            </button>
-          </div>
-        ) : (
+      {/* Rodapé Compacto: Configurações e Claro/Escuro lado a lado como ÍCONES */}
+      <div className="sidebar-foot" style={{ padding: '10px 10px 12px 10px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'space-between',
+            gap: '8px',
+            marginBottom: '8px',
+          }}
+        >
+          {/* Botão Configurações como Ícone */}
           <button
             type="button"
-            className="theme-toggle-compact-btn"
+            className={`sidebar-compact-icon-action ${currentView === 'config' ? 'active' : ''}`}
+            onClick={() => handleNavClick('config')}
+            title="Configurações do Sistema"
+            aria-label="Configurações"
+            style={{
+              flex: isCollapsed ? 'none' : '1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: currentView === 'config' ? '1px solid var(--red)' : '1px solid var(--border)',
+              background: currentView === 'config' ? 'var(--red-soft)' : 'var(--bg-secondary)',
+              color: currentView === 'config' ? 'var(--red)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}
+          >
+            <SettingsIcon size={16} />
+            {!isCollapsed && <span>Configurações</span>}
+          </button>
+
+          {/* Botão Claro / Escuro como Ícone ao lado */}
+          <button
+            type="button"
+            className="sidebar-compact-icon-action"
             onClick={onToggleDarkMode}
             title={darkMode ? 'Mudar para tema Claro' : 'Mudar para tema Escuro'}
-            aria-label="Alternar tema"
+            aria-label="Alternar Tema Claro/Escuro"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)',
+              color: darkMode ? '#fbbf24' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              minWidth: '38px',
+            }}
           >
-            {darkMode ? '☾' : '☀'}
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-        )}
+        </div>
 
-        <button
-          type="button"
-          className={`nav-item sidebar-config-item ${currentView === 'config' ? 'active' : ''}`}
-          onClick={() => handleNavClick('config')}
-          title="Configurações"
-        >
-          <span className="ic">{navIcon('settings')}</span>
-          {!isCollapsed && <span>Configurações</span>}
-        </button>
-
-        {/* Usuário no Rodapé do Menu Lateral */}
+        {/* Usuário no Rodapé */}
         {currentUser && (
-          <div className={`sidebar-user-bottom ${isCollapsed ? 'collapsed' : ''}`}>
+          <div className={`sidebar-user-bottom ${isCollapsed ? 'collapsed' : ''}`} style={{ margin: 0 }}>
             <div className="sidebar-user-avatar-wrap" title={`Conectado como ${currentUser.name || currentUser.username}`}>
               {currentUser.avatar_url ? (
                 <img

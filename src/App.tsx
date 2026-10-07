@@ -10,12 +10,15 @@ import { SettingsView } from './components/SettingsView';
 import { DashboardView } from './components/DashboardView';
 import { VersionModulesView } from './components/VersionModulesView';
 import { ReviewView } from './components/ReviewView';
+import { ContentsView } from './components/ContentsView';
+import { ArquivosView } from './components/ArquivosView';
+import { PublicacoesView } from './components/PublicacoesView';
+import { MuralView } from './components/MuralView';
+import { UtilitiesView } from './components/UtilitiesView';
 import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { NewProcedureFormatModal } from './components/NewProcedureFormatModal';
 import { ImportProcedureModal } from './components/ImportProcedureModal';
-import { InternalFilesView } from './components/InternalFilesView';
-import { NotesView } from './components/NotesView';
 import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -27,7 +30,8 @@ import {
   saveSystemMenus,
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { initThemeColor } from './lib/themeService';
+import { Loader2, Menu } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => getCurrentUser());
@@ -223,6 +227,7 @@ export function App() {
   };
 
   useEffect(() => {
+    initThemeColor();
     loadData();
     checkConnection();
   }, []);
@@ -438,24 +443,69 @@ export function App() {
 
       {/* ── CONTEÚDO PRINCIPAL À DIREITA COM GLOBAL HEADER "OLÁ, PESSOA" ── */}
       <div className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isEditing ? 'is-editing-mode' : ''}`}>
-        <Navbar
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          onUpdateAvatar={handleUpdateAvatar}
-          onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          pendingReviewCount={pendingReviewCount}
-          notesNotificationCount={notesNotificationCount}
-          onOpenRevision={() => {
-            setCurrentView('revision');
-            setActiveId(null);
-            setIsEditing(false);
-          }}
-          onOpenNotes={() => {
-            setCurrentView('notes');
-            setActiveId(null);
-            setIsEditing(false);
-          }}
-        />
+        {/* Barra superior exibida SOMENTE no Dashboard conforme solicitado */}
+        {currentView === 'dashboard' && !isEditing && (
+          <Navbar
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onUpdateAvatar={handleUpdateAvatar}
+            onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            pendingReviewCount={pendingReviewCount}
+            notesNotificationCount={notesNotificationCount}
+            onNavigate={(view) => {
+              setCurrentView(view);
+              setActiveId(null);
+              setIsEditing(false);
+            }}
+            onOpenRevision={() => {
+              setCurrentView('revision');
+              setActiveId(null);
+              setIsEditing(false);
+            }}
+            onOpenNotes={() => {
+              setCurrentView('publicacoes');
+              setActiveId(null);
+              setIsEditing(false);
+            }}
+          />
+        )}
+
+        {/* Header compacto e responsivo para telas móveis nas outras páginas */}
+        {currentView !== 'dashboard' && !isEditing && (
+          <div className="mobile-only-header no-print">
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              title="Abrir navegação lateral"
+              aria-label="Abrir menu"
+            >
+              <Menu size={18} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Digifarma
+              </span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--red)', fontWeight: 700 }}>
+                {currentView === 'conteudos'
+                  ? '· Conteúdos'
+                  : currentView === 'arquivos'
+                  ? '· Arquivos'
+                  : currentView === 'publicacoes'
+                  ? '· Publicações'
+                  : currentView === 'mural'
+                  ? '· Mural'
+                  : currentView === 'revision'
+                  ? '· Revisões'
+                  : currentView === 'utilitarios'
+                  ? '· Utilitários'
+                  : currentView === 'studio'
+                  ? '· Studio'
+                  : ''}
+              </span>
+            </div>
+          </div>
+        )}
 
         <main className={`main ${isEditing ? 'editing-main' : ''}`} id="main">
           {loading ? (
@@ -463,11 +513,11 @@ export function App() {
               <Loader2 size={36} className="animate-spin" color="var(--primary-500)" />
               <p>Carregando procedimentos do Digifarma...</p>
             </div>
-          ) : isEditing ? (
+          ) : isEditing || currentView === 'studio' ? (
             <ProcedureEditor
               initialProcedure={editingProcedure}
               menus={menus}
-              activeVersion={currentView === 'r78' ? 'classico' : 'v10'}
+              activeVersion="v10"
               currentUser={currentUser}
               onSave={handleSaveProcedure}
               onCancel={() => {
@@ -495,15 +545,21 @@ export function App() {
               isEditorEnabled={isEditorEnabled}
               onOpenImport={handleOpenImportModal}
             />
+          ) : currentView === 'conteudos' ? (
+            <ContentsView
+              procedures={procedures}
+              onSelectVersion={(version) => setCurrentView(version)}
+              onBackToDashboard={() => setCurrentView('dashboard')}
+            />
           ) : currentView === 'v10' ? (
             <VersionModulesView
               version="v10"
               procedures={procedures}
               menus={menus}
               onSelectProcedure={handleSelectProcedure}
-              onBackToDashboard={() => setCurrentView('dashboard')}
+              onBackToDashboard={() => setCurrentView('conteudos')}
               onNewProcedure={handleNewProcedure}
-              onOpenConfig={() => setCurrentView('personalize')}
+              onOpenConfig={() => setCurrentView('utilitarios')}
               isEditorEnabled={isEditorEnabled}
               onOpenImport={(cat, mId, ver) => handleOpenImportModal(cat, mId, ver || 'v10')}
             />
@@ -513,9 +569,9 @@ export function App() {
               procedures={procedures}
               menus={menus}
               onSelectProcedure={handleSelectProcedure}
-              onBackToDashboard={() => setCurrentView('dashboard')}
+              onBackToDashboard={() => setCurrentView('conteudos')}
               onNewProcedure={handleNewProcedure}
-              onOpenConfig={() => setCurrentView('personalize')}
+              onOpenConfig={() => setCurrentView('utilitarios')}
               isEditorEnabled={isEditorEnabled}
               onOpenImport={(cat, mId, ver) => handleOpenImportModal(cat, mId, ver || 'r78')}
             />
@@ -535,34 +591,28 @@ export function App() {
               isEditorEnabled={isEditorEnabled}
               onOpenImport={handleOpenImportModal}
             />
-          ) : currentView === 'internal' ? (
-            <InternalFilesView
+          ) : currentView === 'arquivos' || currentView === 'internal' ? (
+            <ArquivosView
               currentUser={currentUser}
               onBackToDashboard={() => setCurrentView('dashboard')}
             />
-          ) : currentView === 'notes' ? (
-            <NotesView
+          ) : currentView === 'publicacoes' || currentView === 'notes' ? (
+            <PublicacoesView
               currentUser={currentUser}
               onBackToDashboard={() => setCurrentView('dashboard')}
-              onNotesNotificationChange={(count) => setNotesNotificationCount(count)}
+              onNotificationChange={(count) => setNotesNotificationCount(count)}
             />
-          ) : currentView === 'personalize' ? (
-            <SettingsView
+          ) : currentView === 'mural' ? (
+            <MuralView
+              currentUser={currentUser}
+              onBackToDashboard={() => setCurrentView('dashboard')}
+            />
+          ) : currentView === 'utilitarios' || currentView === 'personalize' ? (
+            <UtilitiesView
               menus={menus}
-              procedures={procedures}
-              activeVersion="v10"
-              currentUser={currentUser}
               onSaveMenus={handleSaveMenus}
-              onSaveProcedures={handleSaveProceduresList}
-              onLogout={handleLogout}
-              onClose={() => setCurrentView('dashboard')}
-              onlyMenus={true}
-              isEditorEnabled={isEditorEnabled}
-              onToggleEditor={handleToggleEditor}
-              onSupabaseConnected={() => {
-                checkConnection();
-                loadData();
-              }}
+              currentUser={currentUser}
+              onBackToDashboard={() => setCurrentView('dashboard')}
             />
           ) : currentView === 'config' ? (
             <SettingsView

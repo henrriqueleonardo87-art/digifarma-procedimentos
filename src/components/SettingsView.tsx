@@ -36,12 +36,14 @@ import {
   ShoppingCart,
   FileText,
   BarChart3,
+  Palette,
 } from 'lucide-react';
 import type { SystemMenu, SubmenuItem, SystemVersion, Procedure } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { updatePassword } from '../lib/authService';
 import { getSavedConfig, saveConfig, testConnection } from '../lib/supabase';
 import { INITIAL_PROCEDURES, DEFAULT_SYSTEM_MENUS } from '../lib/storageService';
+import { THEME_PALETTES, getCurrentThemeColor, applyThemeColor } from '../lib/themeService';
 
 interface SettingsViewProps {
   menus: SystemMenu[];
@@ -89,9 +91,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isEditorEnabled = false,
   onToggleEditor,
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'menus' | 'supabase' | 'backup' | 'account'>(
+  const [activeTab, setActiveTab] = useState<'general' | 'menus' | 'supabase' | 'backup' | 'account' | 'theme'>(
     onlyMenus ? 'menus' : 'general'
   );
+  const [currentTheme, setCurrentTheme] = useState<string>(() => getCurrentThemeColor());
 
   const [localEditorEnabled, setLocalEditorEnabled] = useState<boolean>(() => {
     if (typeof isEditorEnabled === 'boolean') return isEditorEnabled;
@@ -503,6 +506,15 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
           >
             <KeyRound size={16} />
             <span>Conta</span>
+          </button>
+
+          <button
+            type="button"
+            className={`settings-tab-item ${activeTab === 'theme' ? 'active' : ''}`}
+            onClick={() => setActiveTab('theme')}
+          >
+            <Palette size={16} />
+            <span>Cor do Tema</span>
           </button>
         </div>
       )}
@@ -1186,6 +1198,95 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
               <span>{accountSaving ? 'Atualizando Senha...' : 'Atualizar Minha Senha'}</span>
             </button>
           </form>
+        </div>
+      )}
+
+      {/* ==============================================================
+          ABA 5: COR DO TEMA & APARÊNCIA INSTITUCIONAL
+          ============================================================== */}
+      {activeTab === 'theme' && (
+        <div className="settings-panel-box">
+          <div className="settings-panel-top">
+            <div>
+              <h2 className="settings-section-title">Personalização de Cores do Tema</h2>
+              <p className="settings-section-desc">
+                Altere a cor principal de destaque do sistema. A paleta é aplicada em botões, cartões ativos, ícones e navegação.
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px',
+              marginTop: '1.25rem',
+            }}
+          >
+            {THEME_PALETTES.map((pal) => {
+              const isSelected = currentTheme === pal.id;
+              return (
+                <div
+                  key={pal.id}
+                  onClick={() => {
+                    applyThemeColor(pal.id);
+                    setCurrentTheme(pal.id);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: isSelected ? `2px solid ${pal.hex}` : '1px solid var(--border)',
+                    background: isSelected ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? `0 4px 14px ${pal.soft}` : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: pal.hex,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        border: '2px solid #fff',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {pal.name}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                        Primária: {pal.hex}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isSelected && (
+                    <span
+                      style={{
+                        background: pal.hex,
+                        color: '#fff',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '0.74rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      Ativo
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

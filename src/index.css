@@ -13215,3 +13215,28 @@ html, body, #root {
 .help-tooltip-trigger:hover {
   color: var(--red);
 }
+
+/* Header móvel exibido apenas em telas pequenas quando o Navbar principal estiver oculto */
+.mobile-only-header {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-only-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+}
+
+.sidebar-compact-icon-action:hover {
+  border-color: var(--red) !important;
+  color: var(--red) !important;
+  background: var(--red-soft) !important;
+}
