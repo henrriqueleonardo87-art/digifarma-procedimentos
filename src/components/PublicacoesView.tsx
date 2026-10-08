@@ -542,14 +542,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
               style={{
                 background: 'var(--bg-primary)',
                 border: isTargetedToMe
-                  ? '2px solid #64748b'
+                  ? '1px solid #94a3b8'
                   : !hasRead
                   ? '1.5px solid var(--red)'
                   : '1px solid var(--border)',
                 borderRadius: '16px',
                 padding: '24px',
                 boxShadow: isTargetedToMe
-                  ? '0 4px 18px rgba(100, 116, 139, 0.18)'
+                  ? '0 2px 10px rgba(100, 116, 139, 0.06)'
                   : !hasRead
                   ? '0 8px 24px rgba(237, 38, 43, 0.09)'
                   : '0 2px 10px rgba(0,0,0,0.03)',
@@ -593,8 +593,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                           width: '10px',
                           height: '10px',
                           borderRadius: '50%',
-                          background: isTargetedToMe ? '#64748b' : 'var(--red)',
-                          boxShadow: isTargetedToMe ? '0 0 8px #64748b' : '0 0 8px var(--red)',
+                          background: isTargetedToMe ? '#94a3b8' : 'var(--red)',
+                          boxShadow: isTargetedToMe ? '0 0 6px rgba(148, 163, 184, 0.5)' : '0 0 8px var(--red)',
                           display: 'inline-block',
                           animation: 'pulse-dot 1.4s infinite ease-in-out',
                         }}
@@ -631,13 +631,13 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     {isTargetedToMe ? (
                       <span
                         style={{
-                          background: 'rgba(100, 116, 139, 0.16)',
-                          color: 'var(--text-primary)',
+                          background: 'rgba(148, 163, 184, 0.12)',
+                          color: 'var(--text-secondary)',
                           fontSize: '0.70rem',
                           fontWeight: 700,
                           padding: '2px 8px',
                           borderRadius: '5px',
-                          border: '1px solid #64748b',
+                          border: '1px solid rgba(148, 163, 184, 0.3)',
                         }}
                       >
                         🎯 Para você

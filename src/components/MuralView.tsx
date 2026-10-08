@@ -16,6 +16,7 @@ import {
   Check,
   Clock,
   Maximize2,
+  Edit2,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
@@ -70,7 +71,7 @@ const PRESET_COLORS = [
 export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   const currentUserName = currentUser?.name || currentUser?.username || 'Leonardo';
 
-  // 1. Membros da Equipe Dinâmicos
+  // 1. Membros da Equipe Dinâmicos (Supabase + Local + Padrões)
   const [teamMembers, setTeamMembers] = useState<Array<{ username: string; name: string }>>([
     { username: 'Leonardo', name: 'Leonardo' },
     { username: 'Icaro', name: 'Icaro' },
@@ -135,7 +136,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
     return saved ? JSON.parse(saved) : INITIAL_CARDS;
   });
 
-  // 3. Marcadores Disponíveis (presets + customizados)
+  // 3. Marcadores Disponíveis
   const [availableMarkers, setAvailableMarkers] = useState<MuralMarker[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CUSTOM_MARKERS);
     if (saved) {
@@ -182,6 +183,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   // 7. Modal: Detalhes do Cartão Ativo
   const [activeCard, setActiveCard] = useState<MuralCard | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
+  
+  // Controle de edição sob demanda nos cartões criados
+  const [isEditingCardMarkers, setIsEditingCardMarkers] = useState(false);
+  const [isEditingCardShared, setIsEditingCardShared] = useState(false);
   const [activeCardMarkerCreating, setActiveCardMarkerCreating] = useState(false);
 
   // 8. Lightbox para visualização de imagem
@@ -594,7 +599,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
         </div>
       </div>
 
-      {/* ── 4. Kanban Board Colunas ── */}
+      {/* ── 4. Kanban Board Colunas (Cinza Suave e Harmonioso) ── */}
       <div
         style={{
           display: 'flex',
@@ -623,21 +628,21 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
               style={{
                 flex: '0 0 330px',
                 minWidth: '290px',
-                background: '#0d131f',
+                background: 'var(--bg-secondary)',
                 borderRadius: '14px',
-                border: '1px solid #1e293b',
+                border: '1px solid var(--border)',
                 display: 'flex',
                 flexDirection: 'column',
                 maxHeight: 'calc(100vh - 170px)',
                 overflow: 'hidden',
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
               }}
             >
-              {/* Topo da Coluna com Cinza Escuro Destacado */}
+              {/* Topo da Coluna com Cinza Suave e Barra de Acento */}
               <div
                 style={{
-                  background: '#18202f',
-                  borderBottom: '2px solid #243044',
+                  background: 'var(--bg-card, #1c2433)',
+                  borderBottom: '1px solid var(--border)',
                   borderTop: `3px solid ${colAccentColor}`,
                   padding: '12px 16px',
                   display: 'flex',
@@ -653,14 +658,14 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       borderRadius: '50%',
                       background: colAccentColor,
                       display: 'inline-block',
-                      boxShadow: `0 0 8px ${colAccentColor}`,
+                      boxShadow: `0 0 6px ${colAccentColor}88`,
                     }}
                   />
                   <span
                     style={{
                       fontSize: '0.94rem',
                       fontWeight: 800,
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       letterSpacing: '-0.01em',
                     }}
                   >
@@ -668,13 +673,13 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   </span>
                   <span
                     style={{
-                      background: '#253248',
-                      border: '1px solid #33435c',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border)',
                       padding: '1px 8px',
                       borderRadius: '12px',
                       fontSize: '0.74rem',
                       fontWeight: 800,
-                      color: '#cbd5e1',
+                      color: 'var(--text-secondary)',
                     }}
                   >
                     {colCards.length}
@@ -691,18 +696,24 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     title="Adicionar cartão nesta coluna"
                     style={{
                       border: 'none',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: '#ffffff',
+                      background: 'transparent',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: '5px',
                       borderRadius: '6px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transition: 'background 0.15s',
+                      transition: 'color 0.15s, background 0.15s',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                      e.currentTarget.style.background = 'transparent';
+                    }}
                   >
                     <Plus size={14} />
                   </button>
@@ -715,7 +726,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       style={{
                         border: 'none',
                         background: 'transparent',
-                        color: '#94a3b8',
+                        color: 'var(--text-muted)',
                         cursor: 'pointer',
                         padding: '5px',
                         borderRadius: '6px',
@@ -724,8 +735,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         justifyContent: 'center',
                         transition: 'color 0.15s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -739,10 +750,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   padding: '12px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '12px',
+                  gap: '10px',
                   overflowY: 'auto',
                   flex: 1,
-                  background: '#0d131f',
+                  background: 'var(--bg-secondary)',
                 }}
               >
                 {colCards.map((card) => {
@@ -751,45 +762,48 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   return (
                     <div
                       key={card.id}
-                      onClick={() => setActiveCard(card)}
+                      onClick={() => {
+                        setActiveCard(card);
+                        setIsEditingCardMarkers(false);
+                        setIsEditingCardShared(false);
+                      }}
                       role="button"
                       tabIndex={0}
                       style={{
-                        background: '#192233',
-                        border: '1px solid #2a374d',
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
                         borderLeft: `4px solid ${primaryMarkerColor}`,
                         borderRadius: '10px',
-                        padding: '14px 14px 12px 14px',
+                        padding: '12px 14px 10px 14px',
                         cursor: 'pointer',
-                        boxShadow: '0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.15)',
+                        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
                         transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.4)';
-                        e.currentTarget.style.borderColor = '#475569';
+                        e.currentTarget.style.boxShadow = '0 6px 14px rgba(0, 0, 0, 0.08)';
+                        e.currentTarget.style.borderColor = 'var(--line)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.15)';
-                        e.currentTarget.style.borderColor = '#2a374d';
+                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.04)';
+                        e.currentTarget.style.borderColor = 'var(--border)';
                       }}
                     >
-                      {/* Marcadores Coloridos */}
+                      {/* Marcadores Coloridos do Cartão */}
                       {card.markers.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
                           {card.markers.map((m) => (
                             <span
                               key={m.id}
                               style={{
-                                background: `${m.color}22`,
+                                background: `${m.color}1a`,
                                 color: m.color,
-                                border: `1px solid ${m.color}66`,
-                                padding: '2px 7px',
+                                border: `1px solid ${m.color}55`,
+                                padding: '1px 6px',
                                 borderRadius: '4px',
                                 fontSize: '0.68rem',
                                 fontWeight: 800,
-                                letterSpacing: '0.02em',
                               }}
                             >
                               {m.label}
@@ -801,10 +815,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       {/* Título do Cartão */}
                       <h4
                         style={{
-                          fontSize: '0.90rem',
+                          fontSize: '0.88rem',
                           fontWeight: 700,
-                          color: '#f8fafc',
-                          margin: '0 0 6px 0',
+                          color: 'var(--text-primary)',
+                          margin: '0 0 5px 0',
                           lineHeight: 1.35,
                         }}
                       >
@@ -816,8 +830,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         <p
                           style={{
                             fontSize: '0.78rem',
-                            color: '#94a3b8',
-                            margin: '0 0 10px 0',
+                            color: 'var(--text-secondary)',
+                            margin: '0 0 8px 0',
                             lineHeight: 1.45,
                             overflow: 'hidden',
                             display: '-webkit-box',
@@ -829,20 +843,20 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         </p>
                       )}
 
-                      {/* Anexo Indicador (se houver) */}
+                      {/* Anexo Indicador */}
                       {card.attachment && (
                         <div
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
-                            background: '#131b29',
-                            border: '1px solid #233147',
-                            padding: '3px 8px',
-                            borderRadius: '6px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border)',
+                            padding: '2px 7px',
+                            borderRadius: '5px',
                             fontSize: '0.70rem',
-                            color: '#38bdf8',
-                            marginBottom: '10px',
+                            color: 'var(--primary-500, #38bdf8)',
+                            marginBottom: '8px',
                             fontWeight: 600,
                           }}
                         >
@@ -866,41 +880,41 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          paddingTop: '10px',
-                          borderTop: '1px solid #253347',
+                          paddingTop: '8px',
+                          borderTop: '1px solid var(--border-subtle, var(--border))',
                           marginTop: '4px',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {/* Responsável (Atribuído a) ou Autor */}
+                          {/* Responsável ou Autor */}
                           {card.assignee ? (
                             <div
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                background: '#1e293b',
-                                border: '1px solid #334155',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border)',
                                 padding: '2px 7px',
                                 borderRadius: '12px',
                                 fontSize: '0.70rem',
-                                color: '#e2e8f0',
+                                color: 'var(--text-primary)',
                                 fontWeight: 700,
                               }}
                               title={`Atribuído para: ${card.assignee}`}
                             >
-                              <User size={10} color="#38bdf8" />
+                              <User size={10} color="var(--primary-500, #38bdf8)" />
                               <span>{card.assignee}</span>
                             </div>
                           ) : (
                             <div
                               style={{
-                                width: '22px',
-                                height: '22px',
+                                width: '20px',
+                                height: '20px',
                                 borderRadius: '50%',
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                color: '#ef4444',
-                                fontSize: '0.68rem',
+                                background: 'var(--red-soft)',
+                                color: 'var(--red)',
+                                fontSize: '0.66rem',
                                 fontWeight: 800,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -921,8 +935,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                                 alignItems: 'center',
                                 gap: '3px',
                                 fontSize: '0.68rem',
-                                color: '#94a3b8',
-                                background: '#182234',
+                                color: 'var(--text-muted)',
+                                background: 'var(--bg-secondary)',
                                 padding: '1px 5px',
                                 borderRadius: '4px',
                               }}
@@ -941,7 +955,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                                 alignItems: 'center',
                                 gap: '3px',
                                 fontSize: '0.70rem',
-                                color: '#94a3b8',
+                                color: 'var(--text-muted)',
                               }}
                             >
                               <MessageSquare size={12} />
@@ -950,7 +964,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           )}
                         </div>
 
-                        {/* Botões Rápidos de Mover Coluna */}
+                        {/* Botões de Mover Coluna */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                           {colIdx > 0 && (
                             <button
@@ -960,15 +974,15 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               style={{
                                 border: 'none',
                                 background: 'transparent',
-                                color: '#94a3b8',
+                                color: 'var(--text-muted)',
                                 cursor: 'pointer',
-                                padding: '3px 5px',
+                                padding: '2px 4px',
                                 borderRadius: '4px',
                                 display: 'flex',
                                 alignItems: 'center',
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                             >
                               <ArrowLeft size={13} />
                             </button>
@@ -981,15 +995,15 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               style={{
                                 border: 'none',
                                 background: 'transparent',
-                                color: '#94a3b8',
+                                color: 'var(--text-muted)',
                                 cursor: 'pointer',
-                                padding: '3px 5px',
+                                padding: '2px 4px',
                                 borderRadius: '4px',
                                 display: 'flex',
                                 alignItems: 'center',
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                             >
                               <ArrowRight size={13} />
                             </button>
@@ -1003,13 +1017,13 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 {colCards.length === 0 && (
                   <div
                     style={{
-                      padding: '30px 14px',
+                      padding: '26px 12px',
                       textAlign: 'center',
-                      color: '#64748b',
+                      color: 'var(--text-muted)',
                       fontSize: '0.78rem',
-                      border: '1px dashed #243044',
+                      border: '1px dashed var(--border)',
                       borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.01)',
+                      background: 'transparent',
                     }}
                   >
                     Nenhum cartão nesta coluna
@@ -1029,10 +1043,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             style={{
               maxWidth: '380px',
               padding: '22px',
-              background: '#161f2e',
-              border: '1px solid #2a374d',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
               borderRadius: '14px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}
           >
             <div
@@ -1043,13 +1057,13 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 marginBottom: '16px',
               }}
             >
-              <h3 style={{ fontSize: '1.02rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                 Nova Coluna no Kanban
               </h3>
               <button
                 type="button"
                 onClick={() => setIsNewColOpen(false)}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8' }}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
               >
                 <X size={16} />
               </button>
@@ -1057,7 +1071,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
             <form onSubmit={handleCreateColumn}>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: 700, marginBottom: '6px', color: '#cbd5e1' }}>
+                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                   Título da Coluna:
                 </label>
                 <input
@@ -1071,9 +1085,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #334155',
-                    background: '#0d131f',
-                    color: '#ffffff',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.86rem',
                   }}
                 />
@@ -1086,9 +1100,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     padding: '7px 14px',
                     borderRadius: '8px',
-                    border: '1px solid #334155',
+                    border: '1px solid var(--border)',
                     background: 'transparent',
-                    color: '#cbd5e1',
+                    color: 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontSize: '0.82rem',
                   }}
@@ -1124,10 +1138,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             style={{
               maxWidth: '560px',
               padding: '24px',
-              background: '#151d2a',
-              border: '1px solid #273449',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
               borderRadius: '16px',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
             }}
           >
             <div
@@ -1153,14 +1167,14 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 >
                   <Plus size={16} />
                 </div>
-                <h3 style={{ fontSize: '1.08rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                <h3 style={{ fontSize: '1.08rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                   Novo Cartão Kanban
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsNewCardOpen(false)}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8' }}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
               >
                 <X size={18} />
               </button>
@@ -1169,7 +1183,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             <form onSubmit={handleCreateCard}>
               {/* Coluna Inicial */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: '#94a3b8' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                   COLUNA DO QUADRO:
                 </label>
                 <select
@@ -1179,9 +1193,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #2a374d',
-                    background: '#0d131f',
-                    color: '#ffffff',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.86rem',
                     fontWeight: 600,
                   }}
@@ -1196,7 +1210,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
               {/* Título da Atividade */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: '#94a3b8' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                   TÍTULO DO CARTÃO *
                 </label>
                 <input
@@ -1210,9 +1224,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #2a374d',
-                    background: '#0d131f',
-                    color: '#ffffff',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.90rem',
                     fontWeight: 600,
                   }}
@@ -1221,7 +1235,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
               {/* Descrição */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: '#94a3b8' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                   DESCRIÇÃO DA TAREFA:
                 </label>
                 <textarea
@@ -1233,9 +1247,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #2a374d',
-                    background: '#0d131f',
-                    color: '#ffffff',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.86rem',
                     fontFamily: 'inherit',
                     resize: 'vertical',
@@ -1246,18 +1260,18 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
               {/* BARRA DE BOTÕES DE ÍCONES (Marcador, Atribuir, Compartilhar, Anexo) */}
               <div
                 style={{
-                  background: '#111824',
-                  border: '1px solid #233147',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
                   borderRadius: '10px',
                   padding: '10px 12px',
                   marginBottom: '16px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                     ADICIONAR AO CARTÃO:
                   </span>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                     Clique nos ícones para personalizar
                   </span>
                 </div>
@@ -1278,9 +1292,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       gap: '5px',
                       padding: '6px 12px',
                       borderRadius: '6px',
-                      border: showMarkerPicker ? '1px solid #ef4444' : '1px solid #2a374d',
-                      background: showMarkerPicker ? 'rgba(239, 68, 68, 0.15)' : '#192233',
-                      color: showMarkerPicker ? '#ef4444' : '#cbd5e1',
+                      border: showMarkerPicker ? '1px solid #ef4444' : '1px solid var(--border)',
+                      background: showMarkerPicker ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-primary)',
+                      color: showMarkerPicker ? '#ef4444' : 'var(--text-primary)',
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -1305,9 +1319,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       gap: '5px',
                       padding: '6px 12px',
                       borderRadius: '6px',
-                      border: showAssigneePicker ? '1px solid #38bdf8' : '1px solid #2a374d',
-                      background: showAssigneePicker ? 'rgba(56, 189, 248, 0.15)' : '#192233',
-                      color: showAssigneePicker ? '#38bdf8' : '#cbd5e1',
+                      border: showAssigneePicker ? '1px solid #38bdf8' : '1px solid var(--border)',
+                      background: showAssigneePicker ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-primary)',
+                      color: showAssigneePicker ? '#38bdf8' : 'var(--text-primary)',
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -1332,9 +1346,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       gap: '5px',
                       padding: '6px 12px',
                       borderRadius: '6px',
-                      border: showSharePicker ? '1px solid #10b981' : '1px solid #2a374d',
-                      background: showSharePicker ? 'rgba(16, 185, 129, 0.15)' : '#192233',
-                      color: showSharePicker ? '#10b981' : '#cbd5e1',
+                      border: showSharePicker ? '1px solid #10b981' : '1px solid var(--border)',
+                      background: showSharePicker ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-primary)',
+                      color: showSharePicker ? '#10b981' : 'var(--text-primary)',
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -1369,9 +1383,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       gap: '5px',
                       padding: '6px 12px',
                       borderRadius: '6px',
-                      border: newCardAttachment ? '1px solid #a855f7' : '1px solid #2a374d',
-                      background: newCardAttachment ? 'rgba(168, 85, 247, 0.15)' : '#192233',
-                      color: newCardAttachment ? '#c084fc' : '#cbd5e1',
+                      border: newCardAttachment ? '1px solid #a855f7' : '1px solid var(--border)',
+                      background: newCardAttachment ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-primary)',
+                      color: newCardAttachment ? '#a855f7' : 'var(--text-primary)',
                       fontSize: '0.78rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -1388,13 +1402,13 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     style={{
                       marginTop: '10px',
                       padding: '12px',
-                      background: '#162030',
+                      background: 'var(--bg-primary)',
                       borderRadius: '8px',
-                      border: '1px solid #2c3a50',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                         SELECIONE OS MARCADORES:
                       </span>
                       <button
@@ -1406,7 +1420,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           gap: '3px',
                           border: 'none',
                           background: 'transparent',
-                          color: '#38bdf8',
+                          color: 'var(--primary-500, #38bdf8)',
                           fontSize: '0.72rem',
                           fontWeight: 700,
                           cursor: 'pointer',
@@ -1455,9 +1469,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         style={{
                           marginTop: '8px',
                           padding: '10px',
-                          background: '#0d131f',
+                          background: 'var(--bg-secondary)',
                           borderRadius: '6px',
-                          border: '1px solid #233147',
+                          border: '1px solid var(--border)',
                         }}
                       >
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
@@ -1470,9 +1484,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               flex: 1,
                               padding: '5px 8px',
                               borderRadius: '4px',
-                              border: '1px solid #2a374d',
-                              background: '#161f2e',
-                              color: '#fff',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-primary)',
+                              color: 'var(--text-primary)',
                               fontSize: '0.78rem',
                             }}
                           />
@@ -1485,7 +1499,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               height: '28px',
                               padding: '1px',
                               borderRadius: '4px',
-                              border: '1px solid #2a374d',
+                              border: '1px solid var(--border)',
                               cursor: 'pointer',
                               background: 'transparent',
                             }}
@@ -1510,7 +1524,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         </div>
                         {/* Paleta rápida de cores */}
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Paleta:</span>
+                          <span style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>Paleta:</span>
                           {PRESET_COLORS.map((hex) => (
                             <span
                               key={hex}
@@ -1538,12 +1552,12 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     style={{
                       marginTop: '10px',
                       padding: '12px',
-                      background: '#162030',
+                      background: 'var(--bg-primary)',
                       borderRadius: '8px',
-                      border: '1px solid #2c3a50',
+                      border: '1px solid var(--border)',
                     }}
                   >
-                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       ESCOLHA O RESPONSÁVEL (DEIXAR CARTÃO PARA):
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -1553,9 +1567,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         style={{
                           padding: '4px 10px',
                           borderRadius: '6px',
-                          border: !newCardAssignee ? '1px solid #38bdf8' : '1px solid #2a374d',
-                          background: !newCardAssignee ? 'rgba(56, 189, 248, 0.15)' : '#0d131f',
-                          color: !newCardAssignee ? '#38bdf8' : '#94a3b8',
+                          border: !newCardAssignee ? '1px solid #38bdf8' : '1px solid var(--border)',
+                          background: !newCardAssignee ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-secondary)',
+                          color: !newCardAssignee ? '#38bdf8' : 'var(--text-muted)',
                           fontSize: '0.74rem',
                           fontWeight: 700,
                           cursor: 'pointer',
@@ -1576,9 +1590,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               gap: '5px',
                               padding: '4px 10px',
                               borderRadius: '6px',
-                              border: isAssigned ? '1px solid #38bdf8' : '1px solid #2a374d',
-                              background: isAssigned ? 'rgba(56, 189, 248, 0.2)' : '#0d131f',
-                              color: isAssigned ? '#ffffff' : '#cbd5e1',
+                              border: isAssigned ? '1px solid #38bdf8' : '1px solid var(--border)',
+                              background: isAssigned ? 'rgba(56, 189, 248, 0.2)' : 'var(--bg-secondary)',
+                              color: isAssigned ? 'var(--text-primary)' : 'var(--text-secondary)',
                               fontSize: '0.76rem',
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -1615,12 +1629,12 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     style={{
                       marginTop: '10px',
                       padding: '12px',
-                      background: '#162030',
+                      background: 'var(--bg-primary)',
                       borderRadius: '8px',
-                      border: '1px solid #2c3a50',
+                      border: '1px solid var(--border)',
                     }}
                   >
-                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       COMPARTILHAR PARA VISUALIZAÇÃO COM:
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -1644,9 +1658,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                               gap: '5px',
                               padding: '4px 10px',
                               borderRadius: '6px',
-                              border: isShared ? '1px solid #10b981' : '1px solid #2a374d',
-                              background: isShared ? 'rgba(16, 185, 129, 0.2)' : '#0d131f',
-                              color: isShared ? '#ffffff' : '#cbd5e1',
+                              border: isShared ? '1px solid #10b981' : '1px solid var(--border)',
+                              background: isShared ? 'rgba(16, 185, 129, 0.2)' : 'var(--bg-secondary)',
+                              color: isShared ? 'var(--text-primary)' : 'var(--text-secondary)',
                               fontSize: '0.76rem',
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -1661,7 +1675,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   </div>
                 )}
 
-                {/* CHIPS DE ITENS SELECIONADOS (Aparecem limpinhos após selecionar) */}
+                {/* CHIPS DE ITENS SELECIONADOS */}
                 {(newCardAssignee || newCardShared.length > 0 || newCardMarkers.length > 0 || newCardAttachment) && (
                   <div
                     style={{
@@ -1670,7 +1684,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       gap: '6px',
                       marginTop: '10px',
                       paddingTop: '8px',
-                      borderTop: '1px solid #1e2a3c',
+                      borderTop: '1px solid var(--border-subtle, var(--border))',
                     }}
                   >
                     {/* Chip de Responsável */}
@@ -1767,7 +1781,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           gap: '4px',
                           background: 'rgba(168, 85, 247, 0.15)',
                           border: '1px solid #a855f7',
-                          color: '#c084fc',
+                          color: '#a855f7',
                           padding: '2px 8px',
                           borderRadius: '12px',
                           fontSize: '0.72rem',
@@ -1781,7 +1795,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         <button
                           type="button"
                           onClick={() => setNewCardAttachment(null)}
-                          style={{ border: 'none', background: 'transparent', color: '#c084fc', cursor: 'pointer', padding: 0 }}
+                          style={{ border: 'none', background: 'transparent', color: '#a855f7', cursor: 'pointer', padding: 0 }}
                         >
                           ✕
                         </button>
@@ -1799,9 +1813,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     padding: '8px 16px',
                     borderRadius: '8px',
-                    border: '1px solid #334155',
+                    border: '1px solid var(--border)',
                     background: 'transparent',
-                    color: '#cbd5e1',
+                    color: 'var(--text-secondary)',
                     cursor: 'pointer',
                     fontSize: '0.84rem',
                     fontWeight: 600,
@@ -1831,7 +1845,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
         </div>
       )}
 
-      {/* ── 7. MODAL: Detalhes do Cartão (Exibe Tudo com Estrutura Cinza Destacada) ── */}
+      {/* ── 7. MODAL: Detalhes do Cartão (Exibe apenas Marcadores Selecionados) ── */}
       {activeCard && (
         <div className="modal-backdrop">
           <div
@@ -1839,19 +1853,19 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             style={{
               maxWidth: '660px',
               padding: '24px',
-              background: '#131b28',
-              border: '1px solid #273549',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
               borderRadius: '16px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.7)',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.3)',
             }}
           >
             {/* Topo do Modal com Caixa de Destaque */}
             <div
               style={{
-                background: '#1a2436',
-                border: '1px solid #2b3a50',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px 16px',
                 marginBottom: '16px',
@@ -1864,16 +1878,16 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       fontSize: '1.20rem',
                       fontWeight: 800,
                       margin: '0 0 6px 0',
-                      color: '#ffffff',
+                      color: 'var(--text-primary)',
                       lineHeight: 1.3,
                     }}
                   >
                     {activeCard.title}
                   </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <User size={12} color="#38bdf8" />
-                      Criado por <strong style={{ color: '#e2e8f0' }}>{activeCard.author}</strong>
+                      <User size={12} color="var(--primary-500, #38bdf8)" />
+                      Criado por <strong style={{ color: 'var(--text-primary)' }}>{activeCard.author}</strong>
                     </span>
                     <span>•</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -1888,8 +1902,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   onClick={() => setActiveCard(null)}
                   style={{
                     border: 'none',
-                    background: '#243247',
-                    color: '#94a3b8',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     padding: '6px',
                     borderRadius: '8px',
@@ -1907,13 +1921,13 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 style={{
                   marginTop: '12px',
                   paddingTop: '10px',
-                  borderTop: '1px solid #27364b',
+                  borderTop: '1px solid var(--border-subtle, var(--border))',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                 }}
               >
-                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                   COLUNA ATUAL:
                 </span>
                 <select
@@ -1927,10 +1941,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     padding: '5px 12px',
                     borderRadius: '6px',
-                    border: '1px solid #334155',
-                    background: '#0d131f',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
                     fontSize: '0.80rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontWeight: 700,
                   }}
                 >
@@ -1946,20 +1960,23 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             {/* SEÇÃO 1: Responsável ("deixar um cartão para ele") e Compartilhamento */}
             <div
               style={{
-                background: '#182131',
-                border: '1px solid #28374d',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px',
                 marginBottom: '14px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                <User size={15} color="#38bdf8" />
-                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.02em' }}>
-                  RESPONSÁVEL PELA TAREFA:
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <User size={15} color="#38bdf8" />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+                    RESPONSÁVEL PELA TAREFA:
+                  </span>
+                </div>
               </div>
 
+              {/* Responsável selecionado */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
                 <button
                   type="button"
@@ -1971,9 +1988,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     padding: '4px 10px',
                     borderRadius: '6px',
-                    border: !activeCard.assignee ? '1.5px solid #38bdf8' : '1px solid #2d3b52',
-                    background: !activeCard.assignee ? 'rgba(56, 189, 248, 0.15)' : '#0f1724',
-                    color: !activeCard.assignee ? '#38bdf8' : '#94a3b8',
+                    border: !activeCard.assignee ? '1.5px solid #38bdf8' : '1px solid var(--border)',
+                    background: !activeCard.assignee ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-primary)',
+                    color: !activeCard.assignee ? '#38bdf8' : 'var(--text-muted)',
                     fontSize: '0.74rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -2000,9 +2017,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         gap: '5px',
                         padding: '4px 10px',
                         borderRadius: '6px',
-                        border: isAssigned ? '1.5px solid #38bdf8' : '1px solid #2d3b52',
-                        background: isAssigned ? 'rgba(56, 189, 248, 0.2)' : '#0f1724',
-                        color: isAssigned ? '#ffffff' : '#cbd5e1',
+                        border: isAssigned ? '1.5px solid #38bdf8' : '1px solid var(--border)',
+                        background: isAssigned ? 'rgba(56, 189, 248, 0.2)' : 'var(--bg-primary)',
+                        color: isAssigned ? 'var(--text-primary)' : 'var(--text-secondary)',
                         fontSize: '0.74rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -2031,54 +2048,110 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 })}
               </div>
 
-              {/* Compartilhado com */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Users size={14} color="#10b981" />
-                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#94a3b8' }}>
-                  COMPARTILHADO COM (VISÍVEL NO PERFIL DE):
-                </span>
+              {/* Compartilhado com - Exibe limpo e permite editar sob demanda */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Users size={14} color="#10b981" />
+                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    COMPARTILHADO COM ({activeCard.sharedWith.length}):
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingCardShared(!isEditingCardShared)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isEditingCardShared ? 'Concluir' : 'Editar Compartilhamento'}
+                </button>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {teamMembers.map((member) => {
-                  const memberName = member.name || member.username;
-                  const isShared = activeCard.sharedWith.includes(memberName);
-                  return (
-                    <button
-                      type="button"
-                      key={member.username}
-                      onClick={() => {
-                        const newShared = isShared
-                          ? activeCard.sharedWith.filter((m) => m !== memberName)
-                          : [...activeCard.sharedWith, memberName];
-                        const nextCard = { ...activeCard, sharedWith: newShared };
-                        setActiveCard(nextCard);
-                        saveCards(cards.map((c) => (c.id === nextCard.id ? nextCard : c)));
-                      }}
-                      style={{
-                        padding: '4px 9px',
-                        borderRadius: '6px',
-                        border: isShared ? '1px solid #10b981' : '1px solid #2d3b52',
-                        background: isShared ? 'rgba(16, 185, 129, 0.2)' : '#0f1724',
-                        color: isShared ? '#ffffff' : '#94a3b8',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {isShared ? '✓ ' : '+ '}
-                      {memberName}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Modo Visualização (Apenas os compartilhados) */}
+              {!isEditingCardShared && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {activeCard.sharedWith.length > 0 ? (
+                    activeCard.sharedWith.map((member) => (
+                      <span
+                        key={member}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid #10b981',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <Users size={11} />
+                        <span>{member}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      Nenhum membro adicional compartilhado.
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Modo Edição de Compartilhamento */}
+              {isEditingCardShared && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {teamMembers.map((member) => {
+                    const memberName = member.name || member.username;
+                    const isShared = activeCard.sharedWith.includes(memberName);
+                    return (
+                      <button
+                        type="button"
+                        key={member.username}
+                        onClick={() => {
+                          const newShared = isShared
+                            ? activeCard.sharedWith.filter((m) => m !== memberName)
+                            : [...activeCard.sharedWith, memberName];
+                          const nextCard = { ...activeCard, sharedWith: newShared };
+                          setActiveCard(nextCard);
+                          saveCards(cards.map((c) => (c.id === nextCard.id ? nextCard : c)));
+                        }}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: '6px',
+                          border: isShared ? '1px solid #10b981' : '1px solid var(--border)',
+                          background: isShared ? 'rgba(16, 185, 129, 0.2)' : 'var(--bg-primary)',
+                          color: isShared ? 'var(--text-primary)' : 'var(--text-muted)',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isShared ? '✓ ' : '+ '}
+                        {memberName}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* SEÇÃO 2: Marcadores Destaque */}
+            {/* SEÇÃO 2: Marcadores Destaque (EXIBE SOMENTE OS SELECIONADOS NO CARTÃO) */}
             <div
               style={{
-                background: '#182131',
-                border: '1px solid #28374d',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px',
                 marginBottom: '14px',
@@ -2087,140 +2160,244 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Tag size={15} color="#f59e0b" />
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.02em' }}>
-                    MARCADORES DESTAQUE:
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+                    MARCADORES DO CARTÃO ({activeCard.markers.length}):
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveCardMarkerCreating(!activeCardMarkerCreating)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#38bdf8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Plus size={13} />
-                  <span>Novo Marcador</span>
-                </button>
-              </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {availableMarkers.map((preset) => {
-                  const isActive = activeCard.markers.some((m) => m.label === preset.label);
-                  return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isEditingCardMarkers ? (
                     <button
                       type="button"
-                      key={preset.id}
                       onClick={() => {
-                        const newMarkers = isActive
-                          ? activeCard.markers.filter((m) => m.label !== preset.label)
-                          : [...activeCard.markers, preset];
-                        const nextCard = { ...activeCard, markers: newMarkers };
-                        setActiveCard(nextCard);
-                        saveCards(cards.map((c) => (c.id === nextCard.id ? nextCard : c)));
+                        setIsEditingCardMarkers(false);
+                        setActiveCardMarkerCreating(false);
                       }}
                       style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        border: `1.5px solid ${preset.color}`,
-                        background: isActive ? preset.color : 'transparent',
-                        color: isActive ? '#ffffff' : preset.color,
-                        fontSize: '0.74rem',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {isActive ? '✓ ' : '+ '}
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Criador de Marcador dentro do Detalhe */}
-              {activeCardMarkerCreating && (
-                <div
-                  style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                    background: '#0d131f',
-                    borderRadius: '8px',
-                    border: '1px solid #233147',
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Nome do novo marcador..."
-                      value={customMarkerLabel}
-                      onChange={(e) => setCustomMarkerLabel(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: '5px 8px',
-                        borderRadius: '4px',
-                        border: '1px solid #2a374d',
-                        background: '#161f2e',
-                        color: '#fff',
-                        fontSize: '0.78rem',
-                      }}
-                    />
-                    <input
-                      type="color"
-                      value={customMarkerColor}
-                      onChange={(e) => setCustomMarkerColor(e.target.value)}
-                      style={{
-                        width: '32px',
-                        height: '28px',
-                        padding: '1px',
-                        borderRadius: '4px',
-                        border: '1px solid #2a374d',
-                        cursor: 'pointer',
-                        background: 'transparent',
-                      }}
-                      title="Escolher cor personalizada"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCreateNewMarker('activeCard')}
-                      style={{
-                        padding: '5px 12px',
+                        padding: '3px 10px',
                         background: 'var(--red)',
-                        color: '#fff',
+                        color: '#ffffff',
                         border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '0.74rem',
+                        borderRadius: '5px',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
                         cursor: 'pointer',
                       }}
                     >
-                      Criar e Aplicar
+                      Concluir
                     </button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.70rem', color: '#64748b' }}>Paleta:</span>
-                    {PRESET_COLORS.map((hex) => (
-                      <span
-                        key={hex}
-                        onClick={() => setCustomMarkerColor(hex)}
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCardMarkers(true)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Edit2 size={12} color="var(--red)" />
+                      <span>Editar Marcadores</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* MODO PADRÃO: Exibe SOMENTE os marcadores selecionados para este cartão! */}
+              {!isEditingCardMarkers && (
+                <div>
+                  {activeCard.markers.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {activeCard.markers.map((m) => (
+                        <span
+                          key={m.id}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: `1.5px solid ${m.color}`,
+                            background: `${m.color}22`,
+                            color: m.color,
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {m.label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      Nenhum marcador selecionado para este cartão.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingCardMarkers(true)}
                         style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '50%',
-                          background: hex,
+                          border: 'none',
+                          background: 'none',
+                          color: 'var(--primary-500, #38bdf8)',
                           cursor: 'pointer',
-                          border: customMarkerColor === hex ? '2px solid #ffffff' : '1px solid transparent',
-                          display: 'inline-block',
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontWeight: 600,
                         }}
-                      />
-                    ))}
+                      >
+                        Clique aqui para adicionar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODO EDIÇÃO: Exibe a lista completa de opções para marcar/desmarcar */}
+              {isEditingCardMarkers && (
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    Selecione ou desmarque marcadores clicando abaixo:
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                    {availableMarkers.map((preset) => {
+                      const isActive = activeCard.markers.some((m) => m.label === preset.label);
+                      return (
+                        <button
+                          type="button"
+                          key={preset.id}
+                          onClick={() => {
+                            const newMarkers = isActive
+                              ? activeCard.markers.filter((m) => m.label !== preset.label)
+                              : [...activeCard.markers, preset];
+                            const nextCard = { ...activeCard, markers: newMarkers };
+                            setActiveCard(nextCard);
+                            saveCards(cards.map((c) => (c.id === nextCard.id ? nextCard : c)));
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: `1.5px solid ${preset.color}`,
+                            background: isActive ? preset.color : 'transparent',
+                            color: isActive ? '#ffffff' : preset.color,
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {isActive ? '✓ ' : '+ '}
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Criador de Marcador dentro do Detalhe */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        Criar novo marcador personalizado:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCardMarkerCreating(!activeCardMarkerCreating)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--primary-500, #38bdf8)',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {activeCardMarkerCreating ? 'Fechar' : '+ Novo'}
+                      </button>
+                    </div>
+
+                    {activeCardMarkerCreating && (
+                      <div
+                        style={{
+                          padding: '10px',
+                          background: 'var(--bg-primary)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="Nome do novo marcador..."
+                            value={customMarkerLabel}
+                            onChange={(e) => setCustomMarkerLabel(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '5px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.78rem',
+                            }}
+                          />
+                          <input
+                            type="color"
+                            value={customMarkerColor}
+                            onChange={(e) => setCustomMarkerColor(e.target.value)}
+                            style={{
+                              width: '32px',
+                              height: '28px',
+                              padding: '1px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border)',
+                              cursor: 'pointer',
+                              background: 'transparent',
+                            }}
+                            title="Escolher cor personalizada"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleCreateNewMarker('activeCard')}
+                            style={{
+                              padding: '5px 12px',
+                              background: 'var(--red)',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Criar
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>Paleta:</span>
+                          {PRESET_COLORS.map((hex) => (
+                            <span
+                              key={hex}
+                              onClick={() => setCustomMarkerColor(hex)}
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '50%',
+                                background: hex,
+                                cursor: 'pointer',
+                                border: customMarkerColor === hex ? '2px solid #ffffff' : '1px solid transparent',
+                                display: 'inline-block',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2229,14 +2406,14 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             {/* SEÇÃO 3: Descrição da Tarefa */}
             <div
               style={{
-                background: '#182131',
-                border: '1px solid #28374d',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px',
                 marginBottom: '14px',
               }}
             >
-              <span style={{ display: 'block', fontSize: '0.76rem', fontWeight: 800, color: '#94a3b8', marginBottom: '6px' }}>
+              <span style={{ display: 'block', fontSize: '0.76rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                 DESCRIÇÃO DA TAREFA:
               </span>
               {activeCard.description ? (
@@ -2244,7 +2421,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     margin: 0,
                     fontSize: '0.86rem',
-                    color: '#e2e8f0',
+                    color: 'var(--text-primary)',
                     lineHeight: 1.55,
                     whiteSpace: 'pre-wrap',
                   }}
@@ -2252,7 +2429,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   {activeCard.description}
                 </p>
               ) : (
-                <span style={{ fontSize: '0.80rem', color: '#64748b', fontStyle: 'italic' }}>
+                <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                   Nenhuma descrição informada.
                 </span>
               )}
@@ -2261,8 +2438,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             {/* SEÇÃO 4: Arquivo Anexo */}
             <div
               style={{
-                background: '#182131',
-                border: '1px solid #28374d',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px',
                 marginBottom: '14px',
@@ -2270,8 +2447,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Paperclip size={15} color="#c084fc" />
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e2e8f0' }}>
+                  <Paperclip size={15} color="#a855f7" />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     ARQUIVO ANEXO:
                   </span>
                 </div>
@@ -2302,7 +2479,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     gap: '4px',
                     border: 'none',
                     background: 'transparent',
-                    color: '#c084fc',
+                    color: '#a855f7',
                     fontSize: '0.74rem',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -2316,8 +2493,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
               {activeCard.attachment ? (
                 <div
                   style={{
-                    background: '#0d131f',
-                    border: '1px solid #243044',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     padding: '10px 12px',
                     display: 'flex',
@@ -2340,7 +2517,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           borderRadius: '6px',
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          border: '1px solid #334155',
+                          border: '1px solid var(--border)',
                           flexShrink: 0,
                         }}
                         title="Clique para ampliar"
@@ -2371,10 +2548,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     )}
 
                     <div>
-                      <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc' }}>
+                      <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {activeCard.attachment.name}
                       </span>
-                      <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>
+                      <span style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>
                         {formatFileSize(activeCard.attachment.size)} • {activeCard.attachment.type.toUpperCase()}
                       </span>
                     </div>
@@ -2397,9 +2574,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           gap: '4px',
                           padding: '6px 10px',
                           borderRadius: '6px',
-                          border: '1px solid #334155',
-                          background: '#1e293b',
-                          color: '#ffffff',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
                           fontSize: '0.74rem',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -2419,9 +2596,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                           gap: '4px',
                           padding: '6px 10px',
                           borderRadius: '6px',
-                          border: '1px solid #334155',
-                          background: '#1e293b',
-                          color: '#ffffff',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
                           fontSize: '0.74rem',
                           fontWeight: 600,
                           textDecoration: 'none',
@@ -2445,7 +2622,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                         borderRadius: '6px',
                         border: 'none',
                         background: 'transparent',
-                        color: '#ef4444',
+                        color: 'var(--red)',
                         cursor: 'pointer',
                       }}
                     >
@@ -2458,11 +2635,11 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   style={{
                     padding: '14px',
                     textAlign: 'center',
-                    color: '#64748b',
+                    color: 'var(--text-muted)',
                     fontSize: '0.78rem',
-                    border: '1px dashed #243044',
+                    border: '1px dashed var(--border)',
                     borderRadius: '8px',
-                    background: '#0d131f',
+                    background: 'var(--bg-primary)',
                   }}
                 >
                   Nenhum arquivo anexado neste cartão.
@@ -2473,8 +2650,8 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             {/* SEÇÃO 5: Comentários Thread (Ordenados com Segundos) */}
             <div
               style={{
-                background: '#182131',
-                border: '1px solid #28374d',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '14px',
                 marginBottom: '16px',
@@ -2482,7 +2659,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
                 <MessageSquare size={16} color="var(--red)" />
-                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#ffffff' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   Comentários e Histórico ({activeCard.comments.length})
                 </span>
               </div>
@@ -2493,21 +2670,21 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   <div
                     key={comm.id}
                     style={{
-                      background: '#0d131f',
+                      background: 'var(--bg-primary)',
                       padding: '10px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #222e40',
+                      border: '1px solid var(--border-subtle, var(--border))',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.80rem', fontWeight: 800, color: '#f8fafc' }}>
+                      <span style={{ fontSize: '0.80rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {comm.author}
                       </span>
-                      <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>
+                      <span style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>
                         {formatDateTimeWithSeconds(comm.createdAt)}
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                       {comm.content}
                     </p>
                   </div>
@@ -2518,7 +2695,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     style={{
                       padding: '16px',
                       textAlign: 'center',
-                      color: '#64748b',
+                      color: 'var(--text-muted)',
                       fontSize: '0.78rem',
                     }}
                   >
@@ -2544,10 +2721,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     flex: 1,
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #2b394e',
-                    background: '#0d131f',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
                     fontSize: '0.84rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     outline: 'none',
                   }}
                 />
@@ -2592,7 +2769,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   gap: '4px',
                   border: 'none',
                   background: 'transparent',
-                  color: '#ef4444',
+                  color: 'var(--red)',
                   fontSize: '0.80rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -2608,9 +2785,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 style={{
                   padding: '8px 18px',
                   borderRadius: '8px',
-                  border: '1px solid #334155',
+                  border: '1px solid var(--border)',
                   background: 'transparent',
-                  color: '#cbd5e1',
+                  color: 'var(--text-secondary)',
                   cursor: 'pointer',
                   fontSize: '0.82rem',
                   fontWeight: 600,
