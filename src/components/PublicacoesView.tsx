@@ -10,8 +10,6 @@ import {
   Paperclip,
   FileText,
   Eye,
-  CheckSquare,
-  Square,
   Download,
   Users,
   ChevronDown,
@@ -86,6 +84,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
   const toggleComments = (pubId: string) => {
     setExpandedComments((prev) => ({
+      ...prev,
+      [pubId]: !prev[pubId],
+    }));
+  };
+
+  // Estado de membros que visualizaram (expandido ao clicar)
+  const [expandedSeen, setExpandedSeen] = useState<Record<string, boolean>>({});
+
+  const toggleSeen = (pubId: string) => {
+    setExpandedSeen((prev) => ({
       ...prev,
       [pubId]: !prev[pubId],
     }));
@@ -528,18 +536,52 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'flex-start',
+                  alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
                   marginBottom: '14px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Bolinha pulsante clicável na parte superior esquerda para confirmar visto */}
+                  {!hasRead && (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmRead(pub.id)}
+                      title="Não lido · Clique para confirmar visualização"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: '4px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%',
+                        transition: 'transform 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                    >
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: 'var(--red)',
+                          boxShadow: '0 0 8px var(--red)',
+                          display: 'inline-block',
+                          animation: 'pulse-dot 1.4s infinite ease-in-out',
+                        }}
+                      />
+                    </button>
+                  )}
+
                   {/* Avatar do Autor */}
                   <div
                     style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '38px',
+                      height: '38px',
                       borderRadius: '50%',
                       background: 'var(--red-soft)',
                       color: 'var(--red)',
@@ -547,142 +589,83 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: '1rem',
+                      fontSize: '0.94rem',
                       flexShrink: 0,
                     }}
                   >
                     {pub.author.charAt(0).toUpperCase()}
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {pub.author}
+                  {/* Nome do autor + tag de direcionamento */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {pub.author}
+                    </span>
+
+                    {/* Tag de Direcionamento */}
+                    {isTargetedToMe ? (
+                      <span
+                        style={{
+                          background: 'rgba(237, 38, 43, 0.12)',
+                          color: 'var(--red)',
+                          fontSize: '0.70rem',
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          borderRadius: '5px',
+                          border: '1px solid rgba(237, 38, 43, 0.25)',
+                        }}
+                      >
+                        🎯 Para você
                       </span>
-
-                      {/* Bolinha pulsante nas publicações não confirmadas */}
-                      {!hasRead && (
-                        <span
-                          title="Você ainda não confirmou a leitura deste comunicado"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: 'rgba(237, 38, 43, 0.12)',
-                            color: 'var(--red)',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(237, 38, 43, 0.3)',
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: '7px',
-                              height: '7px',
-                              borderRadius: '50%',
-                              background: 'var(--red)',
-                              boxShadow: '0 0 8px var(--red)',
-                            }}
-                          />
-                          Não lido
-                        </span>
-                      )}
-
-                      {/* Tag de Direcionamento */}
-                      {isTargetedToMe ? (
-                        <span
-                          style={{
-                            background: 'rgba(237, 38, 43, 0.14)',
-                            color: 'var(--red)',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(237, 38, 43, 0.3)',
-                          }}
-                        >
-                          🎯 Para você
-                        </span>
-                      ) : !isEveryone ? (
-                        <span
-                          style={{
-                            background: 'var(--bg-secondary)',
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          👤 Para: {pub.targetUsers.join(', ')}
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            color: '#059669',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                          }}
-                        >
-                          🌐 Todos
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                      {new Date(pub.createdAt).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
+                    ) : !isEveryone ? (
+                      <span
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.70rem',
+                          fontWeight: 600,
+                          padding: '2px 7px',
+                          borderRadius: '5px',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        👤 Para: {pub.targetUsers.join(', ')}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          color: '#059669',
+                          fontSize: '0.70rem',
+                          fontWeight: 600,
+                          padding: '2px 7px',
+                          borderRadius: '5px',
+                        }}
+                      >
+                        🌐 Todos
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Ações do Card: Visto e Exclusão */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {/* Botão de Confirmação de Leitura / Visto */}
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmRead(pub.id)}
-                    title={hasRead ? 'Você já confirmou a leitura' : 'Clique para confirmar leitura'}
+                {/* Parte Superior Direita: Data de postagem e botão de excluir */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      border: hasRead
-                        ? '1px solid rgba(16, 185, 129, 0.3)'
-                        : '1.5px solid var(--red)',
-                      background: hasRead ? 'rgba(16, 185, 129, 0.1)' : 'var(--red-soft)',
-                      color: hasRead ? '#059669' : 'var(--red)',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      cursor: hasRead ? 'default' : 'pointer',
-                      transition: 'all 0.15s ease',
+                      fontSize: '0.76rem',
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {hasRead ? (
-                      <>
-                        <CheckSquare size={14} color="#059669" />
-                        <span>Visto por você</span>
-                      </>
-                    ) : (
-                      <>
-                        <Square size={14} />
-                        <span>Confirmar Visto</span>
-                      </>
-                    )}
-                  </button>
+                    {new Date(pub.createdAt).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
 
                   {isAuthor && (
                     <button
@@ -694,13 +677,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                         background: 'transparent',
                         color: 'var(--text-muted)',
                         cursor: 'pointer',
-                        padding: '6px',
+                        padding: '4px',
                         borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>
@@ -835,56 +821,37 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 </div>
               )}
 
-              {/* Barra Informativa de Leituras / Visualizações */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-subtle)',
-                  marginBottom: '16px',
-                  fontSize: '0.76rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>
-                  <Users size={14} />
-                  <span>
-                    Visto por {readCount} {readCount === 1 ? 'membro' : 'membros'}
-                  </span>
-                </div>
-                {pub.readBy && pub.readBy.length > 0 && (
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    ({pub.readBy.join(', ')})
-                  </span>
-                )}
-              </div>
-
-              {/* Thread de Comentários / Respostas (Retrátil) */}
+              {/* Rodapé: Comentários à esquerda e Visto por X à direita */}
               <div
                 style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '14px',
+                  paddingTop: '12px',
                 }}
               >
-                {/* Botão de Expansão / Resumo de Comentários */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                {/* Linha de Ações */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                  }}
+                >
+                  {/* Botão de Expansão / Resumo de Comentários */}
                   <button
                     type="button"
                     onClick={() => toggleComments(pub.id)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 12px',
-                      borderRadius: '8px',
+                      gap: '7px',
+                      padding: '5px 10px',
+                      borderRadius: '7px',
                       background: expandedComments[pub.id] ? 'var(--bg-secondary)' : 'transparent',
                       border: expandedComments[pub.id] ? '1px solid var(--border)' : '1px solid transparent',
                       color: pub.comments.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)',
-                      fontSize: '0.82rem',
+                      fontSize: '0.80rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
@@ -894,27 +861,95 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       if (!expandedComments[pub.id]) e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    <MessageSquare size={15} color={pub.comments.length > 0 ? '#3b82f6' : 'var(--text-muted)'} />
+                    <MessageSquare size={14} color={pub.comments.length > 0 ? '#3b82f6' : 'var(--text-muted)'} />
                     <span>
                       {pub.comments.length === 0
                         ? 'Deixar um comentário'
                         : `${pub.comments.length} ${pub.comments.length === 1 ? 'comentário' : 'comentários'}`}
                     </span>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                       {expandedComments[pub.id] ? (
                         <>
                           <span>Recolher</span>
-                          <ChevronUp size={13} />
+                          <ChevronUp size={12} />
                         </>
                       ) : (
                         <>
                           <span>{pub.comments.length > 0 ? 'Ver todos' : 'Escrever'}</span>
-                          <ChevronDown size={13} />
+                          <ChevronDown size={12} />
                         </>
                       )}
                     </span>
                   </button>
+
+                  {/* Visto por X de forma minimalista, sem negrito, no canto inferior direito */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSeen(pub.id)}
+                    title="Clique para ver quem visualizou esta publicação"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: 400,
+                      color: 'var(--text-muted)',
+                      transition: 'color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                  >
+                    <Users size={13} style={{ opacity: 0.65 }} />
+                    <span>
+                      Visto por {readCount} {readCount === 1 ? 'membro' : 'membros'}
+                    </span>
+                  </button>
                 </div>
+
+                {/* Popover / Balão Minimalista exibindo quem visualizou ao clicar */}
+                {expandedSeen[pub.id] && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.74rem',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <span>
+                      <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Visualizado por:</strong>{' '}
+                      {pub.readBy && pub.readBy.length > 0
+                        ? pub.readBy.join(', ')
+                        : 'Nenhum membro confirmou visualização ainda.'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleSeen(pub.id)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
 
                 {/* Conteúdo dos Comentários (Apenas quando expandido) */}
                 {expandedComments[pub.id] && (

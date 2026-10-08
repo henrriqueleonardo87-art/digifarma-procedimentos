@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { APP_VERSION } from '../config/version';
 
@@ -66,31 +66,85 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </a>
 
-      {isCollapsed && onToggleCollapse && (
-        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <button
-            type="button"
-            className="sidebar-header-collapse-btn collapsed no-print"
-            onClick={onToggleCollapse}
-            title="Expandir menu"
-            style={{
-              border: '1px solid var(--line)',
-              background: '#fff',
-              borderRadius: '6px',
-              padding: '4px',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-            }}
-          >
-            <ChevronRight size={14} />
-          </button>
+      {/* Cabeçalho da Seção / Menu com botão de recolher ou expandir */}
+      {!isCollapsed ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 12px 13px',
+          }}
+        >
+          <div className="nav-caption" style={{ padding: 0, margin: 0 }}>
+            MENU
+          </div>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Recolher menu (somente ícones)"
+              style={{
+                border: '1px solid var(--line)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--muted)',
+                borderRadius: '6px',
+                padding: '3px 6px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--red)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--muted)';
+                e.currentTarget.style.borderColor = 'var(--line)';
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className="sidebar-header-collapse-btn collapsed no-print"
+              onClick={onToggleCollapse}
+              title="Expandir menu"
+              style={{
+                border: '1px solid var(--line)',
+                background: 'var(--bg-secondary)',
+                borderRadius: '6px',
+                padding: '5px',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--red)';
+                e.currentTarget.style.color = 'var(--red)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--line)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
         </div>
       )}
 
-      {/* Nav Caption Padrão Gestor */}
-      {!isCollapsed && <div className="nav-caption">GESTÃO DA REDE</div>}
-
-      {/* Navegação Principal */}
+      {/* Navegação Principal reordenada: Visão geral, Conteúdos, Publicações, Mural, Revisões, Arquivos, Utilitários, Studio */}
       <nav aria-label="Seções do painel" id="nav">
         {/* 1. Visão Geral (Dashboard) */}
         <button
@@ -116,19 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && 'Conteúdos'}
         </button>
 
-        {/* 3. Arquivos */}
-        <button
-          type="button"
-          data-view="arquivos"
-          className={currentView === 'arquivos' ? 'active' : ''}
-          onClick={() => handleNavClick('arquivos')}
-          title="Arquivos e Documentos"
-        >
-          <span>⇄</span>
-          {!isCollapsed && 'Arquivos'}
-        </button>
-
-        {/* 4. Publicações */}
+        {/* 3. Publicações */}
         <button
           type="button"
           data-view="publicacoes"
@@ -149,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
 
-        {/* 5. Mural (Kanban) */}
+        {/* 4. Mural (Kanban) */}
         <button
           type="button"
           data-view="mural"
@@ -161,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && 'Mural'}
         </button>
 
-        {/* 6. Revisões */}
+        {/* 5. Revisões */}
         <button
           type="button"
           data-view="revision"
@@ -180,6 +222,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </span>
           )}
+        </button>
+
+        {/* 6. Arquivos */}
+        <button
+          type="button"
+          data-view="arquivos"
+          className={currentView === 'arquivos' ? 'active' : ''}
+          onClick={() => handleNavClick('arquivos')}
+          title="Arquivos e Documentos"
+        >
+          <span>⇄</span>
+          {!isCollapsed && 'Arquivos'}
         </button>
 
         {/* 7. Utilitários */}
