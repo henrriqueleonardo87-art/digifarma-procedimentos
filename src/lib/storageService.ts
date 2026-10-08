@@ -908,3 +908,51 @@ export async function toggleFavoriteProcedure(id: string): Promise<Procedure | n
   target.is_favorite = !target.is_favorite;
   return await saveProcedure(target);
 }
+
+/**
+ * Assina atualizações de procedimentos em tempo real com fallback de polling
+ */
+export function subscribeToProcedures(onData: (procedures: Procedure[]) => void): () => void {
+  let isSubscribed = true;
+  const client = getSupabase();
+  let channel: any = null;
+
+  if (client) {
+    try {
+      channel = client
+        .channel(`procedures_realtime_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'procedures' },
+          async () => {
+            if (!isSubscribed) return;
+            const updated = await fetchAllProcedures();
+            if (isSubscribed) onData(updated);
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Erro ao conectar Supabase Realtime para procedures:', err);
+    }
+  }
+
+  // Polling a cada 15 segundos
+  const intervalId = setInterval(async () => {
+    if (!isSubscribed) return;
+    const updated = await fetchAllProcedures();
+    if (isSubscribed) onData(updated);
+  }, 15000);
+
+  return () => {
+    isSubscribed = false;
+    clearInterval(intervalId);
+    if (channel && client) {
+      try {
+        client.removeChannel(channel);
+      } catch {
+        // ignore
+      }
+    }
+  };
+}
+

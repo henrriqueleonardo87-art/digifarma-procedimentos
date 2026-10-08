@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { ProcedureView } from './components/ProcedureView';
@@ -28,6 +28,16 @@ import {
 } from './lib/notificationService';
 import { fetchSugestoes, subscribeToSugestoes, type SugestaoItem } from './lib/sugestoesService';
 import { fetchPublicacoes, type PublicacaoItem } from './lib/publicacoesService';
+import { fetchMuralCards, subscribeToMuralCards, type MuralCard } from './lib/muralService';
+import {
+  requestDesktopNotificationPermission,
+  initDesktopNotificationsSnapshot,
+  checkAndNotifyPublicacao,
+  checkAndNotifyProcedureReview,
+  checkAndNotifyMuralCardShared,
+  getDesktopNotificationPermission,
+  isDesktopNotificationSupported,
+} from './lib/desktopNotification';
 import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -37,6 +47,7 @@ import {
   deleteProcedure,
   fetchSystemMenus,
   saveSystemMenus,
+  subscribeToProcedures,
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { initThemeColor } from './lib/themeService';
@@ -251,15 +262,34 @@ export function App() {
   // Dados para Central Unificada de Notificações
   const [publicacoes, setPublicacoes] = useState<PublicacaoItem[]>([]);
   const [sugestoes, setSugestoes] = useState<SugestaoItem[]>([]);
+  const [muralCards, setMuralCards] = useState<MuralCard[]>([]);
   const [notificationsVersion, setNotificationsVersion] = useState(0);
+  const initialDesktopSnapshotTaken = useRef(false);
 
   useEffect(() => {
     fetchPublicacoes().then(setPublicacoes);
     fetchSugestoes().then(setSugestoes);
+    fetchMuralCards().then(setMuralCards);
+
+    const unsubProc = subscribeToProcedures((items) => {
+      setProcedures(items);
+    });
+
+    const unsubMural = subscribeToMuralCards((cards) => {
+      setMuralCards(cards);
+    });
 
     if (!currentUser) {
       setNotesNotificationCount(0);
-      return;
+      return () => {
+        unsubProc();
+        unsubMural();
+      };
+    }
+
+    // Solicita permissão nativa suavemente se ainda não solicitada
+    if (isDesktopNotificationSupported() && getDesktopNotificationPermission() === 'default') {
+      requestDesktopNotificationPermission().catch(() => {});
     }
 
     const unsubPub = subscribeToPublicacoes((items) => {
@@ -275,6 +305,8 @@ export function App() {
     });
 
     return () => {
+      unsubProc();
+      unsubMural();
       unsubPub();
       unsubSug();
     };
@@ -286,9 +318,69 @@ export function App() {
       currentUser,
       procedures,
       publicacoes,
+      muralCards,
       sugestoes,
     });
-  }, [currentUser, procedures, publicacoes, sugestoes, notificationsVersion]);
+  }, [currentUser, procedures, publicacoes, muralCards, sugestoes, notificationsVersion]);
+
+  // Monitor e Disparo de Notificações Nativas no Windows (para novas publicações, procedimentos a revisar e cartões compartilhados)
+  useEffect(() => {
+    if (!currentUser || loading) return;
+
+    // Snapshot inicial: não dispara notificações para itens já existentes ao abrir o app
+    if (!initialDesktopSnapshotTaken.current) {
+      const timer = setTimeout(() => {
+        const existingIds = [
+          ...publicacoes.map((p) => `desktop-pub-${p.id}`),
+          ...procedures.filter((p) => p.status === 'pendente').map((p) => `desktop-proc-rev-${p.id}`),
+          ...muralCards.map((c) => `desktop-card-${c.id}`),
+        ];
+        initDesktopNotificationsSnapshot(existingIds);
+        initialDesktopSnapshotTaken.current = true;
+      }, 1200);
+
+      return () => clearTimeout(timer);
+    }
+
+    // 1. Notificar no Windows: Nova Publicação Lançada
+    publicacoes.forEach((pub) => {
+      checkAndNotifyPublicacao({
+        pub,
+        currentUser,
+        onClick: () => {
+          setCurrentView('publicacoes');
+          setActiveId(null);
+          setIsEditing(false);
+        },
+      });
+    });
+
+    // 2. Notificar no Windows: Novo Procedimento para Revisar (Homologação)
+    procedures.forEach((proc) => {
+      checkAndNotifyProcedureReview({
+        proc,
+        currentUser,
+        onClick: () => {
+          setCurrentView('revision');
+          setActiveId(proc.id);
+          setIsEditing(false);
+        },
+      });
+    });
+
+    // 3. Notificar no Windows: Cartão Compartilhado Comigo no Mural
+    muralCards.forEach((card) => {
+      checkAndNotifyMuralCardShared({
+        card,
+        currentUser,
+        onClick: () => {
+          setCurrentView('mural');
+          setActiveId(null);
+          setIsEditing(false);
+        },
+      });
+    });
+  }, [currentUser, loading, publicacoes, procedures, muralCards]);
 
   const handleNotificationClick = (notif: AppNotification) => {
     markNotificationAsRead(notif.id);

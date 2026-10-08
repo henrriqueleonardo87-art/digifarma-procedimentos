@@ -171,18 +171,29 @@ export function buildUnifiedNotifications({
   // 3. Atividades do Mural Kanban
   if (Array.isArray(muralCards)) {
     muralCards.forEach((card) => {
-      const isCardAssigned =
-        card.assignee &&
-        (card.assignee.toLowerCase() === currentUser.username?.toLowerCase() ||
-          card.assignee.toLowerCase() === currentUser.name?.toLowerCase());
+      const currentUName = currentUser.username?.toLowerCase();
+      const currentFName = currentUser.name?.toLowerCase();
+      const isCardShared =
+        (Array.isArray(card.sharedWith) &&
+          card.sharedWith.some(
+            (u: string) =>
+              (currentUName && u.toLowerCase() === currentUName) ||
+              (currentFName && u.toLowerCase() === currentFName)
+          )) ||
+        (card.assignee &&
+          (card.assignee.toLowerCase() === currentUName ||
+            card.assignee.toLowerCase() === currentFName));
 
-      if (isCardAssigned && card.status !== 'done') {
+      const isAuthor = isUserAuthor(card.author, currentUser);
+
+      if (isCardShared && !isAuthor && card.columnId !== 'col-done' && card.status !== 'done') {
         const notifId = `notif-card-${card.id}`;
         notifications.push({
           id: notifId,
           type: 'mural',
-          title: '📌 Tarefa Atribuída no Mural',
-          message: `"${card.title}" (${card.status === 'todo' ? 'A Fazer' : 'Em Andamento'})`,
+          title: '📌 Cartão Compartilhado no Mural',
+          message: `${card.author || 'Membro'}: "${card.title}"`,
+          author: card.author,
           createdAt: card.createdAt || new Date().toISOString(),
           targetView: 'mural',
           targetId: card.id,

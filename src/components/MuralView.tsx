@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
   Trash2,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
+import { fetchMuralCards, saveAllMuralCards, subscribeToMuralCards } from '../lib/muralService';
 
 export interface MuralMarker {
   id: string;
@@ -145,7 +146,15 @@ export const MuralView: React.FC<MuralViewProps> = ({
   const [activeCard, setActiveCard] = useState<MuralCard | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
 
-  // Sincronização LocalStorage
+  useEffect(() => {
+    fetchMuralCards().then(setCards);
+    const unsub = subscribeToMuralCards((updatedCards) => {
+      setCards(updatedCards);
+    });
+    return unsub;
+  }, []);
+
+  // Sincronização LocalStorage e Supabase
   const saveColumns = (newCols: MuralColumn[]) => {
     setColumns(newCols);
     localStorage.setItem(STORAGE_KEY_COLUMNS, JSON.stringify(newCols));
@@ -153,7 +162,7 @@ export const MuralView: React.FC<MuralViewProps> = ({
 
   const saveCards = (newCards: MuralCard[]) => {
     setCards(newCards);
-    localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(newCards));
+    saveAllMuralCards(newCards);
   };
 
   // Cartões Filtrados

@@ -16,6 +16,11 @@ import {
 import type { AppUser } from '../types/auth';
 import type { AppNotification } from '../lib/notificationService';
 import { playNotificationSound } from '../lib/notificationSound';
+import {
+  getDesktopNotificationPermission,
+  requestDesktopNotificationPermission,
+  sendTestDesktopNotification,
+} from '../lib/desktopNotification';
 
 interface NavbarProps {
   currentView?: string;
@@ -51,6 +56,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [desktopPermission, setDesktopPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    getDesktopNotificationPermission()
+  );
+
+  useEffect(() => {
+    if (isNotificationOpen) {
+      setDesktopPermission(getDesktopNotificationPermission());
+    }
+  }, [isNotificationOpen]);
 
   const displayName = currentUser?.name || currentUser?.username || 'Visitante';
   const unreadNotifications = useMemo(
@@ -447,6 +461,86 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     🎉 Você está em dia! Nenhuma notificação pendente.
                   </div>
+                )}
+              </div>
+
+              {/* Rodapé: Notificações do Windows */}
+              <div
+                style={{
+                  padding: '9px 12px',
+                  background: 'var(--bg-secondary)',
+                  borderTop: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      background: desktopPermission === 'granted' ? '#10b981' : '#f59e0b',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                    {desktopPermission === 'granted'
+                      ? 'Notificações Windows ativas'
+                      : desktopPermission === 'denied'
+                      ? 'Notificações bloqueadas'
+                      : 'Notificações Windows'}
+                  </span>
+                </div>
+                {desktopPermission === 'granted' ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await sendTestDesktopNotification();
+                    }}
+                    title="Dispara um alerta de teste nativo no Windows"
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      color: 'var(--red)',
+                      background: 'transparent',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    Testar no Windows
+                  </button>
+                ) : desktopPermission === 'denied' ? (
+                  <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)' }}>
+                    Ver permissões do navegador
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await requestDesktopNotificationPermission();
+                      setDesktopPermission(res);
+                      if (res === 'granted') {
+                        await sendTestDesktopNotification();
+                      }
+                    }}
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      background: 'var(--red)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px 9px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    Ativar no Windows
+                  </button>
                 )}
               </div>
             </div>

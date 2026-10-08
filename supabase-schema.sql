@@ -260,4 +260,30 @@ CREATE POLICY "Permitir acesso completo a sugestoes"
     USING (true)
     WITH CHECK (true);
 
+-- ==============================================================================
+-- 6. TABELA DE CARTÕES DO MURAL KANBAN
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.mural_cards (
+    id TEXT PRIMARY KEY,
+    "columnId" TEXT NOT NULL DEFAULT 'col-todo',
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    author TEXT NOT NULL,
+    "sharedWith" TEXT[] DEFAULT '{}',
+    markers JSONB DEFAULT '[]'::jsonb,
+    comments JSONB DEFAULT '[]'::jsonb,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.mural_cards ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir acesso completo a mural_cards" ON public.mural_cards;
+CREATE POLICY "Permitir acesso completo a mural_cards"
+    ON public.mural_cards FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+
 
