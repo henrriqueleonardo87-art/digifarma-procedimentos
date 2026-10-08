@@ -116,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'publicacoes':
         return 'DIGIFARMA / RECADOS';
       case 'mural':
-        return 'DIGIFARMA / MURAL';
+        return 'DIGIFARMA / KANBAN';
       case 'revision':
         return 'DIGIFARMA / REVISÕES';
       case 'utilitarios':
@@ -144,7 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'publicacoes':
         return 'Mural de Recados';
       case 'mural':
-        return 'Quadro de Tarefas';
+        return 'Quadro Kanban';
       case 'revision':
         return 'Homologação';
       case 'utilitarios':

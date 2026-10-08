@@ -192,16 +192,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
 
-        {/* 4. Mural (Kanban) */}
+        {/* 4. Kanban */}
         <button
           type="button"
           data-view="mural"
           className={currentView === 'mural' ? 'active' : ''}
           onClick={() => handleNavClick('mural')}
-          title="Mural de Atividades"
+          title="Quadro Kanban de Atividades"
         >
           <span>▦</span>
-          {!isCollapsed && 'Mural'}
+          {!isCollapsed && 'Kanban'}
         </button>
 
         {/* 5. Revisões */}

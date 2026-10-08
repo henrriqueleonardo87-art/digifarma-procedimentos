@@ -25,6 +25,12 @@ export interface MuralCard {
   comments: MuralComment[];
   status?: string;
   assignee?: string;
+  attachment?: {
+    name: string;
+    url: string;
+    type: 'image' | 'pdf';
+    size?: number;
+  } | null;
 }
 
 export interface MuralColumn {
@@ -135,7 +141,8 @@ function normalizeCard(raw: any): MuralCard {
     markers,
     comments,
     status: raw.columnId === 'col-done' || raw.status === 'done' ? 'done' : 'todo',
-    assignee: sharedWith[0] || raw.assignee,
+    assignee: raw.assignee || sharedWith[0] || undefined,
+    attachment: raw.attachment || null,
   };
 }
 
@@ -211,6 +218,8 @@ export async function saveAllMuralCards(cards: MuralCard[]): Promise<void> {
         sharedWith: c.sharedWith || [],
         markers: c.markers || [],
         comments: c.comments || [],
+        assignee: c.assignee || null,
+        attachment: c.attachment || null,
         createdAt: c.createdAt,
         updated_at: new Date().toISOString(),
       }));
