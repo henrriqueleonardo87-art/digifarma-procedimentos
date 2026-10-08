@@ -59,6 +59,11 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   // Filtros
   const [filterTab, setFilterTab] = useState<'all' | 'mine' | 'targeted' | 'unread'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [periodPreset, setPeriodPreset] = useState<
+    'all' | 'today' | 'yesterday' | '7days' | '15days' | '30days' | 'thisMonth' | 'lastMonth' | 'custom'
+  >('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Modal de Criação
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -131,6 +136,48 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         if (hasRead) return false;
       }
 
+      // Filtro de período
+      if (periodPreset !== 'all') {
+        const pubDate = new Date(p.createdAt);
+        const now = new Date();
+
+        if (periodPreset === 'today') {
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          if (pubDate < todayStart) return false;
+        } else if (periodPreset === 'yesterday') {
+          const yestStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+          const yestEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+          if (pubDate < yestStart || pubDate > yestEnd) return false;
+        } else if (periodPreset === '7days') {
+          const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (pubDate < d7) return false;
+        } else if (periodPreset === '15days') {
+          const d15 = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+          if (pubDate < d15) return false;
+        } else if (periodPreset === '30days') {
+          const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          if (pubDate < d30) return false;
+        } else if (periodPreset === 'thisMonth') {
+          const mStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          if (pubDate < mStart) return false;
+        } else if (periodPreset === 'lastMonth') {
+          const lmStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+          const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          if (pubDate < lmStart || pubDate > lmEnd) return false;
+        } else if (periodPreset === 'custom') {
+          if (customStartDate) {
+            const [sY, sM, sD] = customStartDate.split('-').map(Number);
+            const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
+            if (pubDate < start) return false;
+          }
+          if (customEndDate) {
+            const [eY, eM, eD] = customEndDate.split('-').map(Number);
+            const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
+            if (pubDate > end) return false;
+          }
+        }
+      }
+
       // Filtro de busca
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
@@ -142,11 +189,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       }
       return true;
     });
-  }, [publicacoes, filterTab, currentUser, searchTerm]);
+  }, [publicacoes, filterTab, currentUser, searchTerm, periodPreset, customStartDate, customEndDate]);
 
   // Se a busca ou filtro mudar, o usuário pediu:
   // "Exceto se eu usar a parte de busca ou filtro"
-  const isFilteringOrSearching = searchTerm.trim() !== '' || filterTab !== 'all';
+  const isFilteringOrSearching =
+    searchTerm.trim() !== '' ||
+    filterTab !== 'all' ||
+    periodPreset !== 'all';
 
   const displayedList = useMemo(() => {
     if (isFilteringOrSearching) {
@@ -313,6 +363,76 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             <option value="mine">Minhas Publicações</option>
           </select>
         </div>
+
+        {/* Filtro por Período */}
+        <div className="filter">
+          <label htmlFor="pub-filter-period">PERÍODO</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+              id="pub-filter-period"
+              value={periodPreset}
+              onChange={(e) => setPeriodPreset(e.target.value as any)}
+            >
+              <option value="all">Todo o período</option>
+              <option value="today">Hoje</option>
+              <option value="yesterday">Ontem</option>
+              <option value="7days">Últimos 7 dias</option>
+              <option value="15days">Últimos 15 dias</option>
+              <option value="30days">Últimos 30 dias</option>
+              <option value="thisMonth">Este mês</option>
+              <option value="lastMonth">Mês anterior</option>
+              <option value="custom">Personalizado...</option>
+            </select>
+            {periodPreset !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodPreset('all');
+                  setCustomStartDate('');
+                  setCustomEndDate('');
+                }}
+                title="Limpar filtro de período"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  fontSize: '11px',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Datas personalizadas quando "Personalizado..." for selecionado */}
+        {periodPreset === 'custom' && (
+          <>
+            <div className="filter" style={{ minWidth: '135px' }}>
+              <label htmlFor="pub-date-start">DATA INÍCIO</label>
+              <input
+                id="pub-date-start"
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+            <div className="filter" style={{ minWidth: '135px' }}>
+              <label htmlFor="pub-date-end">DATA FIM</label>
+              <input
+                id="pub-date-end"
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+          </>
+        )}
 
         <div className="filter store-filter" style={{ flex: 1 }}>
           <label htmlFor="pub-search">BUSCA EM PUBLICAÇÕES</label>

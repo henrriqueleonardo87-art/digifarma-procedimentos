@@ -4557,6 +4557,10 @@ h2.head {
   outline: none;
 }
 
+[data-theme='dark'] .filters input[type="date"] {
+  color-scheme: dark;
+}
+
 .table-wrap {
   background-color: var(--paper-2);
   border: 1px solid var(--border);
