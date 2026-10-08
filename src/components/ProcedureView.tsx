@@ -23,13 +23,13 @@ import {
   FileX,
   Eye,
   EyeOff,
-  ClipboardCheck,
   MoreVertical,
   Loader2,
   Upload,
   ExternalLink,
   FileText,
   Monitor,
+  RotateCcw,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -54,7 +54,7 @@ interface ProcedureViewProps {
   autoPrint?: boolean;
   onToggleActive?: () => void;
   onUnpublish?: () => void;
-  onSendToReview?: () => void;
+  onSendToReview?: (reason?: string) => void;
   onPublish?: () => void;
   isEditorEnabled?: boolean;
   onOpenImport?: (procedure: Procedure) => void;
@@ -126,6 +126,8 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
 
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -578,8 +580,36 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             </h1>
           </div>
 
-          {/* Ações Primárias Minimalistas */}
+          {/* Ações Primárias Minimalistas & Organizadas */}
           <div className="proc-action-right-group">
+            {/* BOTÃO PRINCIPAL DE STATUS / FLUXO */}
+            {procedure.status === 'aprovado' && onSendToReview && (
+              <button
+                type="button"
+                className="btn-proc-action warning"
+                onClick={() => {
+                  setIsReturnModalOpen(true);
+                  setReturnReason('');
+                }}
+                title="Retornar este procedimento homologado para a fila de revisão técnica"
+              >
+                <RotateCcw size={14} />
+                <span>Voltar p/ Revisão</span>
+              </button>
+            )}
+
+            {procedure.status !== 'aprovado' && onPublish && (
+              <button
+                type="button"
+                className="btn-proc-action primary"
+                onClick={onPublish}
+                title="Homologar e publicar oficialmente o procedimento"
+              >
+                <CheckCircle2 size={14} />
+                <span>Homologar / Publicar</span>
+              </button>
+            )}
+
             {/* Seletor de Formato Discreto (Se ambos existirem) */}
             {(hasImportedPdf && hasImportedHtml) && (
               <div className="proc-format-segmented-pill">
@@ -604,7 +634,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               </div>
             )}
 
-            {/* Botão de Download Minimalista */}
+            {/* Botão de Download */}
             {selectedFormat === 'html' && hasImportedHtml ? (
               <button
                 type="button"
@@ -637,7 +667,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               </button>
             )}
 
-            {/* Botão de Anexar / Importar POP (Minimalista) */}
+            {/* Botão de Anexar / Importar POP */}
             {onOpenImport && (
               <button
                 type="button"
@@ -650,7 +680,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               </button>
             )}
 
-            {/* Botão de Editar (Minimalista) */}
+            {/* Botão de Editar */}
             {isEditorEnabled && (
               <button
                 type="button"
@@ -675,133 +705,170 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                 <MoreVertical size={15} />
               </button>
 
-            {isMoreMenuOpen && (
-              <div className="proc-more-menu-popover">
-                {procedure.status !== 'aprovado' && onPublish && (
-                  <button
-                    type="button"
-                    className="proc-menu-item success"
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      onPublish();
-                    }}
-                  >
-                    <CheckCircle2 size={15} color="#10b981" />
-                    <span>Publicar Oficialmente</span>
-                  </button>
-                )}
-
-                {procedure.status === 'aprovado' && onUnpublish && (
-                  <button
-                    type="button"
-                    className="proc-menu-item"
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      onUnpublish();
-                    }}
-                  >
-                    <FileX size={15} />
-                    <span>Despublicar (Tirar do Ar)</span>
-                  </button>
-                )}
-
-                {procedure.status !== 'pendente' && onSendToReview && (
-                  <button
-                    type="button"
-                    className="proc-menu-item"
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      onSendToReview();
-                    }}
-                  >
-                    <ClipboardCheck size={15} />
-                    <span>Mandar p/ Revisão</span>
-                  </button>
-                )}
-
-                {onToggleActive && (
-                  <button
-                    type="button"
-                    className="proc-menu-item"
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      onToggleActive();
-                    }}
-                  >
-                    {procedure.isActive === false ? (
-                      <>
-                        <Eye size={15} color="#10b981" />
-                        <span>Reativar Procedimento</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff size={15} color="#ef4444" />
-                        <span>Inativar (Não Apaga)</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="proc-menu-item"
-                  onClick={() => {
-                    setIsMoreMenuOpen(false);
-                    handlePrint();
-                  }}
-                  title="Abrir caixa de diálogo de impressão do navegador"
-                >
-                  <Printer size={15} />
-                  <span>Imprimir no Navegador (Ctrl+P)</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="proc-menu-item"
-                  onClick={() => {
-                    setIsMoreMenuOpen(false);
-                    downloadProcedureHtml(procedure);
-                  }}
-                  title="Baixar arquivo HTML individual dinâmico"
-                >
-                  <FileDown size={15} />
-                  <span>Baixar Arquivo HTML</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="proc-menu-item"
-                  onClick={() => {
-                    setIsMoreMenuOpen(false);
-                    setIsTimelineOpen(true);
-                  }}
-                >
-                  <History size={15} />
-                  <span>Linha do Tempo / Histórico</span>
-                </button>
-
-                {onDelete && (
-                  <>
-                    <div className="proc-menu-divider" />
+              {isMoreMenuOpen && (
+                <div className="proc-more-menu-popover">
+                  {procedure.status === 'aprovado' && onUnpublish && (
                     <button
                       type="button"
-                      className="proc-menu-item danger"
+                      className="proc-menu-item"
                       onClick={() => {
                         setIsMoreMenuOpen(false);
-                        onDelete();
+                        onUnpublish();
                       }}
                     >
-                      <Trash2 size={15} color="#ef4444" />
-                      <span>Excluir Definitivamente</span>
+                      <FileX size={15} />
+                      <span>Despublicar (Tirar do Ar)</span>
                     </button>
-                  </>
-                )}
-              </div>
-            )}
+                  )}
+
+                  {onToggleActive && (
+                    <button
+                      type="button"
+                      className="proc-menu-item"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        onToggleActive();
+                      }}
+                    >
+                      {procedure.isActive === false ? (
+                        <>
+                          <Eye size={15} color="#10b981" />
+                          <span>Reativar Procedimento</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff size={15} color="#ef4444" />
+                          <span>Inativar (Não Apaga)</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      handlePrint();
+                    }}
+                    title="Abrir caixa de diálogo de impressão do navegador"
+                  >
+                    <Printer size={15} />
+                    <span>Imprimir no Navegador (Ctrl+P)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      downloadProcedureHtml(procedure);
+                    }}
+                    title="Baixar arquivo HTML individual dinâmico"
+                  >
+                    <FileDown size={15} />
+                    <span>Baixar Arquivo HTML</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="proc-menu-item"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      setIsTimelineOpen(true);
+                    }}
+                  >
+                    <History size={15} />
+                    <span>Linha do Tempo / Histórico</span>
+                  </button>
+
+                  {onDelete && (
+                    <>
+                      <div className="proc-menu-divider" />
+                      <button
+                        type="button"
+                        className="proc-menu-item danger"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          onDelete();
+                        }}
+                      >
+                        <Trash2 size={15} color="#ef4444" />
+                        <span>Excluir Definitivamente</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Modal para Retornar Procedimento para Revisão */}
+      {isReturnModalOpen && (
+        <div className="review-modal-backdrop" onClick={() => setIsReturnModalOpen(false)}>
+          <div className="review-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="review-modal-header">
+              <div className="review-modal-title-row">
+                <RotateCcw size={20} color="#f59e0b" />
+                <h3>Voltar Procedimento para Revisão</h3>
+              </div>
+              <button
+                type="button"
+                className="review-modal-close"
+                onClick={() => setIsReturnModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="review-modal-body">
+              <p className="review-modal-hint">
+                Procedimento: <strong>{procedure.title}</strong>
+              </p>
+              <p className="review-modal-subhint">
+                Este procedimento homologado deixará o status oficial e retornará para a fila de homologação e revisão técnica pendente.
+              </p>
+
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Motivo / Justificativa do Retorno (opcional):
+              </label>
+              <textarea
+                className="review-textarea"
+                rows={4}
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                placeholder="Exemplo: Necessário conferir as telas do Digifarma V10 e atualizar instruções da etapa fiscal..."
+                autoFocus
+              />
+            </div>
+
+            <div className="review-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsReturnModalOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirm"
+                style={{ background: '#f59e0b', borderColor: '#d97706', color: '#ffffff' }}
+                onClick={() => {
+                  setIsReturnModalOpen(false);
+                  onSendToReview?.(returnReason.trim());
+                  setReturnReason('');
+                }}
+              >
+                <RotateCcw size={14} />
+                <span>Confirmar Retorno para Revisão</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── BARRA DE METADADOS EXECUTIVA & ESTRUTURADA ── */}
       <div className="proc-metadata-strip no-print">

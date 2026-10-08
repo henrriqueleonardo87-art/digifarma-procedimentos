@@ -818,8 +818,7 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
         .single();
 
       if (error) {
-        // Se falhou por coluna ausente no banco Supabase (ex: isActive ou status não criados ainda via SQL)
-        // Empacotamos os metadados com segurança dentro de blocks para garantir persistência 100% no Supabase!
+        // Modo de compatibilidade: inclui todas as colunas com segurança
         const metaBlock = {
           _isProcMeta: true,
           status: updatedProcedure.status || 'aprovado',
@@ -845,7 +844,20 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
           subtitle: updatedProcedure.subtitle,
           category: updatedProcedure.category || 'Geral',
           author: updatedProcedure.author || 'Administrador',
-          blocks: [metaBlock, ...(updatedProcedure.blocks || [])],
+          status: updatedProcedure.status || 'aprovado',
+          isActive: updatedProcedure.isActive !== false,
+          reviewedBy: updatedProcedure.reviewedBy || null,
+          reviewedAt: updatedProcedure.reviewedAt || null,
+          rejectionReason: updatedProcedure.rejectionReason || null,
+          formatType: updatedProcedure.formatType || null,
+          pdfFileUrl: updatedProcedure.pdfFileUrl || null,
+          pdfFileName: updatedProcedure.pdfFileName || null,
+          pdfFileSize: updatedProcedure.pdfFileSize || null,
+          htmlFileData: updatedProcedure.htmlFileData || null,
+          htmlFileName: updatedProcedure.htmlFileName || null,
+          htmlFileSize: updatedProcedure.htmlFileSize || null,
+          activeViewFormat: updatedProcedure.activeViewFormat || null,
+          blocks: [metaBlock, ...(updatedProcedure.blocks || []).filter((b: any) => !b?._isProcMeta)],
           tags: updatedProcedure.tags || [],
           is_favorite: Boolean(updatedProcedure.is_favorite),
           created_at: updatedProcedure.created_at,
@@ -876,6 +888,7 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
   }
 
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+  window.dispatchEvent(new CustomEvent('procedures-updated', { detail: list }));
   return updatedProcedure;
 }
 
@@ -936,6 +949,23 @@ export function subscribeToProcedures(onData: (procedures: Procedure[]) => void)
     }
   }
 
+  // Eventos locais instantâneos
+  const handleLocal = (e: Event) => {
+    if (!isSubscribed) return;
+    const custom = e as CustomEvent<Procedure[]>;
+    if (custom.detail) onData(custom.detail);
+  };
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === LOCAL_STORAGE_KEY && isSubscribed) {
+      const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (local) {
+        try { onData(JSON.parse(local)); } catch {}
+      }
+    }
+  };
+  window.addEventListener('procedures-updated', handleLocal);
+  window.addEventListener('storage', handleStorage);
+
   // Polling a cada 15 segundos
   const intervalId = setInterval(async () => {
     if (!isSubscribed) return;
@@ -945,6 +975,8 @@ export function subscribeToProcedures(onData: (procedures: Procedure[]) => void)
 
   return () => {
     isSubscribed = false;
+    window.removeEventListener('procedures-updated', handleLocal);
+    window.removeEventListener('storage', handleStorage);
     clearInterval(intervalId);
     if (channel && client) {
       try {

@@ -42,6 +42,7 @@ import {
   Search,
   X as XIcon,
   GripVertical,
+  RotateCcw,
 } from 'lucide-react';
 import type {
   Procedure,
@@ -1367,7 +1368,7 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
   // ─────────────────────────────────────────────────────────────
   // 5. PERSISTÊNCIA, EXPORTAÇÃO DUPLA & IMPRESSÃO
   // ─────────────────────────────────────────────────────────────
-  const constructProcedureToSave = (): Procedure => {
+  const constructProcedureToSave = (forcedStatus?: ProcedureStatus): Procedure => {
     const blocks: ProcedureBlock[] = [];
 
     // Etapas e Imagens
@@ -1394,22 +1395,25 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     const systemCategory = selectedMenu?.label || 'Geral';
 
     const nowIso = new Date().toISOString();
-    const isResubmission = initialProcedure?.status === 'ajustes_solicitados';
+    const nextStatus: ProcedureStatus = forcedStatus 
+      ? forcedStatus 
+      : (initialProcedure?.status === 'aprovado' ? 'aprovado' : 'pendente');
+
+    const isResubmission = initialProcedure?.status === 'ajustes_solicitados' || (initialProcedure?.status === 'aprovado' && nextStatus === 'pendente');
 
     const historyItem: ProcedureHistoryItem = {
       id: `hist-${Date.now()}`,
-      action: isResubmission ? 'revision' : initialProcedure ? 'update' : 'create',
+      action: (nextStatus === 'pendente' && initialProcedure) ? 'revision' : (initialProcedure ? 'update' : 'create'),
       timestamp: nowIso,
       user: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
-      description: isResubmission
+      description: (nextStatus === 'pendente' && initialProcedure?.status === 'aprovado')
+        ? `Procedimento reenviado para homologação e revisão técnica por ${currentUser?.name || 'Gestor'}`
+        : isResubmission
         ? `Ajustes operacionais realizados e reenviado para revisão por ${currentUser?.name || 'Autor'}`
         : initialProcedure
         ? `Atualização completa via Studio Canva por ${currentUser?.name || 'Gestor'}`
         : `Elaboração via Studio Digifarma por ${currentUser?.name || 'Gestor'} (aguardando revisão)`,
     };
-
-    // Todo POP novo ou com ajustes solicitados fica com status 'pendente' até aprovação oficial
-    const nextStatus: ProcedureStatus = initialProcedure?.status === 'aprovado' ? 'aprovado' : 'pendente';
 
     return {
       id: initialProcedure?.id || `proc-${Date.now()}`,
@@ -1424,7 +1428,9 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
       formatType: initialProcedure?.formatType || 'both',
       updatedBy: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
       status: nextStatus,
-      rejectionReason: isResubmission ? undefined : initialProcedure?.rejectionReason,
+      rejectionReason: nextStatus === 'pendente' ? undefined : initialProcedure?.rejectionReason,
+      reviewedBy: nextStatus === 'pendente' ? undefined : initialProcedure?.reviewedBy,
+      reviewedAt: nextStatus === 'pendente' ? undefined : initialProcedure?.reviewedAt,
       history: [historyItem, ...(initialProcedure?.history || [])],
       tags: [systemVersion === 'v10' ? 'Digifarma V10' : 'Digifarma Clássico', systemCategory, 'BPF'],
       blocks,
@@ -1457,16 +1463,16 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
     };
   };
 
-  const handleSave = async () => {
+  const handleSave = async (explicitStatus?: ProcedureStatus) => {
     try {
       setSaving(true);
-      const proc = constructProcedureToSave();
+      const proc = constructProcedureToSave(explicitStatus);
       await onSave(proc);
       try { localStorage.removeItem(draftStorageKey); } catch {} 
       showToast(
-        initialProcedure?.status === 'ajustes_solicitados'
-          ? 'Procedimento reenviado para a Tela de Revisão com sucesso!'
-          : 'Procedimento salvo e enviado para aprovação!'
+        proc.status === 'pendente'
+          ? 'Procedimento salvo e enviado para a Tela de Revisão com sucesso!'
+          : 'Procedimento salvo com sucesso!'
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -4433,23 +4439,55 @@ export const ProcedureEditor: React.FC<ProcedureEditorProps> = ({
             <span>Imprimir PDF</span>
           </button>
 
-          <button
-            type="button"
-            className={`canva-action-btn save ${initialProcedure?.status === 'ajustes_solicitados' ? 'resubmit' : ''}`}
-            onClick={handleSave}
-            disabled={saving || uploading}
-          >
-            <Save size={15} />
-            <span>
-              {saving
-                ? 'Gravando...'
-                : uploading
-                ? 'Enviando foto...'
-                : initialProcedure?.status === 'ajustes_solicitados'
-                ? 'Reenviar para Revisão'
-                : 'Salvar POP'}
-            </span>
-          </button>
+          {initialProcedure?.status === 'aprovado' ? (
+            <>
+              <button
+                type="button"
+                className="canva-action-btn"
+                onClick={() => handleSave('aprovado')}
+                disabled={saving || uploading}
+                title="Salvar alterações mantendo o status de homologado"
+              >
+                <Save size={15} />
+                <span>{saving ? 'Gravando...' : 'Salvar POP'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="canva-action-btn warning"
+                onClick={() => handleSave('pendente')}
+                disabled={saving || uploading}
+                title="Salvar alterações e devolver o POP para a fila de revisão"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: '#f59e0b',
+                  color: '#f59e0b',
+                  fontWeight: 700,
+                }}
+              >
+                <RotateCcw size={15} />
+                <span>{saving ? 'Enviando...' : 'Voltar p/ Revisão'}</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className={`canva-action-btn save ${initialProcedure?.status === 'ajustes_solicitados' ? 'resubmit' : ''}`}
+              onClick={() => handleSave('pendente')}
+              disabled={saving || uploading}
+            >
+              {initialProcedure?.status === 'ajustes_solicitados' ? <RotateCcw size={15} /> : <Save size={15} />}
+              <span>
+                {saving
+                  ? 'Gravando...'
+                  : uploading
+                  ? 'Enviando foto...'
+                  : initialProcedure?.status === 'ajustes_solicitados'
+                  ? 'Reenviar para Revisão'
+                  : 'Salvar & Enviar p/ Revisão'}
+              </span>
+            </button>
+          )}
         </div>
       </header>
 

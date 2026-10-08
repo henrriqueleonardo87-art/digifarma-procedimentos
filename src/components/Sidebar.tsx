@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleCollapse}
-              title="Recolher menu (somente ícones)"
+              title="Recolher menu lateral"
               style={{
                 border: '1px solid var(--line)',
                 background: 'var(--bg-secondary)',
@@ -110,18 +110,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', width: '100%' }}>
           {onToggleCollapse && (
             <button
               type="button"
               className="sidebar-header-collapse-btn collapsed no-print"
               onClick={onToggleCollapse}
-              title="Expandir menu"
+              title="Expandir menu lateral"
               style={{
                 border: '1px solid var(--line)',
                 background: 'var(--bg-secondary)',
-                borderRadius: '6px',
-                padding: '5px',
+                borderRadius: '8px',
+                width: '38px',
+                height: '32px',
+                padding: 0,
                 cursor: 'pointer',
                 color: 'var(--text-primary)',
                 display: 'inline-flex',
@@ -138,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 e.currentTarget.style.color = 'var(--text-primary)';
               }}
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={15} />
             </button>
           )}
         </div>
@@ -263,40 +265,65 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Rodapé Padrão Digifarma */}
       <div className="sidebar-bottom">
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isCollapsed ? 'column' : 'row',
+            gap: isCollapsed ? '6px' : '8px',
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
           <button
             type="button"
             className="side-action"
             onClick={() => handleNavClick('config')}
-            title="Configurações"
+            title="Configurações do Sistema"
             style={{
-              flex: 1,
-              padding: '6px 8px',
+              flex: isCollapsed ? undefined : 1,
+              width: isCollapsed ? '44px' : '100%',
+              height: isCollapsed ? '38px' : 'auto',
+              padding: isCollapsed ? '0' : '6px 8px',
               border: '1px solid var(--line)',
-              borderRadius: '6px',
-              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              background: currentView === 'config' ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
               color: 'var(--text-primary)',
-              textAlign: 'center',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            ⚙ {!isCollapsed && 'Config'}
+            <span style={{ fontSize: '15px' }}>⚙</span>
+            {!isCollapsed && <span>Config</span>}
           </button>
+
           <button
             type="button"
             className="side-action"
             onClick={onToggleDarkMode}
-            title="Tema Claro / Escuro"
+            title={darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
             style={{
-              flex: 1,
-              padding: '6px 8px',
+              flex: isCollapsed ? undefined : 1,
+              width: isCollapsed ? '44px' : '100%',
+              height: isCollapsed ? '38px' : 'auto',
+              padding: isCollapsed ? '0' : '6px 8px',
               border: '1px solid var(--line)',
-              borderRadius: '6px',
+              borderRadius: '8px',
               background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
-              textAlign: 'center',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            {darkMode ? '☀️ Claro' : '🌙 Escuro'}
+            <span style={{ fontSize: '14px' }}>{darkMode ? '☀️' : '🌙'}</span>
+            {!isCollapsed && <span>{darkMode ? 'Claro' : 'Escuro'}</span>}
           </button>
         </div>
 
@@ -305,9 +332,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             className="side-action"
             onClick={onLogout}
-            style={{ marginTop: '8px', color: 'var(--muted)' }}
+            title="Sair da conta"
+            style={{
+              marginTop: '6px',
+              width: isCollapsed ? '44px' : '100%',
+              height: isCollapsed ? '34px' : 'auto',
+              padding: isCollapsed ? '0' : '6px 8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              color: 'var(--muted)',
+              border: 'none',
+              background: 'transparent',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
           >
-            ↺ {!isCollapsed && 'Sair da conta'}
+            <span style={{ fontSize: '15px' }}>↺</span>
+            {!isCollapsed && <span>Sair</span>}
           </button>
         )}
 
@@ -316,7 +359,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{
             marginTop: '8px',
             textAlign: 'center',
-            fontSize: '0.67rem',
+            fontSize: isCollapsed ? '0.62rem' : '0.67rem',
             fontWeight: 500,
             color: 'var(--muted)',
             letterSpacing: '0.04em',
@@ -325,7 +368,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }}
           title={`Digifarma Repositório ${APP_VERSION}`}
         >
-          {APP_VERSION}
+          {isCollapsed ? 'v' + APP_VERSION.split('.')[0] : APP_VERSION}
         </div>
       </div>
     </aside>

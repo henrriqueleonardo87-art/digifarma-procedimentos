@@ -38,7 +38,8 @@ import {
   getDesktopNotificationPermission,
   isDesktopNotificationSupported,
 } from './lib/desktopNotification';
-import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
+import { playNotificationSound } from './lib/notificationSound';
+import type { Procedure, SystemMenu, ProcedureFormat, ProcedureHistoryItem } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
 import {
@@ -170,16 +171,32 @@ export function App() {
     setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
   };
 
-  const handleSendToReview = async (procedureId: string) => {
+  const handleSendToReview = async (procedureId: string, reason?: string) => {
     const proc = procedures.find((p) => p.id === procedureId);
     if (!proc) return;
+    const nowIso = new Date().toISOString();
+    const historyItem: ProcedureHistoryItem = {
+      id: `hist-${Date.now()}`,
+      action: 'revision',
+      timestamp: nowIso,
+      user: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
+      description: reason
+        ? `Procedimento reenviado para homologação e revisão técnica: ${reason}`
+        : `Procedimento retornado para a fila de revisão técnica por ${currentUser?.name || 'Administrador'}`,
+    };
     const updated: Procedure = {
       ...proc,
       status: 'pendente',
-      updated_at: new Date().toISOString(),
+      isActive: true,
+      rejectionReason: undefined,
+      reviewedBy: undefined,
+      reviewedAt: undefined,
+      history: [historyItem, ...(proc.history || [])],
+      updated_at: nowIso,
     };
     await saveProcedure(updated);
     setProcedures((prev) => prev.map((p) => (p.id === procedureId ? updated : p)));
+    playNotificationSound();
   };
 
   const handlePublishDirectly = async (procedureId: string) => {
@@ -730,7 +747,7 @@ export function App() {
               autoPrint={autoPrintActive}
               onToggleActive={() => handleToggleActiveProcedure(activeProcedure.id)}
               onUnpublish={() => handleUnpublishProcedure(activeProcedure.id)}
-              onSendToReview={() => handleSendToReview(activeProcedure.id)}
+              onSendToReview={(reason) => handleSendToReview(activeProcedure.id, reason)}
               onPublish={() => handlePublishDirectly(activeProcedure.id)}
               isEditorEnabled={isEditorEnabled}
               onOpenImport={handleOpenImportModal}
@@ -778,6 +795,7 @@ export function App() {
               }}
               onApproveProcedure={handleApproveProcedure}
               onRequestAdjustments={handleRequestAdjustments}
+              onSendToReview={handleSendToReview}
               isEditorEnabled={isEditorEnabled}
               onOpenImport={handleOpenImportModal}
             />

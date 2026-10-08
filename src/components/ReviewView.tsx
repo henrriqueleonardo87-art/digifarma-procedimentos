@@ -9,7 +9,8 @@ import {
   X,
   Upload,
   FileText,
-  Monitor
+  Monitor,
+  RotateCcw,
 } from 'lucide-react';
 import type { Procedure } from '../types/procedure';
 import type { AppUser } from '../types/auth';
@@ -23,6 +24,7 @@ interface ReviewViewProps {
   currentUser?: AppUser | null;
   isEditorEnabled?: boolean;
   onOpenImport?: (procedure: Procedure) => void;
+  onSendToReview?: (procedureId: string, reason?: string) => void;
 }
 
 export const ReviewView: React.FC<ReviewViewProps> = ({
@@ -34,6 +36,7 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   currentUser,
   isEditorEnabled = false,
   onOpenImport,
+  onSendToReview,
 }) => {
   const [filterTab, setFilterTab] = useState<'pending' | 'adjustments' | 'approved' | 'all'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +44,10 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   // Modal de Solicitação de Ajustes
   const [adjustingProc, setAdjustingProc] = useState<Procedure | null>(null);
   const [adjustmentReason, setAdjustmentReason] = useState('');
+
+  // Modal de Retorno para Revisão
+  const [returningProc, setReturningProc] = useState<Procedure | null>(null);
+  const [returnReviewReason, setReturnReviewReason] = useState('');
 
   const reviewerName = currentUser?.name || currentUser?.username || 'Revisor Técnico';
 
@@ -77,6 +84,18 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
     onRequestAdjustments(adjustingProc.id, reviewerName, adjustmentReason.trim());
     setAdjustingProc(null);
     setAdjustmentReason('');
+  };
+
+  const handleOpenReturnModal = (proc: Procedure) => {
+    setReturningProc(proc);
+    setReturnReviewReason('');
+  };
+
+  const handleConfirmReturnToReview = () => {
+    if (!returningProc) return;
+    onSendToReview?.(returningProc.id, returnReviewReason.trim());
+    setReturningProc(null);
+    setReturnReviewReason('');
   };
 
   return (
@@ -312,10 +331,28 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
                         <span>Aprovar &amp; Publicar</span>
                       </button>
                     ) : (
-                      <span className="approved-checked-badge">
-                        <CheckCircle2 size={14} color="#10b981" />
-                        <span>Publicado no Sistema</span>
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="approved-checked-badge">
+                          <CheckCircle2 size={14} color="#10b981" />
+                          <span>Publicado</span>
+                        </span>
+                        {onSendToReview && (
+                          <button
+                            type="button"
+                            className="btn-review-action request-changes"
+                            onClick={() => handleOpenReturnModal(proc)}
+                            title="Retornar este procedimento para a fila de homologação/revisão"
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              borderColor: 'rgba(245, 158, 11, 0.35)',
+                              color: '#d97706',
+                            }}
+                          >
+                            <RotateCcw size={13} />
+                            <span>Voltar p/ Revisão</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -377,6 +414,67 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
               >
                 <MessageSquare size={14} />
                 <span>Enviar Apontamentos ao Autor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Retornar Procedimento para Revisão */}
+      {returningProc && (
+        <div className="review-modal-backdrop" onClick={() => setReturningProc(null)}>
+          <div className="review-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="review-modal-header">
+              <div className="review-modal-title-row">
+                <RotateCcw size={20} color="#f59e0b" />
+                <h3>Voltar Procedimento para Revisão</h3>
+              </div>
+              <button
+                type="button"
+                className="review-modal-close"
+                onClick={() => setReturningProc(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="review-modal-body">
+              <p className="review-modal-hint">
+                Procedimento: <strong>{returningProc.title}</strong>
+              </p>
+              <p className="review-modal-subhint">
+                Este procedimento homologado retornará imediatamente para a aba <strong>Pendentes</strong> e aguardará nova conferência e validação técnica.
+              </p>
+
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Motivo / Justificativa do Retorno (opcional):
+              </label>
+              <textarea
+                className="review-textarea"
+                rows={4}
+                value={returnReviewReason}
+                onChange={(e) => setReturnReviewReason(e.target.value)}
+                placeholder="Exemplo: Procedimento precisa ser revisto devido à alteração no layout da tela de vendas do Digifarma..."
+                autoFocus
+              />
+            </div>
+
+            <div className="review-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setReturningProc(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirm"
+                style={{ background: '#f59e0b', borderColor: '#d97706', color: '#ffffff' }}
+                onClick={handleConfirmReturnToReview}
+              >
+                <RotateCcw size={14} />
+                <span>Confirmar Retorno para Revisão</span>
               </button>
             </div>
           </div>
