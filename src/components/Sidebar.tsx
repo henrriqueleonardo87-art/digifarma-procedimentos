@@ -220,7 +220,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               padding: '6px 8px',
               border: '1px solid var(--line)',
               borderRadius: '6px',
-              background: '#fff',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
               textAlign: 'center',
             }}
           >
@@ -236,7 +237,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               padding: '6px 8px',
               border: '1px solid var(--line)',
               borderRadius: '6px',
-              background: '#fff',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
               textAlign: 'center',
             }}
           >

@@ -177,9 +177,9 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     const submenus = activeMenu.submenus || [];
 
     return (
-      <div className="modules-drilldown-container">
+      <div className="modules-drilldown-container" style={{ marginTop: '20px' }}>
         {/* Breadcrumb e Navegação de Retorno */}
-        <div className="drilldown-nav-bar">
+        <div className="drilldown-nav-bar" style={{ paddingTop: '14px', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -386,9 +386,9 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                     </div>
                     <span
                       className="proc-reviewer-tag"
-                      title={`Liberado por: ${reviewerName}`}
+                      title={`Homologado por: ${reviewerName}`}
                     >
-                      ✓ Liberado por: <strong>{reviewerName}</strong>
+                      ✓ <strong>{reviewerName}</strong>
                     </span>
                   </div>
                   <h3 className="image-card-title">{proc.title}</h3>
@@ -606,9 +606,9 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                     </div>
                     <span
                       className="proc-reviewer-tag"
-                      title={`Liberado por: ${reviewerName}`}
+                      title={`Homologado por: ${reviewerName}`}
                     >
-                      ✓ Liberado por: <strong>{reviewerName}</strong>
+                      ✓ <strong>{reviewerName}</strong>
                     </span>
                   </div>
                   <h3 className="image-card-title">{proc.title}</h3>

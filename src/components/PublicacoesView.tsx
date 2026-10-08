@@ -7,12 +7,20 @@ import {
   MessageSquare,
   Send,
   Loader2,
+  Paperclip,
+  FileText,
+  Eye,
+  CheckSquare,
+  Square,
+  Download,
+  Users,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
 import {
   type PublicacaoItem,
   type PublicacaoComment,
+  type PublicacaoAttachment,
   getCachedPublicacoes,
   createPublicacao,
   updatePublicacaoComments,
@@ -21,9 +29,11 @@ import {
   fetchTeamMembers,
   isUserTargeted,
   isUserAuthor,
+  isUserRead,
+  markPublicacaoAsRead,
 } from '../lib/publicacoesService';
 
-export type { PublicacaoItem, PublicacaoComment };
+export type { PublicacaoItem, PublicacaoComment, PublicacaoAttachment };
 
 interface PublicacoesViewProps {
   currentUser?: AppUser | null;
@@ -45,7 +55,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const [teamMembers, setTeamMembers] = useState<Array<{ username: string; name: string }>>([]);
 
   // Filtros
-  const [filterTab, setFilterTab] = useState<'all' | 'mine' | 'targeted'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'mine' | 'targeted' | 'unread'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal de Criação
@@ -54,11 +64,15 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const [content, setContent] = useState('');
   const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+  const [attachment, setAttachment] = useState<PublicacaoAttachment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estado de novos comentários por publicação (id -> text)
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [isSendingComment, setIsSendingComment] = useState<Record<string, boolean>>({});
+
+  // Lightbox modal para imagem anexada
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Carregar membros da equipe do Supabase
   useEffect(() => {
@@ -80,14 +94,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     };
   }, []);
 
-  // Contar publicações direcionadas ao usuário ativo
-  const targetedToMeCount = useMemo(() => {
-    return publicacoes.filter((p) => isUserTargeted(p.targetUsers, currentUser)).length;
+  // Contar publicações direcionadas ao usuário ativo que ainda não foram lidas
+  const unreadTargetedCount = useMemo(() => {
+    return publicacoes.filter(
+      (p) => isUserTargeted(p.targetUsers, currentUser) && !isUserRead(p.readBy, currentUser)
+    ).length;
   }, [publicacoes, currentUser]);
 
   useEffect(() => {
-    onNotificationChange?.(targetedToMeCount);
-  }, [targetedToMeCount, onNotificationChange]);
+    onNotificationChange?.(unreadTargetedCount);
+  }, [unreadTargetedCount, onNotificationChange]);
 
   // Lista Filtrada
   const filteredList = useMemo(() => {
@@ -95,6 +111,10 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       // Filtro de aba
       if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
       if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
+      if (filterTab === 'unread') {
+        const hasRead = isUserRead(p.readBy, currentUser);
+        if (hasRead) return false;
+      }
 
       // Filtro de busca
       if (searchTerm.trim()) {
@@ -108,6 +128,34 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       return true;
     });
   }, [publicacoes, filterTab, currentUser, searchTerm]);
+
+  // Upload de Anexo
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
+      alert('Selecione apenas arquivos de imagem (PNG, JPG) ou documentos PDF.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setAttachment({
+          name: file.name,
+          type: isPdf ? 'pdf' : 'image',
+          url: result,
+          size: file.size,
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Submeter Nova Publicação
   const handleCreate = async (e: React.FormEvent) => {
@@ -125,6 +173,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         author: currentUserName,
         createdAt: new Date().toISOString(),
         targetUsers: targets,
+        readBy: [currentUserName],
+        attachment: attachment || null,
         comments: [],
       };
 
@@ -138,6 +188,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       setContent('');
       setTargetType('all');
       setSelectedTargets([]);
+      setAttachment(null);
       setIsModalOpen(false);
     } catch (err) {
       console.error('Erro ao criar publicação:', err);
@@ -145,6 +196,24 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Confirmar Leitura / Visto
+  const handleConfirmRead = async (pubId: string) => {
+    const pub = publicacoes.find((p) => p.id === pubId);
+    if (!pub) return;
+
+    const existing = pub.readBy || [];
+    if (isUserRead(existing, currentUser)) return;
+
+    // Atualização otimista
+    const updatedReadBy = [...existing, currentUserName];
+    setPublicacoes((prev) =>
+      prev.map((p) => (p.id === pubId ? { ...p, readBy: updatedReadBy } : p))
+    );
+
+    playNotificationSound();
+    await markPublicacaoAsRead(pubId, currentUserName);
   };
 
   // Alternar Destinatário
@@ -199,14 +268,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   };
 
   return (
-    <>
+    <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', paddingBottom: '40px' }}>
       {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
       <section className="heading">
         <div>
           <span className="eyebrow">COMUNICAÇÃO &amp; AVISOS</span>
           <h1 id="pageTitle">Publicações da Equipe</h1>
           <p id="pageSubtitle">
-            Mural de avisos internos, comunicados gerais e direcionamentos específicos sincronizados em tempo real.
+            Mural integrado de comunicados, recados da gestão e alinhamentos operacionais sincronizados em tempo real.
           </p>
         </div>
         <div className="capture">
@@ -227,7 +296,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             onChange={(e) => setFilterTab(e.target.value as any)}
           >
             <option value="all">Todas ({publicacoes.length})</option>
-            <option value="targeted">Direcionadas a Mim ({targetedToMeCount})</option>
+            <option value="unread">Não Lidas por Mim</option>
+            <option value="targeted">Direcionadas a Mim</option>
             <option value="mine">Minhas Publicações</option>
           </select>
         </div>
@@ -266,49 +336,60 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         </div>
       </section>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+      {/* Barra de Ações: Nova Publicação */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '7px 14px',
+            gap: '8px',
+            padding: '9px 18px',
             background: 'var(--red)',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '9px',
             color: '#ffffff',
-            fontSize: '0.84rem',
+            fontSize: '0.86rem',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(231, 76, 60, 0.25)',
+            boxShadow: '0 3px 12px rgba(237, 38, 43, 0.28)',
+            transition: 'transform 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
         >
-          <Plus size={16} />
+          <Plus size={17} />
           <span>Nova Publicação</span>
         </button>
       </div>
 
-      {/* Feed de Publicações */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Feed de Publicações Amplo e Espaçoso */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {filteredList.map((pub) => {
           const isTargetedToMe = isUserTargeted(pub.targetUsers, currentUser);
           const isEveryone = !pub.targetUsers || pub.targetUsers.length === 0;
           const isAuthor = isUserAuthor(pub.author, currentUser);
+          const hasRead = isUserRead(pub.readBy, currentUser);
+          const readCount = (pub.readBy || []).length;
 
           return (
             <div
               key={pub.id}
               style={{
                 background: 'var(--bg-primary)',
-                border: isTargetedToMe ? '1.5px solid var(--red)' : '1px solid var(--border)',
-                borderRadius: '14px',
-                padding: '20px',
-                boxShadow: isTargetedToMe
-                  ? '0 6px 20px rgba(231, 76, 60, 0.08)'
-                  : '0 2px 8px rgba(0,0,0,0.03)',
+                border: !hasRead
+                  ? '1.5px solid var(--red)'
+                  : isTargetedToMe
+                  ? '1.5px solid rgba(237, 38, 43, 0.4)'
+                  : '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: !hasRead
+                  ? '0 8px 24px rgba(237, 38, 43, 0.09)'
+                  : '0 2px 10px rgba(0,0,0,0.03)',
                 position: 'relative',
+                transition: 'all 0.18s ease',
               }}
             >
               {/* Topo do Card */}
@@ -318,15 +399,15 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  marginBottom: '12px',
+                  marginBottom: '14px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   {/* Avatar do Autor */}
                   <div
                     style={{
-                      width: '38px',
-                      height: '38px',
+                      width: '42px',
+                      height: '42px',
                       borderRadius: '50%',
                       background: 'var(--red-soft)',
                       color: 'var(--red)',
@@ -334,7 +415,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: '0.92rem',
+                      fontSize: '1rem',
+                      flexShrink: 0,
                     }}
                   >
                     {pub.author.charAt(0).toUpperCase()}
@@ -342,21 +424,51 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <span style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {pub.author}
                       </span>
+
+                      {/* Bolinha pulsante nas publicações não confirmadas */}
+                      {!hasRead && (
+                        <span
+                          title="Você ainda não confirmou a leitura deste comunicado"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(237, 38, 43, 0.12)',
+                            color: 'var(--red)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(237, 38, 43, 0.3)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              background: 'var(--red)',
+                              boxShadow: '0 0 8px var(--red)',
+                            }}
+                          />
+                          Não lido
+                        </span>
+                      )}
 
                       {/* Tag de Direcionamento */}
                       {isTargetedToMe ? (
                         <span
                           style={{
-                            background: 'rgba(231, 76, 60, 0.14)',
+                            background: 'rgba(237, 38, 43, 0.14)',
                             color: 'var(--red)',
                             fontSize: '0.72rem',
                             fontWeight: 800,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '6px',
-                            border: '1px solid rgba(231, 76, 60, 0.3)',
+                            border: '1px solid rgba(237, 38, 43, 0.3)',
                           }}
                         >
                           🎯 Para você
@@ -368,7 +480,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                             color: 'var(--text-secondary)',
                             fontSize: '0.72rem',
                             fontWeight: 700,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '6px',
                             border: '1px solid var(--border)',
                           }}
@@ -382,7 +494,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                             color: '#059669',
                             fontSize: '0.72rem',
                             fontWeight: 700,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '6px',
                           }}
                         >
@@ -391,7 +503,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       )}
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '3px' }}>
                       {new Date(pub.createdAt).toLocaleString('pt-BR', {
                         day: '2-digit',
                         month: '2-digit',
@@ -403,33 +515,72 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   </div>
                 </div>
 
-                {isAuthor && (
+                {/* Ações do Card: Visto e Exclusão */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Botão de Confirmação de Leitura / Visto */}
                   <button
                     type="button"
-                    onClick={() => handleDelete(pub.id)}
-                    title="Excluir publicação"
+                    onClick={() => handleConfirmRead(pub.id)}
+                    title={hasRead ? 'Você já confirmou a leitura' : 'Clique para confirmar leitura'}
                     style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: hasRead
+                        ? '1px solid rgba(16, 185, 129, 0.3)'
+                        : '1.5px solid var(--red)',
+                      background: hasRead ? 'rgba(16, 185, 129, 0.1)' : 'var(--red-soft)',
+                      color: hasRead ? '#059669' : 'var(--red)',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      cursor: hasRead ? 'default' : 'pointer',
+                      transition: 'all 0.15s ease',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                   >
-                    <Trash2 size={15} />
+                    {hasRead ? (
+                      <>
+                        <CheckSquare size={14} color="#059669" />
+                        <span>Visto por você</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square size={14} />
+                        <span>Confirmar Visto</span>
+                      </>
+                    )}
                   </button>
-                )}
+
+                  {isAuthor && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(pub.id)}
+                      title="Excluir publicação"
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '6px',
+                        borderRadius: '6px',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--red)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Título e Conteúdo */}
+              {/* Título e Conteúdo da Publicação */}
               <h2
                 style={{
-                  fontSize: '1.08rem',
+                  fontSize: '1.16rem',
                   fontWeight: 800,
                   color: 'var(--text-primary)',
-                  margin: '0 0 8px 0',
+                  margin: '0 0 10px 0',
                   lineHeight: 1.35,
                 }}
               >
@@ -438,8 +589,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
               <p
                 style={{
-                  fontSize: '0.9rem',
-                  lineHeight: 1.6,
+                  fontSize: '0.94rem',
+                  lineHeight: 1.65,
                   color: 'var(--text-secondary)',
                   whiteSpace: 'pre-wrap',
                   margin: '0 0 16px 0',
@@ -448,17 +599,149 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 {pub.content}
               </p>
 
+              {/* Anexo de Imagem ou PDF */}
+              {pub.attachment && (
+                <div style={{ marginBottom: '16px' }}>
+                  {pub.attachment.type === 'image' ? (
+                    <div
+                      style={{
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        maxWidth: '560px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setLightboxUrl(pub.attachment?.url || null)}
+                      title="Clique para ampliar a imagem"
+                    >
+                      <img
+                        src={pub.attachment.url}
+                        alt={pub.attachment.name}
+                        style={{
+                          width: '100%',
+                          maxHeight: '380px',
+                          objectFit: 'contain',
+                          display: 'block',
+                        }}
+                      />
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderTop: '1px solid var(--border-subtle)',
+                          fontSize: '0.78rem',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>🖼 {pub.attachment.name}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--red)' }}>
+                          <Eye size={12} /> Clique para ampliar
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px 18px',
+                        borderRadius: '10px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          background: 'rgba(237, 38, 43, 0.12)',
+                          color: 'var(--red)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {pub.attachment.name}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          Documento PDF Oficial Anexo
+                        </div>
+                      </div>
+                      <a
+                        href={pub.attachment.url}
+                        download={pub.attachment.name}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          background: 'var(--red)',
+                          color: '#fff',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          marginLeft: '12px',
+                        }}
+                      >
+                        <Download size={13} />
+                        <span>Abrir / Baixar PDF</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Barra Informativa de Leituras / Visualizações */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  marginBottom: '16px',
+                  fontSize: '0.76rem',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontWeight: 700 }}>
+                  <Users size={14} />
+                  <span>
+                    Visto por {readCount} {readCount === 1 ? 'membro' : 'membros'}
+                  </span>
+                </div>
+                {pub.readBy && pub.readBy.length > 0 && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    ({pub.readBy.join(', ')})
+                  </span>
+                )}
+              </div>
+
               {/* Thread de Comentários / Respostas */}
               <div
                 style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '14px',
+                  paddingTop: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px',
+                  gap: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                   <MessageSquare size={14} />
                   <span>
                     {pub.comments.length === 0
@@ -472,27 +755,27 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     key={c.id}
                     style={{
                       background: 'var(--bg-secondary)',
-                      padding: '10px 14px',
+                      padding: '12px 16px',
                       borderRadius: '10px',
                       border: '1px solid var(--border-subtle)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {c.author}
                       </span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                    <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                       {c.content}
                     </p>
                   </div>
                 ))}
 
                 {/* Caixa de Entrada para Responder */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                   <input
                     type="text"
                     placeholder="Escreva uma resposta ou comentário..."
@@ -508,11 +791,11 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     }}
                     style={{
                       flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      borderRadius: '9px',
                       border: '1px solid var(--border)',
                       background: 'var(--bg-secondary)',
-                      fontSize: '0.84rem',
+                      fontSize: '0.86rem',
                       color: 'var(--text-primary)',
                       outline: 'none',
                     }}
@@ -524,22 +807,22 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '4px',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
+                      gap: '6px',
+                      padding: '10px 18px',
+                      borderRadius: '9px',
                       border: 'none',
                       background: 'var(--red)',
                       color: '#fff',
-                      fontSize: '0.8rem',
+                      fontSize: '0.84rem',
                       fontWeight: 700,
                       cursor: isSendingComment[pub.id] ? 'not-allowed' : 'pointer',
                       opacity: isSendingComment[pub.id] ? 0.7 : 1,
                     }}
                   >
                     {isSendingComment[pub.id] ? (
-                      <Loader2 size={13} className="animate-spin" />
+                      <Loader2 size={14} className="animate-spin" />
                     ) : (
-                      <Send size={13} />
+                      <Send size={14} />
                     )}
                     <span>Responder</span>
                   </button>
@@ -552,18 +835,18 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         {filteredList.length === 0 && (
           <div
             style={{
-              padding: '60px 20px',
+              padding: '70px 20px',
               textAlign: 'center',
               background: 'var(--bg-primary)',
-              borderRadius: '14px',
+              borderRadius: '16px',
               border: '1.5px dashed var(--border)',
             }}
           >
-            <StickyNote size={38} color="var(--text-muted)" style={{ margin: '0 auto 12px auto' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+            <StickyNote size={42} color="var(--text-muted)" style={{ margin: '0 auto 12px auto' }} />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
               Nenhuma publicação encontrada
             </h3>
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0 }}>
+            <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>
               Use o botão "Nova Publicação" para comunicar algo à equipe ou a uma pessoa específica.
             </p>
           </div>
@@ -575,10 +858,18 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         <div className="modal-backdrop">
           <div
             className="modal-box"
-            style={{ maxWidth: '580px', padding: '24px', background: 'var(--bg-primary)', borderRadius: '16px' }}
+            style={{
+              maxWidth: '680px',
+              width: '90%',
+              padding: '28px',
+              background: 'var(--bg-primary)',
+              borderRadius: '18px',
+              border: '1px solid var(--border)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.22)',
+            }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <h3 style={{ fontSize: '1.14rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                 Criar Nova Publicação
               </h3>
               <button
@@ -586,51 +877,60 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 onClick={() => setIsModalOpen(false)}
                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreate}>
+              {/* Título */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: '6px' }}>
                   Título do Comunicado / Publicação:
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Alinhamento de parametrização fiscal"
+                  placeholder="Ex: Alinhamento de parametrização fiscal na NFe 4.0"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    borderRadius: '9px',
                     border: '1px solid var(--border)',
                     background: 'var(--bg-secondary)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.88rem',
+                    fontSize: '0.9rem',
                   }}
                 />
               </div>
 
-              {/* Destinatários */}
-              <div style={{ marginBottom: '14px', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '8px' }}>
+              {/* Destinatários: Padrão "Todos" limpo */}
+              <div
+                style={{
+                  marginBottom: '14px',
+                  background: 'var(--bg-secondary)',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: '8px' }}>
                   Visibilidade / Destinatários:
                 </label>
 
-                <div style={{ display: 'flex', gap: '14px', marginBottom: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: '18px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', cursor: 'pointer', fontWeight: 600 }}>
                     <input
                       type="radio"
                       name="targetType"
                       checked={targetType === 'all'}
                       onChange={() => setTargetType('all')}
                     />
-                    <span>Geral (Aparece para todos)</span>
+                    <span>Geral (Todos visualizam)</span>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', cursor: 'pointer', fontWeight: 600 }}>
                     <input
                       type="radio"
                       name="targetType"
@@ -642,9 +942,9 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 </div>
 
                 {targetType === 'specific' && (
-                  <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-                      Selecione quem deve receber e visualizar esta notificação:
+                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                      Selecione quem receberá o aviso direcionado:
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {teamMembers.map((member) => {
@@ -662,12 +962,12 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
-                              padding: '5px 10px',
-                              borderRadius: '6px',
-                              border: isChecked ? '1px solid var(--red)' : '1px solid var(--border)',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: isChecked ? '1.5px solid var(--red)' : '1px solid var(--border)',
                               background: isChecked ? 'var(--red-soft)' : 'var(--bg-primary)',
                               color: isChecked ? 'var(--red)' : 'var(--text-secondary)',
-                              fontSize: '0.78rem',
+                              fontSize: '0.8rem',
                               fontWeight: 700,
                               cursor: 'pointer',
                               transition: 'all 0.12s ease',
@@ -683,42 +983,100 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 )}
               </div>
 
-              {/* Conteúdo */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+              {/* Mensagem */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: '6px' }}>
                   Mensagem / Detalhes:
                 </label>
                 <textarea
-                  rows={6}
+                  rows={5}
                   required
                   placeholder="Escreva a mensagem ou comunicado da publicação..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    borderRadius: '9px',
                     border: '1px solid var(--border)',
                     background: 'var(--bg-secondary)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.86rem',
+                    fontSize: '0.88rem',
                     fontFamily: 'inherit',
-                    lineHeight: 1.5,
+                    lineHeight: 1.55,
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              {/* Anexo de Imagem ou PDF */}
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: '6px' }}>
+                  Anexo Opcional (Imagem ou PDF):
+                </label>
+                {attachment ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
+                      {attachment.type === 'image' ? '🖼' : '📄'}
+                      <span style={{ fontWeight: 700 }}>{attachment.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachment(null)}
+                      style={{ border: 'none', background: 'transparent', color: 'var(--red)', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
+                    >
+                      Remover anexo
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px dashed var(--border-strong)',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Paperclip size={14} />
+                    <span>Anexar Imagem ou Arquivo PDF</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleAttachmentChange}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
+                    padding: '9px 16px',
+                    borderRadius: '9px',
                     border: '1px solid var(--border)',
                     background: 'transparent',
                     cursor: 'pointer',
-                    fontSize: '0.84rem',
+                    fontSize: '0.86rem',
+                    color: 'var(--text-secondary)',
                   }}
                 >
                   Cancelar
@@ -727,14 +1085,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   type="submit"
                   disabled={isSubmitting}
                   style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
+                    padding: '9px 22px',
+                    borderRadius: '9px',
                     border: 'none',
                     background: 'var(--red)',
                     color: '#fff',
                     fontWeight: 700,
                     cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    fontSize: '0.84rem',
+                    fontSize: '0.86rem',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
@@ -742,13 +1100,48 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   }}
                 >
                   {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-                  <span>Publicar</span>
+                  <span>Publicar Comunicado</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+
+      {/* Lightbox para Imagens Anexadas */}
+      {lightboxUrl && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setLightboxUrl(null)}
+          style={{ zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={lightboxUrl}
+              alt="Ampliado"
+              style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: '12px', objectFit: 'contain' }}
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(null)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              ✕ Fechar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

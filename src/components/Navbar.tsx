@@ -7,10 +7,14 @@ import {
   ClipboardCheck,
   StickyNote,
   LayoutDashboard,
-  ChevronRight,
   X,
+  MessageSquare,
+  AlertTriangle,
+  Lightbulb,
+  CheckCheck,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
+import type { AppNotification } from '../lib/notificationService';
 import { playNotificationSound } from '../lib/notificationSound';
 
 interface NavbarProps {
@@ -21,9 +25,12 @@ interface NavbarProps {
   onUpdateAvatar?: (avatarUrl: string) => Promise<void> | void;
   pendingReviewCount?: number;
   notesNotificationCount?: number;
-  onNavigate?: (view: string) => void;
+  onNavigate?: (view: string, targetId?: string) => void;
   onOpenRevision?: () => void;
   onOpenNotes?: () => void;
+  notifications?: AppNotification[];
+  onNotificationClick?: (notif: AppNotification) => void;
+  onClearAllNotifications?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,16 +41,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   onUpdateAvatar,
   pendingReviewCount = 0,
   notesNotificationCount = 0,
-  onNavigate,
-  onOpenRevision,
-  onOpenNotes,
+  onNavigate: _onNavigate,
+  onOpenRevision: _onOpenRevision,
+  onOpenNotes: _onOpenNotes,
+  notifications = [],
+  onNotificationClick,
+  onClearAllNotifications,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const displayName = currentUser?.name || currentUser?.username || 'Visitante';
-  const totalNotifications = pendingReviewCount + notesNotificationCount;
+  const unreadNotifications = useMemo(
+    () => notifications.filter((n) => !n.isRead),
+    [notifications]
+  );
+  const totalNotifications =
+    notifications.length > 0
+      ? unreadNotifications.length
+      : pendingReviewCount + notesNotificationCount;
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -75,18 +92,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       playNotificationSound();
     }
     setIsNotificationOpen(!isNotificationOpen);
-  };
-
-  const handleGoTo = (view: string) => {
-    setIsNotificationOpen(false);
-    playNotificationSound();
-    if (onNavigate) {
-      onNavigate(view);
-    } else if (view === 'revision' && onOpenRevision) {
-      onOpenRevision();
-    } else if (view === 'publicacoes' && onOpenNotes) {
-      onOpenNotes();
-    }
   };
 
   const eyebrowText = useMemo(() => {
@@ -155,7 +160,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Abrir menu lateral"
             style={{
               border: '1px solid var(--line)',
-              background: '#fff',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
               borderRadius: '8px',
               padding: '6px 8px',
               cursor: 'pointer',
@@ -242,163 +248,204 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Notificações
                   </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsNotificationOpen(false)}
-                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {pendingReviewCount > 0 && (
-                  <div
-                    onClick={() => handleGoTo('revision')}
-                    role="button"
-                    tabIndex={0}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-secondary)',
-                      cursor: 'pointer',
-                      border: '1px solid var(--border-subtle)',
-                      transition: 'all 0.12s ease',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--red)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '8px',
-                          background: 'var(--red-soft)',
-                          color: 'var(--red)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <ClipboardCheck size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Revisões Pendentes
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {pendingReviewCount} procedimentos aguardando
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} color="var(--text-muted)" />
-                  </div>
-                )}
-
-                {notesNotificationCount > 0 && (
-                  <div
-                    onClick={() => handleGoTo('publicacoes')}
-                    role="button"
-                    tabIndex={0}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-secondary)',
-                      cursor: 'pointer',
-                      border: '1px solid var(--border-subtle)',
-                      transition: 'all 0.12s ease',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--red)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '8px',
-                          background: 'rgba(59, 130, 246, 0.12)',
-                          color: '#3b82f6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <StickyNote size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Publicações Direcionadas
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {notesNotificationCount} novas para você
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} color="var(--text-muted)" />
-                  </div>
-                )}
-
-                {/* Acesso rápido ao Mural */}
-                <div
-                  onClick={() => handleGoTo('mural')}
-                  role="button"
-                  tabIndex={0}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-primary)',
-                    cursor: 'pointer',
-                    border: '1px solid var(--border-subtle)',
-                    transition: 'all 0.12s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--red)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
+                  {totalNotifications > 0 && (
+                    <span
                       style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '8px',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        color: '#059669',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
+                        background: 'var(--red)',
+                        color: '#fff',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '10px',
                       }}
                     >
-                      <LayoutDashboard size={16} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Mural de Atividades
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Acompanhe tarefas e andamento
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} color="var(--text-muted)" />
+                      {totalNotifications}
+                    </span>
+                  )}
                 </div>
 
-                {totalNotifications === 0 && (
-                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                    Nenhuma notificação pendente no momento.
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {totalNotifications > 0 && onClearAllNotifications && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClearAllNotifications();
+                        playNotificationSound();
+                      }}
+                      title="Marcar todas como lidas"
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: 'var(--muted)',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <CheckCheck size={13} />
+                      <span>Limpar</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsNotificationOpen(false)}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '380px',
+                  overflowY: 'auto',
+                }}
+              >
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => {
+                    const icon =
+                      notif.type === 'publicacao' ? (
+                        <StickyNote size={15} color="var(--red)" />
+                      ) : notif.type === 'comment' ? (
+                        <MessageSquare size={15} color="#3b82f6" />
+                      ) : notif.type === 'revision' ? (
+                        <ClipboardCheck size={15} color="#10b981" />
+                      ) : notif.type === 'rejection' ? (
+                        <AlertTriangle size={15} color="#f59e0b" />
+                      ) : notif.type === 'sugestao' ? (
+                        <Lightbulb size={15} color="#8b5cf6" />
+                      ) : (
+                        <LayoutDashboard size={15} color="#059669" />
+                      );
+
+                    return (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          setIsNotificationOpen(false);
+                          playNotificationSound();
+                          onNotificationClick?.(notif);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          background: notif.isRead ? 'transparent' : 'var(--bg-secondary)',
+                          border: notif.isRead
+                            ? '1px solid transparent'
+                            : '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          transition: 'all 0.12s ease',
+                          opacity: notif.isRead ? 0.7 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-hover)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = notif.isRead
+                            ? 'transparent'
+                            : 'var(--bg-secondary)';
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                          }}
+                        >
+                          {icon}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '6px',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.8rem',
+                                fontWeight: notif.isRead ? 600 : 800,
+                                color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {notif.title}
+                            </span>
+                            {!notif.isRead && (
+                              <span
+                                style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  background: 'var(--red)',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
+                          </div>
+                          <p
+                            style={{
+                              margin: '2px 0 0 0',
+                              fontSize: '0.74rem',
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.35,
+                              whiteSpace: 'normal',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {notif.message}
+                          </p>
+                          <span
+                            style={{
+                              fontSize: '0.67rem',
+                              color: 'var(--text-muted)',
+                              display: 'block',
+                              marginTop: '3px',
+                            }}
+                          >
+                            {new Date(notif.createdAt).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    🎉 Você está em dia! Nenhuma notificação pendente.
                   </div>
                 )}
               </div>

@@ -219,6 +219,8 @@ CREATE TABLE IF NOT EXISTS public.publicacoes (
     content TEXT NOT NULL,
     author TEXT NOT NULL,
     "targetUsers" TEXT[] DEFAULT '{}',
+    "readBy" TEXT[] DEFAULT '{}',
+    attachment JSONB DEFAULT NULL,
     comments JSONB DEFAULT '[]'::jsonb,
     "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -232,4 +234,30 @@ CREATE POLICY "Permitir acesso completo a publicacoes"
     ON public.publicacoes FOR ALL
     USING (true)
     WITH CHECK (true);
+
+-- ==============================================================================
+-- 5. TABELA DE SUGESTÕES DE MELHORIAS (UTILITÁRIOS)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.sugestoes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    author TEXT NOT NULL,
+    category TEXT DEFAULT 'Geral',
+    status TEXT DEFAULT 'enviada',
+    timeline JSONB DEFAULT '[]'::jsonb,
+    comments JSONB DEFAULT '[]'::jsonb,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.sugestoes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir acesso completo a sugestoes" ON public.sugestoes;
+CREATE POLICY "Permitir acesso completo a sugestoes"
+    ON public.sugestoes FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
 

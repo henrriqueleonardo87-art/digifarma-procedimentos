@@ -8,6 +8,13 @@ export interface PublicacaoComment {
   createdAt: string;
 }
 
+export interface PublicacaoAttachment {
+  name: string;
+  type: 'image' | 'pdf';
+  url: string; // Data URL Base64 ou URL remota
+  size?: number;
+}
+
 export interface PublicacaoItem {
   id: string;
   title: string;
@@ -15,6 +22,8 @@ export interface PublicacaoItem {
   author: string;
   createdAt: string;
   targetUsers: string[]; // [] = todos, ou ['Leonardo', 'Icaro', ...]
+  readBy?: string[]; // Lista de nomes/usuários que já confirmaram "Visto"
+  attachment?: PublicacaoAttachment | null;
   comments: PublicacaoComment[];
 }
 
@@ -29,6 +38,8 @@ export const INITIAL_PUBLICACOES: PublicacaoItem[] = [
     author: 'Leonardo',
     createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     targetUsers: [], // Todos
+    readBy: ['Leonardo'],
+    attachment: null,
     comments: [
       {
         id: 'c-1',
@@ -46,6 +57,8 @@ export const INITIAL_PUBLICACOES: PublicacaoItem[] = [
     author: 'Wallace',
     createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
     targetUsers: ['Leonardo', 'Whitalo'],
+    readBy: ['Wallace'],
+    attachment: null,
     comments: [],
   },
 ];
@@ -67,6 +80,19 @@ function normalizePublicacao(raw: any): PublicacaoItem {
     }
   }
 
+  let readBy: string[] = [];
+  if (Array.isArray(raw.readBy)) {
+    readBy = raw.readBy;
+  } else if (Array.isArray(raw.readby)) {
+    readBy = raw.readby;
+  } else if (typeof raw.readBy === 'string') {
+    try {
+      readBy = JSON.parse(raw.readBy);
+    } catch {
+      readBy = [];
+    }
+  }
+
   let comments: PublicacaoComment[] = [];
   if (Array.isArray(raw.comments)) {
     comments = raw.comments;
@@ -78,6 +104,19 @@ function normalizePublicacao(raw: any): PublicacaoItem {
     }
   }
 
+  let attachment: PublicacaoAttachment | null = null;
+  if (raw.attachment) {
+    if (typeof raw.attachment === 'object') {
+      attachment = raw.attachment;
+    } else if (typeof raw.attachment === 'string') {
+      try {
+        attachment = JSON.parse(raw.attachment);
+      } catch {
+        attachment = null;
+      }
+    }
+  }
+
   return {
     id: String(raw.id || `pub-${Date.now()}`),
     title: String(raw.title || ''),
@@ -85,12 +124,14 @@ function normalizePublicacao(raw: any): PublicacaoItem {
     author: String(raw.author || 'Equipe Digifarma'),
     createdAt: String(raw.createdAt || raw.created_at || new Date().toISOString()),
     targetUsers: Array.isArray(targetUsers) ? targetUsers : [],
+    readBy: Array.isArray(readBy) ? readBy : [],
+    attachment,
     comments: Array.isArray(comments) ? comments : [],
   };
 }
 
 /**
- * Verifica de forma insensível a maiúsculas/minúsculas se o usuário é destinatário do aviso
+ * Verifica de forma insensível se o usuário é destinatário do aviso
  */
 export function isUserTargeted(
   targetUsers: string[] | undefined | null,
@@ -115,6 +156,33 @@ export function isUserTargeted(
   return targetUsers.some((target) => {
     const t = target.trim().toLowerCase();
     return identifiers.some((ident) => ident === t || ident.includes(t) || t.includes(ident));
+  });
+}
+
+/**
+ * Verifica se o usuário já confirmou leitura (Visto)
+ */
+export function isUserRead(
+  readBy: string[] | undefined | null,
+  user: { name?: string | null; username?: string | null } | string | null | undefined
+): boolean {
+  if (!readBy || readBy.length === 0 || !user) return false;
+
+  const identifiers: string[] = [];
+  if (typeof user === 'string') {
+    if (user.trim()) identifiers.push(user.trim().toLowerCase());
+  } else {
+    if (user.username && user.username.trim()) {
+      identifiers.push(user.username.trim().toLowerCase());
+    }
+    if (user.name && user.name.trim()) {
+      identifiers.push(user.name.trim().toLowerCase());
+    }
+  }
+
+  return readBy.some((reader) => {
+    const r = reader.trim().toLowerCase();
+    return identifiers.some((ident) => ident === r || ident.includes(r) || r.includes(ident));
   });
 }
 
@@ -213,6 +281,8 @@ export async function createPublicacao(item: PublicacaoItem): Promise<boolean> {
         content: item.content,
         author: item.author,
         targetUsers: item.targetUsers,
+        readBy: item.readBy || [item.author],
+        attachment: item.attachment || null,
         comments: item.comments,
         createdAt: item.createdAt,
         updated_at: new Date().toISOString(),
@@ -225,6 +295,51 @@ export async function createPublicacao(item: PublicacaoItem): Promise<boolean> {
       return true;
     } catch (err) {
       console.error('Falha de rede ao criar publicação no Supabase:', err);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Confirma leitura / visto de uma publicação por um usuário
+ */
+export async function markPublicacaoAsRead(
+  pubId: string,
+  userDisplayName: string
+): Promise<boolean> {
+  const current = getCachedPublicacoes();
+  const targetPub = current.find((p) => p.id === pubId);
+  if (!targetPub) return false;
+
+  const existingReadBy = targetPub.readBy || [];
+  if (existingReadBy.includes(userDisplayName)) return true;
+
+  const updatedReadBy = [...existingReadBy, userDisplayName];
+  const updatedPubs = current.map((p) =>
+    p.id === pubId ? { ...p, readBy: updatedReadBy } : p
+  );
+  setCachedPublicacoes(updatedPubs);
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('publicacoes')
+        .update({
+          readBy: updatedReadBy,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', pubId);
+
+      if (error) {
+        console.error('Erro ao registrar visto no Supabase:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Falha de rede ao marcar como visto:', err);
       return false;
     }
   }

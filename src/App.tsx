@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { ProcedureView } from './components/ProcedureView';
@@ -19,6 +19,15 @@ import { LoginScreen } from './components/LoginScreen';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { NewProcedureFormatModal } from './components/NewProcedureFormatModal';
 import { ImportProcedureModal } from './components/ImportProcedureModal';
+import { StudioFormatSelector } from './components/StudioFormatSelector';
+import {
+  buildUnifiedNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  type AppNotification,
+} from './lib/notificationService';
+import { fetchSugestoes, subscribeToSugestoes, type SugestaoItem } from './lib/sugestoesService';
+import { fetchPublicacoes, type PublicacaoItem } from './lib/publicacoesService';
 import type { Procedure, SystemMenu, ProcedureFormat } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -239,20 +248,82 @@ export function App() {
     localStorage.setItem('digifarma_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  // Sincronizar contagem de notificações de avisos direcionados em tempo real
+  // Dados para Central Unificada de Notificações
+  const [publicacoes, setPublicacoes] = useState<PublicacaoItem[]>([]);
+  const [sugestoes, setSugestoes] = useState<SugestaoItem[]>([]);
+  const [notificationsVersion, setNotificationsVersion] = useState(0);
+
   useEffect(() => {
+    fetchPublicacoes().then(setPublicacoes);
+    fetchSugestoes().then(setSugestoes);
+
     if (!currentUser) {
       setNotesNotificationCount(0);
       return;
     }
-    const unsubscribe = subscribeToPublicacoes((items) => {
+
+    const unsubPub = subscribeToPublicacoes((items) => {
+      setPublicacoes(items);
       const count = items.filter((p) => isUserTargeted(p.targetUsers, currentUser)).length;
       setNotesNotificationCount(count);
     });
+
+    const unsubSug = subscribeToSugestoes((items) => {
+      setSugestoes(items);
+    });
+
     return () => {
-      unsubscribe();
+      unsubPub();
+      unsubSug();
     };
   }, [currentUser]);
+
+  const unifiedNotifications = useMemo(() => {
+    void notificationsVersion;
+    return buildUnifiedNotifications({
+      currentUser,
+      procedures,
+      publicacoes,
+      sugestoes,
+    });
+  }, [currentUser, procedures, publicacoes, sugestoes, notificationsVersion]);
+
+  const handleNotificationClick = (notif: AppNotification) => {
+    markNotificationAsRead(notif.id);
+    setNotificationsVersion((v) => v + 1);
+
+    if (notif.targetView === 'procedure-detail' && notif.targetId) {
+      setActiveId(notif.targetId);
+      setCurrentView('procedure-detail');
+      setIsEditing(false);
+    } else if (notif.targetView === 'revision') {
+      setCurrentView('revision');
+      setActiveId(null);
+      setIsEditing(false);
+    } else if (notif.targetView === 'publicacoes') {
+      setCurrentView('publicacoes');
+      setActiveId(null);
+      setIsEditing(false);
+    } else if (notif.targetView === 'mural') {
+      setCurrentView('mural');
+      setActiveId(null);
+      setIsEditing(false);
+    } else if (notif.targetView === 'utilitarios') {
+      setCurrentView('utilitarios');
+      setActiveId(null);
+      setIsEditing(false);
+    } else if (notif.targetView) {
+      setCurrentView(notif.targetView);
+      if (notif.targetId) setActiveId(notif.targetId);
+      setIsEditing(false);
+    }
+  };
+
+  const handleClearAllNotifications = () => {
+    const allIds = unifiedNotifications.map((n) => n.id);
+    markAllNotificationsAsRead(allIds, currentUser?.username || currentUser?.name);
+    setNotificationsVersion((v) => v + 1);
+  };
 
   // Procedimento Ativo Atual
   const activeProcedure = procedures.find((p) => p.id === activeId) || null;
@@ -474,6 +545,9 @@ export function App() {
             onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
             pendingReviewCount={pendingReviewCount}
             notesNotificationCount={notesNotificationCount}
+            notifications={unifiedNotifications}
+            onNotificationClick={handleNotificationClick}
+            onClearAllNotifications={handleClearAllNotifications}
             onNavigate={(view) => {
               setCurrentView(view);
               setActiveId(null);
@@ -496,6 +570,45 @@ export function App() {
               <Loader2 size={36} className="animate-spin" color="var(--primary-500)" />
               <p>Carregando procedimentos do Digifarma...</p>
             </div>
+          ) : currentView === 'studio' && !isEditing && !editingProcedure ? (
+            <StudioFormatSelector
+              onSelectFormat={(format) => {
+                const newProc: Procedure = {
+                  id: `proc-${Date.now()}`,
+                  title: 'Novo Procedimento Operacional Padrão',
+                  subtitle: 'Descrição sumária da rotina e diretrizes de conformidade BPF',
+                  category: 'Cadastros',
+                  systemVersion: 'v10',
+                  menuId: 'cadastros',
+                  submenuId: 'rotina',
+                  systemPath: 'Digifarma V10 ➔ Cadastros',
+                  status: 'pendente',
+                  author: currentUser?.name || currentUser?.username || 'Leonardo Trevas',
+                  formatType: format,
+                  tags: ['BPF', 'V10', format.toUpperCase()],
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  blocks: [
+                    {
+                      id: `step-${Date.now()}-1`,
+                      type: 'step',
+                      title: 'Acesso à Rotina no Digifarma',
+                      content: 'Navegue pelo menu lateral e selecione o módulo correspondente.',
+                      instruction: 'Acesse o sistema com suas credenciais homologadas e abra o formulário principal.',
+                      expectedResult: 'Janela da rotina carregada em tela única com campos desbloqueados.',
+                      tips: 'Use a tecla F2 para busca rápida de registros.',
+                      warnings: 'Confirme se o turno do caixa ou o lote do produto estão abertos antes de continuar.',
+                      completed: false,
+                    },
+                  ],
+                };
+                setEditingProcedure(newProc);
+                setIsEditing(true);
+              }}
+              onBack={() => {
+                setCurrentView('dashboard');
+              }}
+            />
           ) : isEditing || currentView === 'studio' ? (
             <ProcedureEditor
               initialProcedure={editingProcedure}

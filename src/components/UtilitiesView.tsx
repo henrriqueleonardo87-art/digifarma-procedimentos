@@ -22,10 +22,25 @@ import {
   Database,
   BarChart3,
   Layers,
+  Lightbulb,
+  MessageCircle,
+  Clock,
+  Lock,
+  Send,
 } from 'lucide-react';
 import type { SystemMenu, SubmenuItem } from '../types/procedure';
 import type { AppUser } from '../types/auth';
 import { getLocalUsers, addUser, deleteUser, resetUserPasswordDirect } from '../lib/authService';
+import {
+  fetchSugestoes,
+  createSugestao,
+  updateSugestaoStatus,
+  addSugestaoComment,
+  subscribeSugestoes,
+  STATUS_LABELS,
+  STATUS_COLORS,
+  type SugestaoItem,
+} from '../lib/sugestoesService';
 
 // Tipos para Clientes e Colaboradores
 export interface PharmacyCollaborator {
@@ -165,8 +180,144 @@ const INITIAL_CLIENTS: ClientProfile[] = [
 export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   menus,
   onSaveMenus,
+  currentUser,
+  onBackToDashboard: _onBackToDashboard,
 }) => {
-  const [activeTab, setActiveTab] = useState<'modules' | 'clients' | 'users'>('modules');
+  const [activeTab, setActiveTab] = useState<'modules' | 'clients' | 'users' | 'sugestoes'>('modules');
+
+
+  // ----------------------------------------------------
+  // ABA 4: SUGESTÕES DE MELHORIAS
+  // ----------------------------------------------------
+  const [sugestoes, setSugestoes] = useState<SugestaoItem[]>([]);
+  const [selectedSugestao, setSelectedSugestao] = useState<SugestaoItem | null>(null);
+  const [isNewSugestaoModalOpen, setIsNewSugestaoModalOpen] = useState(false);
+  const [newSugTitle, setNewSugTitle] = useState('');
+  const [newSugDesc, setNewSugDesc] = useState('');
+  const [newSugCategory, setNewSugCategory] = useState('Geral');
+  const [sugSearch, setSugSearch] = useState('');
+  const [sugStatusFilter, setSugStatusFilter] = useState<'all' | SugestaoItem['status']>('all');
+  const [newCommentText, setNewCommentText] = useState('');
+  const [newTimelineStatus, setNewTimelineStatus] = useState<SugestaoItem['status']>('em_analise');
+  const [newTimelineNote, setNewTimelineNote] = useState('');
+  const [isSubmittingTimeline, setIsSubmittingTimeline] = useState(false);
+
+  const isLeonardo = useMemo(() => {
+    if (!currentUser) return false;
+    const u = (currentUser.username || '').toLowerCase();
+    const n = (currentUser.name || '').toLowerCase();
+    return u === 'leonardo' || n.includes('leonardo');
+  }, [currentUser]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchSugestoes().then((items: SugestaoItem[]) => {
+      if (isMounted) setSugestoes(items);
+    });
+    const unsubscribe = subscribeSugestoes((items: SugestaoItem[]) => {
+      if (isMounted) {
+        setSugestoes(items);
+        if (selectedSugestao) {
+          const updatedTarget = items.find((s: SugestaoItem) => s.id === selectedSugestao.id);
+          if (updatedTarget) setSelectedSugestao(updatedTarget);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [selectedSugestao?.id]);
+
+  const handleCreateSugestao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSugTitle.trim() || !newSugDesc.trim()) return;
+
+    const authorName = currentUser?.name || currentUser?.username || 'Colaborador Digifarma';
+    const newItem: SugestaoItem = {
+      id: `sug-${Date.now()}`,
+      title: newSugTitle.trim(),
+      description: newSugDesc.trim(),
+      category: newSugCategory,
+      author: authorName,
+      status: 'enviada',
+      timeline: [
+        {
+          id: `tl-${Date.now()}`,
+          status: 'enviada',
+          author: authorName,
+          note: 'Sugestão registrada para avaliação da equipe.',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      comments: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    await createSugestao(newItem);
+    setSugestoes((prev) => [newItem, ...prev.filter((s) => s.id !== newItem.id)]);
+    setSelectedSugestao(newItem);
+    setIsNewSugestaoModalOpen(false);
+    setNewSugTitle('');
+    setNewSugDesc('');
+    setNewSugCategory('Geral');
+  };
+
+  const handleAddComment = async (sugId: string) => {
+    if (!newCommentText.trim()) return;
+    const authorName = currentUser?.name || currentUser?.username || 'Equipe';
+    const comment = {
+      id: `c-${Date.now()}`,
+      author: authorName,
+      content: newCommentText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    await addSugestaoComment(sugId, comment);
+    setNewCommentText('');
+    setSugestoes((prev) =>
+      prev.map((s) =>
+        s.id === sugId ? { ...s, comments: [...s.comments, comment] } : s
+      )
+    );
+    if (selectedSugestao?.id === sugId) {
+      setSelectedSugestao((prev) =>
+        prev ? { ...prev, comments: [...prev.comments, comment] } : null
+      );
+    }
+  };
+
+  const handleAdvanceTimeline = async (sugId: string) => {
+    if (!isLeonardo) return;
+    setIsSubmittingTimeline(true);
+    try {
+      const authorName = currentUser?.name || 'Leonardo Trevas';
+      await updateSugestaoStatus(
+        sugId,
+        newTimelineStatus,
+        authorName,
+        newTimelineNote.trim() || undefined
+      );
+      const updated = await fetchSugestoes();
+      setSugestoes(updated);
+      const found = updated.find((s) => s.id === sugId);
+      if (found) setSelectedSugestao(found);
+      setNewTimelineNote('');
+    } finally {
+      setIsSubmittingTimeline(false);
+    }
+  };
+
+  const filteredSugestoes = useMemo(() => {
+    return sugestoes.filter((s) => {
+      const matchesSearch =
+        s.title.toLowerCase().includes(sugSearch.toLowerCase()) ||
+        s.description.toLowerCase().includes(sugSearch.toLowerCase()) ||
+        s.author.toLowerCase().includes(sugSearch.toLowerCase());
+      const matchesStatus =
+        sugStatusFilter === 'all' || s.status === sugStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [sugestoes, sugSearch, sugStatusFilter]);
 
   // ----------------------------------------------------
   // ABA 1: MÓDULOS
@@ -454,35 +605,92 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
               ? `${menus.length} módulos ativos`
               : activeTab === 'clients'
               ? `${clients.length} farmácias cadastradas`
-              : `${usersList.length} contas de acesso`}
+              : activeTab === 'users'
+              ? `${usersList.length} contas de acesso`
+              : `${sugestoes.length} sugestões registradas`}
           </span>
         </div>
       </section>
 
       {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
-      <section className="filters" aria-label="Filtros globais">
-        <div className="filter">
-          <label htmlFor="util-tab-select">SEÇÃO DE UTILITÁRIOS</label>
-          <select
-            id="util-tab-select"
-            value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value as any)}
-          >
-            <option value="modules">Módulos do Sistema ({menus.length})</option>
-            <option value="clients">Cadastro de Clientes ({clients.length})</option>
-            <option value="users">Usuários do Sistema ({usersList.length})</option>
-          </select>
-        </div>
+            {/* ── 2. Cards de Navegação entre Seções de Utilitários ── */}
+      <div className="util-nav-cards-grid no-print">
+        <button
+          type="button"
+          className={`util-nav-card ${activeTab === 'modules' ? 'active' : ''}`}
+          onClick={() => setActiveTab('modules')}
+        >
+          <div className="util-nav-card-icon">
+            <Layers size={22} />
+          </div>
+          <div className="util-nav-card-content">
+            <div className="util-nav-card-header">
+              <strong className="util-nav-card-title">Módulos &amp; Rotinas</strong>
+              <span className="util-nav-card-count">{menus.length}</span>
+            </div>
+            <p className="util-nav-card-desc">
+              Organização de menus, submenus e rotinas do ERP
+            </p>
+          </div>
+        </button>
 
-        <div className="status" style={{ marginLeft: 'auto' }}>
-          <span className="live-dot" />{' '}
-          {activeTab === 'modules'
-            ? `${menus.length} Módulos`
-            : activeTab === 'clients'
-            ? `${clients.length} Clientes`
-            : `${usersList.length} Usuários`}
-        </div>
-      </section>
+        <button
+          type="button"
+          className={`util-nav-card ${activeTab === 'clients' ? 'active' : ''}`}
+          onClick={() => setActiveTab('clients')}
+        >
+          <div className="util-nav-card-icon">
+            <Boxes size={22} />
+          </div>
+          <div className="util-nav-card-content">
+            <div className="util-nav-card-header">
+              <strong className="util-nav-card-title">Cadastro de Clientes</strong>
+              <span className="util-nav-card-count">{clients.length}</span>
+            </div>
+            <p className="util-nav-card-desc">
+              Farmácias clientes e equipes de colaboradores
+            </p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={`util-nav-card ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          <div className="util-nav-card-icon">
+            <Users size={22} />
+          </div>
+          <div className="util-nav-card-content">
+            <div className="util-nav-card-header">
+              <strong className="util-nav-card-title">Usuários do Sistema</strong>
+              <span className="util-nav-card-count">{usersList.length}</span>
+            </div>
+            <p className="util-nav-card-desc">
+              Gerencie acessos, contas e senhas da equipe
+            </p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className={`util-nav-card ${activeTab === 'sugestoes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sugestoes')}
+        >
+          <div className="util-nav-card-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.25)' }}>
+            <Lightbulb size={22} />
+          </div>
+          <div className="util-nav-card-content">
+            <div className="util-nav-card-header">
+              <strong className="util-nav-card-title">Sugestões de Melhorias</strong>
+              <span className="util-nav-card-count" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>{sugestoes.length}</span>
+            </div>
+            <p className="util-nav-card-desc">
+              Propostas de melhorias, linha do tempo e aprovações
+            </p>
+          </div>
+        </button>
+      </div>
 
       {/* ---------------------------------------------------- */}
       {/* ABA 1: MÓDULOS E ROTINAS */}
@@ -1267,6 +1475,611 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
                       style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: 'var(--red)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
                     >
                       Cadastrar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* ABA 4: SUGESTÕES DE MELHORIAS COM LINHA DO TEMPO */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'sugestoes' && (
+        <div>
+          {/* Barra Superior da Aba de Sugestões */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginBottom: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '7px 12px',
+                  minWidth: '240px',
+                }}
+              >
+                <Search size={15} style={{ color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar sugestões por título, autor..."
+                  value={sugSearch}
+                  onChange={(e) => setSugSearch(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    outline: 'none',
+                    fontSize: '0.84rem',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                  }}
+                />
+              </div>
+
+              {/* Filtro por Status */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {(['all', 'enviada', 'em_analise', 'aprovada', 'em_execucao', 'concluida', 'recusada'] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setSugStatusFilter(st)}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: sugStatusFilter === st ? '1px solid var(--red)' : '1px solid var(--border)',
+                      background: sugStatusFilter === st ? 'var(--red-soft)' : 'var(--bg-primary)',
+                      color: sugStatusFilter === st ? 'var(--red)' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {st === 'all' ? 'Todas' : STATUS_LABELS[st]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsNewSugestaoModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                background: 'var(--red)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(237, 38, 43, 0.25)',
+              }}
+            >
+              <Lightbulb size={15} />
+              <span>+ Propor Sugestão</span>
+            </button>
+          </div>
+
+          {/* Layout Principal: Lista à Esquerda + Detalhes/Timeline à Direita */}
+          <div style={{ display: 'grid', gridTemplateColumns: selectedSugestao ? '1.2fr 1.8fr' : '1fr', gap: '20px' }}>
+            {/* Lista de Sugestões em Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredSugestoes.length === 0 ? (
+                <div
+                  style={{
+                    padding: '40px 20px',
+                    textAlign: 'center',
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    border: '1px dashed var(--border)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <Lightbulb size={32} style={{ margin: '0 auto 10px auto', opacity: 0.5 }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>Nenhuma sugestão encontrada.</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem' }}>Seja o primeiro a enviar uma proposta de melhoria!</p>
+                </div>
+              ) : (
+                filteredSugestoes.map((sug) => {
+                  const isSelected = selectedSugestao?.id === sug.id;
+                  const statusColor = STATUS_COLORS[sug.status];
+                  return (
+                    <div
+                      key={sug.id}
+                      onClick={() => {
+                        setSelectedSugestao(sug);
+                        setNewTimelineStatus(sug.status);
+                      }}
+                      style={{
+                        background: 'var(--bg-primary)',
+                        border: isSelected ? '1.5px solid var(--red)' : '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 4px 14px rgba(237, 38, 43, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: statusColor.bg,
+                            color: statusColor.text,
+                            border: `1px solid ${statusColor.border}`,
+                          }}
+                        >
+                          {STATUS_LABELS[sug.status]}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {new Date(sug.createdAt).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: '0.96rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0', lineHeight: 1.35 }}>
+                        {sug.title}
+                      </h3>
+
+                      <p
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--text-secondary)',
+                          margin: '0 0 12px 0',
+                          lineHeight: 1.45,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {sug.description}
+                      </p>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+                        <span>Por: <strong>{sug.author}</strong> · {sug.category}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={12} /> {sug.timeline.length} etapas
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <MessageCircle size={12} /> {sug.comments.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Painel de Detalhes da Sugestão Selecionada */}
+            {selectedSugestao && (
+              <div
+                style={{
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '14px',
+                  padding: '22px',
+                  position: 'sticky',
+                  top: '20px',
+                  height: 'fit-content',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                }}
+              >
+                {/* Cabeçalho do Detalhe */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '2px 9px',
+                          borderRadius: '999px',
+                          background: STATUS_COLORS[selectedSugestao.status].bg,
+                          color: STATUS_COLORS[selectedSugestao.status].text,
+                          border: `1px solid ${STATUS_COLORS[selectedSugestao.status].border}`,
+                        }}
+                      >
+                        {STATUS_LABELS[selectedSugestao.status]}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Categoria: {selectedSugestao.category}
+                      </span>
+                    </div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0', lineHeight: 1.3 }}>
+                      {selectedSugestao.title}
+                    </h2>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Enviada por <strong>{selectedSugestao.author}</strong> em {new Date(selectedSugestao.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSugestao(null)}
+                    style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                    title="Fechar painel de detalhes"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.86rem',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.5,
+                    marginBottom: '20px',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {selectedSugestao.description}
+                </div>
+
+                {/* ── LINHA DO TEMPO DA SUGESTÃO ── */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <h3 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={15} color="var(--red)" />
+                      <span>Linha do Tempo de Execução</span>
+                    </h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {selectedSugestao.timeline.length} registro(s)
+                    </span>
+                  </div>
+
+                  <div className="sug-timeline-container">
+                    {selectedSugestao.timeline.map((step, idx) => {
+                      const color = STATUS_COLORS[step.status];
+                      return (
+                        <div key={step.id || idx} className="sug-timeline-item">
+                          <div className="sug-timeline-bullet" style={{ background: color.text, borderColor: color.bg }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                              {STATUS_LABELS[step.status]}
+                            </strong>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              por <strong>{step.author}</strong> em {new Date(step.createdAt).toLocaleDateString('pt-BR')} às {new Date(step.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {step.note && (
+                            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                              {step.note}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* CONTROLE EXCLUSIVO LEONARDO PARA AVANÇAR LINHA DO TEMPO */}
+                  {isLeonardo ? (
+                    <div
+                      style={{
+                        background: 'rgba(237, 38, 43, 0.05)',
+                        border: '1px solid rgba(237, 38, 43, 0.25)',
+                        borderRadius: '10px',
+                        padding: '14px',
+                        marginTop: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--red)', textTransform: 'uppercase' }}>
+                          ⚡ Gestão da Linha do Tempo (Leonardo Trevas)
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '3px' }}>
+                            Novo Status da Sugestão:
+                          </label>
+                          <select
+                            value={newTimelineStatus}
+                            onChange={(e) => setNewTimelineStatus(e.target.value as any)}
+                            style={{
+                              width: '100%',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-primary)',
+                              fontSize: '0.8rem',
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            <option value="enviada">1. Enviada (Aguardando)</option>
+                            <option value="em_analise">2. Em Análise Técnica</option>
+                            <option value="aprovada">3. Aprovada</option>
+                            <option value="em_execucao">4. Em Execução / Desenvolvimento</option>
+                            <option value="concluida">5. Concluída &amp; Em Produção</option>
+                            <option value="recusada">6. Recusada / Inviável</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '3px' }}>
+                            Nota explicativa (opcional):
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Aprovado para próxima versão..."
+                            value={newTimelineNote}
+                            onChange={(e) => setNewTimelineNote(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-primary)',
+                              fontSize: '0.8rem',
+                              color: 'var(--text-primary)',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAdvanceTimeline(selectedSugestao.id)}
+                        disabled={isSubmittingTimeline}
+                        style={{
+                          width: '100%',
+                          padding: '7px 12px',
+                          background: 'var(--red)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: isSubmittingTimeline ? 'not-allowed' : 'pointer',
+                          opacity: isSubmittingTimeline ? 0.7 : 1,
+                        }}
+                      >
+                        {isSubmittingTimeline ? 'Atualizando...' : 'Atualizar Linha do Tempo da Sugestão'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '0.76rem',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <Lock size={14} />
+                      <span>Apenas <strong>Leonardo</strong> tem permissão para alterar o status e a linha do tempo.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── COMENTÁRIOS DA EQUIPE ── */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 12px 0', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MessageCircle size={15} color="#3b82f6" />
+                    <span>Discussão &amp; Comentários ({selectedSugestao.comments.length})</span>
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {selectedSugestao.comments.length === 0 ? (
+                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        Nenhum comentário registrado ainda. Deixe sua opinião sobre esta melhoria!
+                      </p>
+                    ) : (
+                      selectedSugestao.comments.map((c) => (
+                        <div
+                          key={c.id}
+                          style={{
+                            background: 'var(--bg-secondary)',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                            <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>{c.author}</strong>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                              {new Date(c.createdAt).toLocaleDateString('pt-BR')} às {new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {c.content}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Input de Novo Comentário */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Deixe um comentário sobre esta sugestão..."
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddComment(selectedSugestao.id);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        fontSize: '0.82rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddComment(selectedSugestao.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        background: 'var(--primary-600, #2563eb)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Send size={13} />
+                      <span>Enviar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Nova Sugestão */}
+          {isNewSugestaoModalOpen && (
+            <div className="modal-backdrop">
+              <div
+                className="modal-box"
+                style={{
+                  maxWidth: '520px',
+                  padding: '24px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Lightbulb size={18} />
+                    </div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                      Propor Sugestão de Melhoria
+                    </h3>
+                  </div>
+                  <button type="button" onClick={() => setIsNewSugestaoModalOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateSugestao}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                      Título da Sugestão:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Adicionar exportação de relatórios em Excel..."
+                      value={newSugTitle}
+                      onChange={(e) => setNewSugTitle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        fontSize: '0.86rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                      Categoria da Melhoria:
+                    </label>
+                    <select
+                      value={newSugCategory}
+                      onChange={(e) => setNewSugCategory(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        fontSize: '0.86rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <option value="Interface & Visual">Interface &amp; Visual</option>
+                      <option value="Módulos & POPs">Módulos &amp; Procedimentos</option>
+                      <option value="Relatórios & Filtros">Relatórios &amp; Filtros</option>
+                      <option value="Treinamento & Equipe">Treinamento &amp; Equipe</option>
+                      <option value="Rotinas ERP Digifarma">Rotinas ERP Digifarma</option>
+                      <option value="Geral">Geral</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                      Descrição detalhada da proposta:
+                    </label>
+                    <textarea
+                      required
+                      rows={4}
+                      placeholder="Explique como a melhoria facilitará a rotina de implantação, treinamento ou uso do sistema..."
+                      value={newSugDesc}
+                      onChange={(e) => setNewSugDesc(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        fontSize: '0.86rem',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsNewSugestaoModalOpen(false)}
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: 'var(--red)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Registrar Sugestão
                     </button>
                   </div>
                 </form>

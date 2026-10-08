@@ -545,7 +545,9 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <span className="crumb-sep">/</span>
               <span className="proc-breadcrumb-path" title={procedure.systemPath || procedure.category}>
                 {procedure.systemPath
-                  ? procedure.systemPath.replace('Digifarma V10', 'v10').replace('Digifarma Clássico', 'Clássico')
+                  ? procedure.systemPath
+                      .replace(/^Digifarma\s+(V10|v10|Clássico|classico)\s*[➔>/]\s*/i, '')
+                      .replace(/^(v10|classico|r78)\s*[➔>/]\s*/i, '')
                   : procedure.category || 'Módulo'}
               </span>
             </div>
@@ -556,7 +558,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
               <span className="proc-status-pill-clean inactive">🚫 Inativo</span>
             ) : procedure.status === 'aprovado' || !procedure.status ? (
               <span className="proc-status-pill-clean approved">
-                ✓ Liberado por {procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}
+                ✓ Homologado
               </span>
             ) : procedure.status === 'pendente' ? (
               <span className="proc-status-pill-clean pending">⏳ Em Revisão</span>
@@ -800,6 +802,41 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
         </div>
       </div>
     </div>
+
+      {/* ── BARRA DE METADADOS EXECUTIVA & ESTRUTURADA ── */}
+      <div className="proc-metadata-strip no-print">
+        <div className="proc-meta-item">
+          <span className="proc-meta-label">MÓDULO & CAMINHO</span>
+          <span className="proc-meta-val">
+            {menuInfo.menuLabel} {menuInfo.submenuLabel ? `› ${menuInfo.submenuLabel}` : ''}
+          </span>
+        </div>
+        <div className="proc-meta-divider-v" />
+        <div className="proc-meta-item">
+          <span className="proc-meta-label">HOMOLOGADO POR</span>
+          <span className="proc-meta-val">
+            {procedure.reviewedBy || procedure.author || 'Qualidade Digifarma'}
+          </span>
+        </div>
+        <div className="proc-meta-divider-v" />
+        <div className="proc-meta-item">
+          <span className="proc-meta-label">DOCUMENTAÇÃO</span>
+          <span className="proc-meta-val">
+            {procedure.pdfFileUrl
+              ? 'PDF Oficial Importado'
+              : procedure.htmlFileData
+              ? 'Manual HTML Interativo'
+              : `${stepBlocks.length || 1} etapas passo a passo`}
+          </span>
+        </div>
+        <div className="proc-meta-divider-v" />
+        <div className="proc-meta-item">
+          <span className="proc-meta-label">ÚLTIMA ATUALIZAÇÃO</span>
+          <span className="proc-meta-val">
+            {new Date(procedure.updated_at || procedure.created_at || Date.now()).toLocaleDateString('pt-BR')}
+          </span>
+        </div>
+      </div>
 
       {/* Modal / Drawer de Histórico e Linha do Tempo */}
       <ProcedureTimelineModal
