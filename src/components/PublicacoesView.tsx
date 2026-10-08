@@ -14,6 +14,8 @@ import {
   Square,
   Download,
   Users,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
@@ -74,6 +76,19 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   // Lightbox modal para imagem anexada
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Estado de comentários expandidos por publicação (id -> boolean)
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+
+  const toggleComments = (pubId: string) => {
+    setExpandedComments((prev) => ({
+      ...prev,
+      [pubId]: !prev[pubId],
+    }));
+  };
+
+  // Paginação: limite de 10 publicações por vez
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+
   // Carregar membros da equipe do Supabase
   useEffect(() => {
     fetchTeamMembers().then((members) => {
@@ -128,6 +143,19 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       return true;
     });
   }, [publicacoes, filterTab, currentUser, searchTerm]);
+
+  // Se a busca ou filtro mudar, o usuário pediu:
+  // "Exceto se eu usar a parte de busca ou filtro"
+  const isFilteringOrSearching = searchTerm.trim() !== '' || filterTab !== 'all';
+
+  const displayedList = useMemo(() => {
+    if (isFilteringOrSearching) {
+      return filteredList;
+    }
+    return filteredList.slice(0, visibleCount);
+  }, [filteredList, isFilteringOrSearching, visibleCount]);
+
+  const hasMore = !isFilteringOrSearching && filteredList.length > visibleCount;
 
   // Upload de Anexo
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,6 +283,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       prev.map((p) => (p.id === pubId ? { ...p, comments: updatedComments } : p))
     );
     setCommentInputs((prev) => ({ ...prev, [pubId]: '' }));
+    setExpandedComments((prev) => ({ ...prev, [pubId]: true }));
     setIsSendingComment((prev) => ({ ...prev, [pubId]: true }));
 
     try {
@@ -269,25 +298,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
   return (
     <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', paddingBottom: '40px' }}>
-      {/* ── 1. Heading Oficial com Eyebrow, H1, Subtítulo e Capture ── */}
-      <section className="heading">
-        <div>
-          <span className="eyebrow">COMUNICAÇÃO &amp; AVISOS</span>
-          <h1 id="pageTitle">Publicações da Equipe</h1>
-          <p id="pageSubtitle">
-            Mural integrado de comunicados, recados da gestão e alinhamentos operacionais sincronizados em tempo real.
-          </p>
-        </div>
-        <div className="capture">
-          <span className="live-dot" /> Mural de avisos
-          <span id="captured">
-            {loading ? 'Sincronizando...' : `${publicacoes.length} publicações ativas`}
-          </span>
-        </div>
-      </section>
-
-      {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
-      <section className="filters" aria-label="Filtros globais">
+      {/* ── Barra Contínua de Filtros Globais (.filters) ── */}
+      <section className="filters" aria-label="Filtros globais" style={{ marginTop: '14px', marginBottom: '18px' }}>
         <div className="filter">
           <label htmlFor="pub-filter-tab">VISUALIZAÇÃO</label>
           <select
@@ -332,7 +344,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         </div>
 
         <div className="status">
-          <span className="live-dot" /> {filteredList.length} Publicações
+          <span className="live-dot" /> {loading ? 'Sincronizando...' : `${filteredList.length} Publicações`}
         </div>
       </section>
 
@@ -366,7 +378,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
       {/* Feed de Publicações Amplo e Espaçoso */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {filteredList.map((pub) => {
+        {displayedList.map((pub) => {
           const isTargetedToMe = isUserTargeted(pub.targetUsers, currentUser);
           const isEveryone = !pub.targetUsers || pub.targetUsers.length === 0;
           const isAuthor = isUserAuthor(pub.author, currentUser);
@@ -731,106 +743,188 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                 )}
               </div>
 
-              {/* Thread de Comentários / Respostas */}
+              {/* Thread de Comentários / Respostas (Retrátil) */}
               <div
                 style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
+                  paddingTop: '14px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  <MessageSquare size={14} />
-                  <span>
-                    {pub.comments.length === 0
-                      ? 'Nenhum comentário ainda'
-                      : `${pub.comments.length} ${pub.comments.length === 1 ? 'comentário' : 'comentários'}`}
-                  </span>
-                </div>
-
-                {pub.comments.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      padding: '12px 16px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {c.author}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      {c.content}
-                    </p>
-                  </div>
-                ))}
-
-                {/* Caixa de Entrada para Responder */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                  <input
-                    type="text"
-                    placeholder="Escreva uma resposta ou comentário..."
-                    value={commentInputs[pub.id] || ''}
-                    onChange={(e) =>
-                      setCommentInputs({ ...commentInputs, [pub.id]: e.target.value })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddComment(pub.id);
-                      }
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: '9px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-secondary)',
-                      fontSize: '0.86rem',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                    }}
-                  />
+                {/* Botão de Expansão / Resumo de Comentários */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                   <button
                     type="button"
-                    disabled={isSendingComment[pub.id]}
-                    onClick={() => handleAddComment(pub.id)}
+                    onClick={() => toggleComments(pub.id)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      padding: '10px 18px',
-                      borderRadius: '9px',
-                      border: 'none',
-                      background: 'var(--red)',
-                      color: '#fff',
-                      fontSize: '0.84rem',
-                      fontWeight: 700,
-                      cursor: isSendingComment[pub.id] ? 'not-allowed' : 'pointer',
-                      opacity: isSendingComment[pub.id] ? 0.7 : 1,
+                      gap: '8px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: expandedComments[pub.id] ? 'var(--bg-secondary)' : 'transparent',
+                      border: expandedComments[pub.id] ? '1px solid var(--border)' : '1px solid transparent',
+                      color: pub.comments.length > 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                    onMouseLeave={(e) => {
+                      if (!expandedComments[pub.id]) e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    {isSendingComment[pub.id] ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Send size={14} />
-                    )}
-                    <span>Responder</span>
+                    <MessageSquare size={15} color={pub.comments.length > 0 ? '#3b82f6' : 'var(--text-muted)'} />
+                    <span>
+                      {pub.comments.length === 0
+                        ? 'Deixar um comentário'
+                        : `${pub.comments.length} ${pub.comments.length === 1 ? 'comentário' : 'comentários'}`}
+                    </span>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
+                      {expandedComments[pub.id] ? (
+                        <>
+                          <span>Recolher</span>
+                          <ChevronUp size={13} />
+                        </>
+                      ) : (
+                        <>
+                          <span>{pub.comments.length > 0 ? 'Ver todos' : 'Escrever'}</span>
+                          <ChevronDown size={13} />
+                        </>
+                      )}
+                    </span>
                   </button>
                 </div>
+
+                {/* Conteúdo dos Comentários (Apenas quando expandido) */}
+                {expandedComments[pub.id] && (
+                  <div
+                    style={{
+                      marginTop: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    {pub.comments.map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          padding: '12px 16px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {c.author}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {c.content}
+                        </p>
+                      </div>
+                    ))}
+
+                    {/* Caixa de Entrada para Responder */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <input
+                        type="text"
+                        placeholder="Escreva uma resposta ou comentário..."
+                        value={commentInputs[pub.id] || ''}
+                        onChange={(e) =>
+                          setCommentInputs({ ...commentInputs, [pub.id]: e.target.value })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddComment(pub.id);
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '9px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          fontSize: '0.86rem',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={isSendingComment[pub.id]}
+                        onClick={() => handleAddComment(pub.id)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 18px',
+                          borderRadius: '9px',
+                          border: 'none',
+                          background: 'var(--red)',
+                          color: '#fff',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          cursor: isSendingComment[pub.id] ? 'not-allowed' : 'pointer',
+                          opacity: isSendingComment[pub.id] ? 0.7 : 1,
+                        }}
+                      >
+                        {isSendingComment[pub.id] ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Send size={14} />
+                        )}
+                        <span>Responder</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
+
+                {/* Botão Ver Mais (+10) */}
+        {hasMore && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px', marginBottom: '16px' }}>
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => prev + 10)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '11px 24px',
+                borderRadius: '10px',
+                background: 'var(--bg-primary)',
+                border: '1.5px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--red)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <ChevronDown size={16} />
+              <span>Ver mais publicações (+10) · Exibindo {displayedList.length} de {filteredList.length}</span>
+            </button>
+          </div>
+        )}
 
         {filteredList.length === 0 && (
           <div
