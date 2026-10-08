@@ -39,6 +39,7 @@ import {
   isDesktopNotificationSupported,
 } from './lib/desktopNotification';
 import { playNotificationSound } from './lib/notificationSound';
+import { APP_VERSION } from './config/version';
 import type { Procedure, SystemMenu, ProcedureFormat, ProcedureHistoryItem } from './types/procedure';
 import type { AppUser } from './types/auth';
 import { getCurrentUser, logout as authLogout, updateUserAvatar } from './lib/authService';
@@ -862,7 +863,9 @@ export function App() {
         {!isEditing && (
           <footer>
             <span>Digifarma · Repositório de Procedimentos e Manuais</span>
-            <span id="footerMeta">v10.4 &amp; Clássico · Treinamento Operacional</span>
+            <span id="footerMeta">
+              v10.4 &amp; Clássico · Treinamento Operacional · <span style={{ fontWeight: 700, color: 'var(--red)' }}>{APP_VERSION}</span>
+            </span>
           </footer>
         )}
       </main>

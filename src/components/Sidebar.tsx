@@ -1,7 +1,6 @@
 import React from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import type { AppUser } from '../types/auth';
-import { APP_VERSION } from '../config/version';
 
 interface SidebarProps {
   currentView: string;
@@ -353,23 +352,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed && <span>Sair</span>}
           </button>
         )}
-
-        {/* Controle de Versão Minimalista */}
-        <div
-          style={{
-            marginTop: '8px',
-            textAlign: 'center',
-            fontSize: isCollapsed ? '0.62rem' : '0.67rem',
-            fontWeight: 500,
-            color: 'var(--muted)',
-            letterSpacing: '0.04em',
-            userSelect: 'none',
-            opacity: 0.65,
-          }}
-          title={`Digifarma Repositório ${APP_VERSION}`}
-        >
-          {isCollapsed ? 'v' + APP_VERSION.split('.')[0] : APP_VERSION}
-        </div>
       </div>
     </aside>
   );
