@@ -638,10 +638,10 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
               }}
             >
-              {/* Topo da Coluna com Cinza Suave e Barra de Acento */}
+              {/* Topo da Coluna Limpo, Claro e com Alto Contraste */}
               <div
                 style={{
-                  background: 'var(--bg-card, #1c2433)',
+                  background: 'var(--bg-primary)',
                   borderBottom: '1px solid var(--border)',
                   borderTop: `3px solid ${colAccentColor}`,
                   padding: '12px 16px',
@@ -658,7 +658,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       borderRadius: '50%',
                       background: colAccentColor,
                       display: 'inline-block',
-                      boxShadow: `0 0 6px ${colAccentColor}88`,
+                      boxShadow: `0 0 6px ${colAccentColor}66`,
                     }}
                   />
                   <span
@@ -679,7 +679,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       borderRadius: '12px',
                       fontSize: '0.74rem',
                       fontWeight: 800,
-                      color: 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
                     }}
                   >
                     {colCards.length}
@@ -697,7 +697,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      color: 'var(--text-muted)',
+                      color: 'var(--text-secondary)',
                       cursor: 'pointer',
                       padding: '5px',
                       borderRadius: '6px',
@@ -708,14 +708,14 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = 'var(--text-primary)';
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                      e.currentTarget.style.background = 'var(--bg-secondary)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.color = 'var(--text-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
                       e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    <Plus size={14} />
+                    <Plus size={15} />
                   </button>
 
                   {columns.length > 1 && (
