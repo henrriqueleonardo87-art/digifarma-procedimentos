@@ -379,7 +379,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
   return (
     <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', paddingBottom: '40px' }}>
-      {/* Barra de Ações Superior: Nova Publicação */}
+      {/* Barra de Ações Superior: Novo Recado */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', marginBottom: '14px' }}>
         <button
           type="button"
@@ -403,7 +403,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
         >
           <Plus size={17} />
-          <span>Nova Publicação</span>
+          <span>Novo Recado</span>
         </button>
       </div>
 
@@ -416,10 +416,10 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             value={filterTab}
             onChange={(e) => setFilterTab(e.target.value as any)}
           >
-            <option value="all">Todas ({publicacoes.length})</option>
-            <option value="unread">Não Lidas por Mim</option>
-            <option value="targeted">Direcionadas a Mim</option>
-            <option value="mine">Minhas Publicações</option>
+            <option value="all">Todos ({publicacoes.length})</option>
+            <option value="unread">Não Lidos por Mim</option>
+            <option value="targeted">Direcionados a Mim</option>
+            <option value="mine">Meus Recados</option>
           </select>
         </div>
 
@@ -523,11 +523,11 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         </div>
 
         <div className="status">
-          <span className="live-dot" /> {loading ? 'Sincronizando...' : `${filteredList.length} Publicações`}
+          <span className="live-dot" /> {loading ? 'Sincronizando...' : `${filteredList.length} ${filteredList.length === 1 ? 'Recado' : 'Recados'}`}
         </div>
       </section>
 
-      {/* Feed de Publicações Amplo e Espaçoso */}
+      {/* Feed de Recados Amplo e Espaçoso */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {displayedList.map((pub) => {
           const isTargetedToMe = isUserTargeted(pub.targetUsers, currentUser);
@@ -541,14 +541,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
               key={pub.id}
               style={{
                 background: 'var(--bg-primary)',
-                border: !hasRead
+                border: isTargetedToMe
+                  ? '2px solid #64748b'
+                  : !hasRead
                   ? '1.5px solid var(--red)'
-                  : isTargetedToMe
-                  ? '1.5px solid rgba(237, 38, 43, 0.4)'
                   : '1px solid var(--border)',
                 borderRadius: '16px',
                 padding: '24px',
-                boxShadow: !hasRead
+                boxShadow: isTargetedToMe
+                  ? '0 4px 18px rgba(100, 116, 139, 0.18)'
+                  : !hasRead
                   ? '0 8px 24px rgba(237, 38, 43, 0.09)'
                   : '0 2px 10px rgba(0,0,0,0.03)',
                 position: 'relative',
@@ -591,8 +593,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                           width: '10px',
                           height: '10px',
                           borderRadius: '50%',
-                          background: 'var(--red)',
-                          boxShadow: '0 0 8px var(--red)',
+                          background: isTargetedToMe ? '#64748b' : 'var(--red)',
+                          boxShadow: isTargetedToMe ? '0 0 8px #64748b' : '0 0 8px var(--red)',
                           display: 'inline-block',
                           animation: 'pulse-dot 1.4s infinite ease-in-out',
                         }}
@@ -629,13 +631,13 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     {isTargetedToMe ? (
                       <span
                         style={{
-                          background: 'rgba(237, 38, 43, 0.12)',
-                          color: 'var(--red)',
+                          background: 'rgba(100, 116, 139, 0.16)',
+                          color: 'var(--text-primary)',
                           fontSize: '0.70rem',
                           fontWeight: 700,
-                          padding: '2px 7px',
+                          padding: '2px 8px',
                           borderRadius: '5px',
-                          border: '1px solid rgba(237, 38, 43, 0.25)',
+                          border: '1px solid #64748b',
                         }}
                       >
                         🎯 Para você

@@ -171,18 +171,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && 'Conteúdos'}
         </button>
 
-        {/* 3. Publicações */}
+        {/* 3. Recados */}
         <button
           type="button"
           data-view="publicacoes"
           className={currentView === 'publicacoes' ? 'active' : ''}
           onClick={() => handleNavClick('publicacoes')}
-          title="Publicações da Equipe"
+          title="Recados da Equipe"
         >
           <span>▥</span>
           {!isCollapsed && (
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', fontSize: 'inherit', color: 'inherit' }}>
-              Publicações
+              Recados
               {notesNotificationCount > 0 && (
                 <span className="chip" style={{ marginLeft: 'auto', background: 'var(--red)', color: '#fff' }}>
                   {notesNotificationCount}
