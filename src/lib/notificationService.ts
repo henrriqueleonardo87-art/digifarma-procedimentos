@@ -89,7 +89,7 @@ export function buildUnifiedNotifications({
 
   // 1. Notificações de Publicações
   publicacoes.forEach((pub) => {
-    const hasRead = isUserRead(pub.readBy, currentUser);
+    const hasRead = isUserRead(pub.readBy, currentUser, pub.id);
     const isTarget = isUserTargeted(pub.targetUsers, currentUser);
     const isEveryone = !pub.targetUsers || pub.targetUsers.length === 0;
     const isAuthor = isUserAuthor(pub.author, currentUser);

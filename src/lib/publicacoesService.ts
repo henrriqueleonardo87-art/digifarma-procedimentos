@@ -331,31 +331,88 @@ export function isUserTargeted(
   });
 }
 
+const STORAGE_KEY_USER_READS = 'digifarma_user_read_publications_map';
+
+function getUserReadStorageKey(user: any): string {
+  if (!user) return '';
+  if (typeof user === 'string') return user.trim().toLowerCase();
+  return (user.username || user.name || '').trim().toLowerCase();
+}
+
+export function getLocalUserReadIds(user: any): Set<string> {
+  const userKey = getUserReadStorageKey(user);
+  if (!userKey) return new Set();
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_USER_READS}_${userKey}`);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch (err) {
+    console.warn('Erro ao ler leituras locais:', err);
+  }
+  return new Set();
+}
+
+export function markLocalUserReadId(pubId: string, user: any): void {
+  const userKey = getUserReadStorageKey(user);
+  if (!userKey || !pubId) return;
+  try {
+    const currentSet = getLocalUserReadIds(user);
+    currentSet.add(pubId);
+    localStorage.setItem(
+      `${STORAGE_KEY_USER_READS}_${userKey}`,
+      JSON.stringify(Array.from(currentSet))
+    );
+  } catch (err) {
+    console.warn('Erro ao salvar leitura local:', err);
+  }
+}
+
 /**
  * Verifica se o usuário já confirmou leitura (Visto)
  */
 export function isUserRead(
   readBy: string[] | undefined | null,
-  user: { name?: string | null; username?: string | null } | string | null | undefined
+  user: { name?: string | null; username?: string | null } | string | null | undefined,
+  pubId?: string
 ): boolean {
-  if (!readBy || readBy.length === 0 || !user) return false;
+  if (!user) return false;
 
-  const identifiers: string[] = [];
-  if (typeof user === 'string') {
-    if (user.trim()) identifiers.push(user.trim().toLowerCase());
-  } else {
-    if (user.username && user.username.trim()) {
-      identifiers.push(user.username.trim().toLowerCase());
+  // 1. Se pubId foi informado, verificar no armazenamento persistente local do usuário
+  if (pubId) {
+    const localReads = getLocalUserReadIds(user);
+    if (localReads.has(pubId)) return true;
+  }
+
+  // 2. Verificar na lista readBy do registro
+  if (readBy && readBy.length > 0) {
+    const identifiers: string[] = [];
+    if (typeof user === 'string') {
+      if (user.trim()) identifiers.push(user.trim().toLowerCase());
+    } else {
+      if (user.username && user.username.trim()) {
+        identifiers.push(user.username.trim().toLowerCase());
+      }
+      if (user.name && user.name.trim()) {
+        identifiers.push(user.name.trim().toLowerCase());
+      }
     }
-    if (user.name && user.name.trim()) {
-      identifiers.push(user.name.trim().toLowerCase());
+
+    if (identifiers.length > 0) {
+      const hasInReadBy = readBy.some((reader) => {
+        const r = reader.trim().toLowerCase();
+        return identifiers.some((ident) => ident === r || ident.includes(r) || r.includes(ident));
+      });
+
+      if (hasInReadBy) {
+        if (pubId) markLocalUserReadId(pubId, user);
+        return true;
+      }
     }
   }
 
-  return readBy.some((reader) => {
-    const r = reader.trim().toLowerCase();
-    return identifiers.some((ident) => ident === r || ident.includes(r) || r.includes(ident));
-  });
+  return false;
 }
 
 /**
@@ -495,19 +552,29 @@ export async function createPublicacao(item: PublicacaoItem): Promise<boolean> {
  */
 export async function markPublicacaoAsRead(
   pubId: string,
-  userDisplayName: string
+  userDisplayName: string,
+  userObj?: any
 ): Promise<boolean> {
+  // 1. Marcar de forma definitiva no armazenamento do usuário
+  markLocalUserReadId(pubId, userDisplayName);
+  if (userObj) {
+    markLocalUserReadId(pubId, userObj);
+  }
+
   const current = getCachedPublicacoes();
-  const targetPub = current.find((p) => p.id === pubId);
+  const targetPub = current.find((p) => p.id === pubId) || INITIAL_PUBLICACOES.find((p) => p.id === pubId);
   if (!targetPub) return false;
 
   const existingReadBy = targetPub.readBy || [];
-  if (existingReadBy.includes(userDisplayName)) return true;
+  const updatedReadBy = existingReadBy.includes(userDisplayName)
+    ? existingReadBy
+    : [...existingReadBy, userDisplayName];
 
-  const updatedReadBy = [...existingReadBy, userDisplayName];
-  const updatedPubs = current.map((p) =>
-    p.id === pubId ? { ...p, readBy: updatedReadBy } : p
-  );
+  const updatedPub: PublicacaoItem = { ...targetPub, readBy: updatedReadBy };
+  const updatedPubs = current.some((p) => p.id === pubId)
+    ? current.map((p) => (p.id === pubId ? updatedPub : p))
+    : [updatedPub, ...current];
+
   setCachedPublicacoes(updatedPubs);
 
   const supabase = getSupabase();
@@ -515,11 +582,18 @@ export async function markPublicacaoAsRead(
     try {
       const { error } = await supabase
         .from('publicacoes')
-        .update({
+        .upsert({
+          id: targetPub.id,
+          title: targetPub.title,
+          content: targetPub.content,
+          author: targetPub.author,
+          targetUsers: targetPub.targetUsers,
           readBy: updatedReadBy,
+          attachment: targetPub.attachment || null,
+          comments: targetPub.comments,
+          createdAt: targetPub.createdAt,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', pubId);
+        });
 
       if (error) {
         console.error('Erro ao registrar visto no Supabase:', error);

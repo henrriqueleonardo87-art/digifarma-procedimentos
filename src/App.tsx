@@ -40,7 +40,7 @@ import {
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { initThemeColor } from './lib/themeService';
-import { subscribeToPublicacoes, isUserTargeted } from './lib/publicacoesService';
+import { subscribeToPublicacoes, isUserTargeted, isUserRead } from './lib/publicacoesService';
 import { Loader2 } from 'lucide-react';
 
 export function App() {
@@ -264,7 +264,9 @@ export function App() {
 
     const unsubPub = subscribeToPublicacoes((items) => {
       setPublicacoes(items);
-      const count = items.filter((p) => isUserTargeted(p.targetUsers, currentUser)).length;
+      const count = items.filter(
+        (p) => isUserTargeted(p.targetUsers, currentUser) && !isUserRead(p.readBy, currentUser, p.id)
+      ).length;
       setNotesNotificationCount(count);
     });
 

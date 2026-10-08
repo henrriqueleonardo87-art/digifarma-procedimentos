@@ -125,7 +125,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   // Contar publicações direcionadas ao usuário ativo que ainda não foram lidas
   const unreadTargetedCount = useMemo(() => {
     return publicacoes.filter(
-      (p) => isUserTargeted(p.targetUsers, currentUser) && !isUserRead(p.readBy, currentUser)
+      (p) => isUserTargeted(p.targetUsers, currentUser) && !isUserRead(p.readBy, currentUser, p.id)
     ).length;
   }, [publicacoes, currentUser]);
 
@@ -140,7 +140,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
       if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
       if (filterTab === 'unread') {
-        const hasRead = isUserRead(p.readBy, currentUser);
+        const hasRead = isUserRead(p.readBy, currentUser, p.id);
         if (hasRead) return false;
       }
 
@@ -290,7 +290,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     if (!pub) return;
 
     const existing = pub.readBy || [];
-    if (isUserRead(existing, currentUser)) return;
+    if (isUserRead(existing, currentUser, pubId)) return;
 
     // Atualização otimista
     const updatedReadBy = [...existing, currentUserName];
@@ -299,7 +299,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     );
 
     playNotificationSound();
-    await markPublicacaoAsRead(pubId, currentUserName);
+    await markPublicacaoAsRead(pubId, currentUserName, currentUser);
   };
 
   // Alternar Destinatário
@@ -356,8 +356,36 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
   return (
     <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', paddingBottom: '40px' }}>
+      {/* Barra de Ações Superior: Nova Publicação */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', marginBottom: '14px' }}>
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            background: 'var(--red)',
+            border: 'none',
+            borderRadius: '9px',
+            color: '#ffffff',
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 3px 12px rgba(237, 38, 43, 0.28)',
+            transition: 'transform 0.15s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+        >
+          <Plus size={17} />
+          <span>Nova Publicação</span>
+        </button>
+      </div>
+
       {/* ── Barra Contínua de Filtros Globais (.filters) ── */}
-      <section className="filters" aria-label="Filtros globais" style={{ marginTop: '14px', marginBottom: '18px' }}>
+      <section className="filters" aria-label="Filtros globais" style={{ marginTop: '0', marginBottom: '20px' }}>
         <div className="filter">
           <label htmlFor="pub-filter-tab">VISUALIZAÇÃO</label>
           <select
@@ -476,41 +504,13 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
         </div>
       </section>
 
-      {/* Barra de Ações: Nova Publicação */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 18px',
-            background: 'var(--red)',
-            border: 'none',
-            borderRadius: '9px',
-            color: '#ffffff',
-            fontSize: '0.86rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 3px 12px rgba(237, 38, 43, 0.28)',
-            transition: 'transform 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-        >
-          <Plus size={17} />
-          <span>Nova Publicação</span>
-        </button>
-      </div>
-
       {/* Feed de Publicações Amplo e Espaçoso */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {displayedList.map((pub) => {
           const isTargetedToMe = isUserTargeted(pub.targetUsers, currentUser);
           const isEveryone = !pub.targetUsers || pub.targetUsers.length === 0;
           const isAuthor = isUserAuthor(pub.author, currentUser);
-          const hasRead = isUserRead(pub.readBy, currentUser);
+          const hasRead = isUserRead(pub.readBy, currentUser, pub.id);
           const readCount = (pub.readBy || []).length;
 
           return (
