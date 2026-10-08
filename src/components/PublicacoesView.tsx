@@ -79,6 +79,10 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   // Lightbox modal para imagem anexada
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Modal de confirmação para excluir publicação (In-app, sem confirm do navegador)
+  const [pubToDelete, setPubToDelete] = useState<PublicacaoItem | null>(null);
+  const [isDeletingPub, setIsDeletingPub] = useState(false);
+
   // Estado de comentários expandidos por publicação (id -> boolean)
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
@@ -113,7 +117,10 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToPublicacoes((items) => {
-      setPublicacoes(items);
+      const sorted = [...items].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setPublicacoes(sorted);
       setLoading(false);
     });
 
@@ -133,70 +140,72 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     onNotificationChange?.(unreadTargetedCount);
   }, [unreadTargetedCount, onNotificationChange]);
 
-  // Lista Filtrada
+  // Lista Filtrada (ordenada estritamente da mais recente para a mais antiga)
   const filteredList = useMemo(() => {
-    return publicacoes.filter((p) => {
-      // Filtro de aba
-      if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
-      if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
-      if (filterTab === 'unread') {
-        const hasRead = isUserRead(p.readBy, currentUser, p.id);
-        if (hasRead) return false;
-      }
+    return publicacoes
+      .filter((p) => {
+        // Filtro de aba
+        if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
+        if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
+        if (filterTab === 'unread') {
+          const hasRead = isUserRead(p.readBy, currentUser, p.id);
+          if (hasRead) return false;
+        }
 
-      // Filtro de período
-      if (periodPreset !== 'all') {
-        const pubDate = new Date(p.createdAt);
-        const now = new Date();
+        // Filtro de período
+        if (periodPreset !== 'all') {
+          const pubDate = new Date(p.createdAt);
+          const now = new Date();
 
-        if (periodPreset === 'today') {
-          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-          if (pubDate < todayStart) return false;
-        } else if (periodPreset === 'yesterday') {
-          const yestStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-          const yestEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
-          if (pubDate < yestStart || pubDate > yestEnd) return false;
-        } else if (periodPreset === '7days') {
-          const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          if (pubDate < d7) return false;
-        } else if (periodPreset === '15days') {
-          const d15 = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-          if (pubDate < d15) return false;
-        } else if (periodPreset === '30days') {
-          const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          if (pubDate < d30) return false;
-        } else if (periodPreset === 'thisMonth') {
-          const mStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-          if (pubDate < mStart) return false;
-        } else if (periodPreset === 'lastMonth') {
-          const lmStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-          const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-          if (pubDate < lmStart || pubDate > lmEnd) return false;
-        } else if (periodPreset === 'custom') {
-          if (customStartDate) {
-            const [sY, sM, sD] = customStartDate.split('-').map(Number);
-            const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
-            if (pubDate < start) return false;
-          }
-          if (customEndDate) {
-            const [eY, eM, eD] = customEndDate.split('-').map(Number);
-            const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
-            if (pubDate > end) return false;
+          if (periodPreset === 'today') {
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            if (pubDate < todayStart) return false;
+          } else if (periodPreset === 'yesterday') {
+            const yestStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+            const yestEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+            if (pubDate < yestStart || pubDate > yestEnd) return false;
+          } else if (periodPreset === '7days') {
+            const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (pubDate < d7) return false;
+          } else if (periodPreset === '15days') {
+            const d15 = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+            if (pubDate < d15) return false;
+          } else if (periodPreset === '30days') {
+            const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            if (pubDate < d30) return false;
+          } else if (periodPreset === 'thisMonth') {
+            const mStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            if (pubDate < mStart) return false;
+          } else if (periodPreset === 'lastMonth') {
+            const lmStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+            const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            if (pubDate < lmStart || pubDate > lmEnd) return false;
+          } else if (periodPreset === 'custom') {
+            if (customStartDate) {
+              const [sY, sM, sD] = customStartDate.split('-').map(Number);
+              const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
+              if (pubDate < start) return false;
+            }
+            if (customEndDate) {
+              const [eY, eM, eD] = customEndDate.split('-').map(Number);
+              const end = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
+              if (pubDate > end) return false;
+            }
           }
         }
-      }
 
-      // Filtro de busca
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matchTitle = p.title.toLowerCase().includes(q);
-        const matchContent = p.content.toLowerCase().includes(q);
-        const matchAuthor = p.author.toLowerCase().includes(q);
-        const matchTargets = p.targetUsers?.some((t) => t.toLowerCase().includes(q));
-        return matchTitle || matchContent || matchAuthor || matchTargets;
-      }
-      return true;
-    });
+        // Filtro de busca
+        if (searchTerm.trim()) {
+          const q = searchTerm.toLowerCase();
+          const matchTitle = p.title.toLowerCase().includes(q);
+          const matchContent = p.content.toLowerCase().includes(q);
+          const matchAuthor = p.author.toLowerCase().includes(q);
+          const matchTargets = p.targetUsers?.some((t) => t.toLowerCase().includes(q));
+          return matchTitle || matchContent || matchAuthor || matchTargets;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [publicacoes, filterTab, currentUser, searchTerm, periodPreset, customStartDate, customEndDate]);
 
   // Se a busca ou filtro mudar, o usuário pediu:
@@ -311,11 +320,25 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     }
   };
 
-  // Excluir Publicação
-  const handleDelete = async (id: string) => {
-    if (confirm('Deseja excluir esta publicação?')) {
+  // Disparar confirmação de exclusão pelo modal do próprio site (sem confirm do Google)
+  const handleDeleteClick = (pub: PublicacaoItem) => {
+    setPubToDelete(pub);
+  };
+
+  // Confirmar exclusão permanentemente
+  const handleConfirmDelete = async () => {
+    if (!pubToDelete) return;
+    setIsDeletingPub(true);
+    try {
+      const id = pubToDelete.id;
       setPublicacoes((prev) => prev.filter((p) => p.id !== id));
       await deletePublicacao(id);
+      playNotificationSound();
+      setPubToDelete(null);
+    } catch (err) {
+      console.error('Erro ao excluir publicação:', err);
+    } finally {
+      setIsDeletingPub(false);
     }
   };
 
@@ -648,7 +671,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   </div>
                 </div>
 
-                {/* Parte Superior Direita: Data de postagem e botão de excluir */}
+                {/* Parte Superior Direita: Data de postagem (com segundos) e botão de excluir */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
                     style={{
@@ -664,13 +687,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit',
+                      second: '2-digit',
                     })}
                   </span>
 
                   {isAuthor && (
                     <button
                       type="button"
-                      onClick={() => handleDelete(pub.id)}
+                      onClick={() => handleDeleteClick(pub)}
                       title="Excluir publicação"
                       style={{
                         border: 'none',
@@ -976,7 +1000,11 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                             {c.author}
                           </span>
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(c.createdAt).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
                           </span>
                         </div>
                         <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
@@ -1388,6 +1416,151 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             >
               ✕ Fechar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Excluir Publicação (In-App, nativo do site, sem diálogo do Google) */}
+      {pubToDelete && (
+        <div
+          className="review-modal-backdrop"
+          onClick={() => !isDeletingPub && setPubToDelete(null)}
+          style={{ zIndex: 10000 }}
+        >
+          <div
+            className="review-modal-card"
+            style={{ maxWidth: '490px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="review-modal-header" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="review-modal-title-row" style={{ gap: '10px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--red)',
+                  }}
+                >
+                  <Trash2 size={18} />
+                </div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Excluir Publicação
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="review-modal-close"
+                onClick={() => !isDeletingPub && setPubToDelete(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  padding: '4px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="review-modal-body" style={{ padding: '20px' }}>
+              <p style={{ margin: '0 0 14px 0', fontSize: '0.92rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                Tem certeza de que deseja excluir permanentemente esta publicação do mural?
+              </p>
+
+              <div
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '9px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.94rem', color: 'var(--text-primary)', marginBottom: '5px' }}>
+                  {pubToDelete.title}
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  Por <strong>{pubToDelete.author}</strong> • {new Date(pubToDelete.createdAt).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </div>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                ⚠️ Esta operação é irreversível. Todos os comentários e confirmações de leitura vinculados também serão excluídos.
+              </p>
+            </div>
+
+            <div
+              className="review-modal-footer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+              }}
+            >
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                disabled={isDeletingPub}
+                onClick={() => setPubToDelete(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: isDeletingPub ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingPub}
+                onClick={handleConfirmDelete}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  background: 'var(--red)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: isDeletingPub ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingPub ? 0.7 : 1,
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                {isDeletingPub ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                <span>{isDeletingPub ? 'Excluindo...' : 'Sim, Excluir Publicação'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

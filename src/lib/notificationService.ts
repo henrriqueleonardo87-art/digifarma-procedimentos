@@ -243,8 +243,11 @@ export function buildUnifiedNotifications({
     });
   }
 
-  // Ordenar por data decrescente (mais recente primeiro)
-  return notifications.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // Retorna apenas notificações NÃO lidas (removendo sumariamente as já acessadas/lidas)
+  // e ordena por data decrescente (mais recente primeiro)
+  return notifications
+    .filter((n) => !n.isRead && !readIds.has(n.id))
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 }

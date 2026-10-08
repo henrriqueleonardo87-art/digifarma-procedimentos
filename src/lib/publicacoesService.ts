@@ -436,6 +436,15 @@ export function isUserAuthor(
 }
 
 /**
+ * Ordena lista de publicações da mais recente para a mais antiga (decrescente por data/hora)
+ */
+export function sortPublicacoesDesc(items: PublicacaoItem[]): PublicacaoItem[] {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+/**
  * Carrega a lista do LocalStorage (fallback síncrono e cache offline)
  */
 export function getCachedPublicacoes(): PublicacaoItem[] {
@@ -444,19 +453,19 @@ export function getCachedPublicacoes(): PublicacaoItem[] {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length >= 10) {
-        return parsed.map(normalizePublicacao);
+        return sortPublicacoesDesc(parsed.map(normalizePublicacao));
       }
       if (Array.isArray(parsed) && parsed.length > 0) {
         const existingIds = new Set(parsed.map((p: any) => p.id));
         const merged = [...parsed, ...INITIAL_PUBLICACOES.filter((p) => !existingIds.has(p.id))];
-        setCachedPublicacoes(merged);
-        return merged.map(normalizePublicacao);
+        setCachedPublicacoes(sortPublicacoesDesc(merged));
+        return sortPublicacoesDesc(merged.map(normalizePublicacao));
       }
     }
   } catch (err) {
     console.warn('Erro ao ler publicações do localStorage:', err);
   }
-  return INITIAL_PUBLICACOES;
+  return sortPublicacoesDesc(INITIAL_PUBLICACOES);
 }
 
 /**
@@ -464,7 +473,8 @@ export function getCachedPublicacoes(): PublicacaoItem[] {
  */
 export function setCachedPublicacoes(items: PublicacaoItem[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY_PUBLICACOES, JSON.stringify(items));
+    const sorted = sortPublicacoesDesc(items);
+    localStorage.setItem(STORAGE_KEY_PUBLICACOES, JSON.stringify(sorted));
   } catch (err) {
     console.warn('Erro ao gravar publicações no localStorage:', err);
   }
@@ -485,18 +495,21 @@ export async function fetchPublicacoes(): Promise<PublicacaoItem[]> {
 
       if (!error && Array.isArray(data)) {
         if (data.length === 0) {
-          setCachedPublicacoes(INITIAL_PUBLICACOES);
-          return INITIAL_PUBLICACOES;
+          const sortedInitial = sortPublicacoesDesc(INITIAL_PUBLICACOES);
+          setCachedPublicacoes(sortedInitial);
+          return sortedInitial;
         }
         const normalized = data.map(normalizePublicacao);
         if (normalized.length < 10) {
           const existingIds = new Set(normalized.map((p) => p.id));
           const merged = [...normalized, ...INITIAL_PUBLICACOES.filter((p) => !existingIds.has(p.id))];
-          setCachedPublicacoes(merged);
-          return merged;
+          const sortedMerged = sortPublicacoesDesc(merged);
+          setCachedPublicacoes(sortedMerged);
+          return sortedMerged;
         }
-        setCachedPublicacoes(normalized);
-        return normalized;
+        const sortedNorm = sortPublicacoesDesc(normalized);
+        setCachedPublicacoes(sortedNorm);
+        return sortedNorm;
       }
       if (error) {
         console.warn('Erro ao consultar Supabase publicacoes:', error.message);
@@ -506,7 +519,7 @@ export async function fetchPublicacoes(): Promise<PublicacaoItem[]> {
     }
   }
 
-  return getCachedPublicacoes();
+  return sortPublicacoesDesc(getCachedPublicacoes());
 }
 
 /**

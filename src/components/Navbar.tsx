@@ -44,8 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onLogout,
   onUpdateAvatar,
-  pendingReviewCount = 0,
-  notesNotificationCount = 0,
+  pendingReviewCount: _pendingReviewCount = 0,
+  notesNotificationCount: _notesNotificationCount = 0,
   onNavigate: _onNavigate,
   onOpenRevision: _onOpenRevision,
   onOpenNotes: _onOpenNotes,
@@ -71,10 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     () => notifications.filter((n) => !n.isRead),
     [notifications]
   );
-  const totalNotifications =
-    notifications.length > 0
-      ? unreadNotifications.length
-      : pendingReviewCount + notesNotificationCount;
+  const totalNotifications = unreadNotifications.length;
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -323,8 +320,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   overflowY: 'auto',
                 }}
               >
-                {notifications.length > 0 ? (
-                  notifications.map((notif) => {
+                {unreadNotifications.length > 0 ? (
+                  unreadNotifications.map((notif) => {
                     const icon =
                       notif.type === 'publicacao' ? (
                         <StickyNote size={15} color="var(--red)" />
@@ -356,21 +353,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                           gap: '10px',
                           padding: '10px 12px',
                           borderRadius: '8px',
-                          background: notif.isRead ? 'transparent' : 'var(--bg-secondary)',
-                          border: notif.isRead
-                            ? '1px solid transparent'
-                            : '1px solid var(--border-subtle)',
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-subtle)',
                           cursor: 'pointer',
                           transition: 'all 0.12s ease',
-                          opacity: notif.isRead ? 0.7 : 1,
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = 'var(--bg-hover)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = notif.isRead
-                            ? 'transparent'
-                            : 'var(--bg-secondary)';
+                          e.currentTarget.style.background = 'var(--bg-secondary)';
                         }}
                       >
                         <div
@@ -400,7 +392,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span
                               style={{
                                 fontSize: '0.8rem',
-                                fontWeight: notif.isRead ? 600 : 800,
+                                fontWeight: 800,
                                 color: 'var(--text-primary)',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
@@ -409,17 +401,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                             >
                               {notif.title}
                             </span>
-                            {!notif.isRead && (
-                              <span
-                                style={{
-                                  width: '6px',
-                                  height: '6px',
-                                  borderRadius: '50%',
-                                  background: 'var(--red)',
-                                  flexShrink: 0,
-                                }}
-                              />
-                            )}
+                            <span
+                              style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: 'var(--red)',
+                                flexShrink: 0,
+                              }}
+                            />
                           </div>
                           <p
                             style={{
@@ -444,6 +434,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             {new Date(notif.createdAt).toLocaleTimeString('pt-BR', {
                               hour: '2-digit',
                               minute: '2-digit',
+                              second: '2-digit',
                             })}
                           </span>
                         </div>
@@ -453,13 +444,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ) : (
                   <div
                     style={{
-                      padding: '24px 16px',
+                      padding: '28px 16px',
                       textAlign: 'center',
                       color: 'var(--text-muted)',
                       fontSize: '0.82rem',
                     }}
                   >
-                    🎉 Você está em dia! Nenhuma notificação pendente.
+                    <CheckCheck size={28} color="#10b981" style={{ marginBottom: '8px', opacity: 0.85 }} />
+                    <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                      Tudo em dia!
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      Nenhuma pendência ou notificação no momento.
+                    </p>
                   </div>
                 )}
               </div>
