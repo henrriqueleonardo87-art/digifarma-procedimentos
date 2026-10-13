@@ -17,6 +17,7 @@ import {
   Clock,
   Maximize2,
   Edit2,
+  Lock,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
 import { playNotificationSound } from '../lib/notificationSound';
@@ -29,31 +30,27 @@ import type {
 import {
   fetchMuralCards,
   saveAllMuralCards,
+  deleteMuralCard,
   subscribeToMuralCards,
-  DEFAULT_COLUMNS,
+  fetchMuralColumns,
+  saveMuralColumns,
+  deleteMuralColumn,
+  subscribeToMuralColumns,
+  fetchMuralMarkers,
+  saveMuralMarkers,
+  subscribeToMuralMarkers,
+  getCachedMuralCards,
+  getCachedMuralColumns,
+  getCachedMuralMarkers,
+  isCardVisibleToUser,
+  matchesUser,
 } from '../lib/muralService';
-import { fetchTeamMembers } from '../lib/publicacoesService';
-import { getLocalUsers } from '../lib/authService';
+import { subscribeToAppUsers } from '../lib/authService';
 
 interface MuralViewProps {
   currentUser?: AppUser | null;
   onBackToDashboard?: () => void;
 }
-
-const STORAGE_KEY_COLUMNS = 'digifarma_mural_columns_v2';
-const STORAGE_KEY_CARDS = 'digifarma_mural_cards_v2';
-const STORAGE_KEY_CUSTOM_MARKERS = 'digifarma_mural_custom_markers';
-
-const DEFAULT_MARKERS: MuralMarker[] = [
-  { id: 'm-urgent', label: 'Urgente', color: '#ef4444' },
-  { id: 'm-important', label: 'Importante', color: '#f59e0b' },
-  { id: 'm-homolog', label: 'Homologação', color: '#8b5cf6' },
-  { id: 'm-v10', label: 'V10', color: '#3b82f6' },
-  { id: 'm-classic', label: 'Clássico', color: '#06b6d4' },
-  { id: 'm-valid', label: 'Validado', color: '#10b981' },
-  { id: 'm-fiscal', label: 'Fiscal', color: '#ec4899' },
-  { id: 'm-train', label: 'Treinamento', color: '#14b8a6' },
-];
 
 const PRESET_COLORS = [
   '#ef4444', // Red
@@ -70,7 +67,7 @@ const PRESET_COLORS = [
 export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   const currentUserName = currentUser?.name || currentUser?.username || 'Leonardo';
 
-  // 1. Membros da Equipe Dinâmicos (Supabase + Local + Padrões)
+  // 1. Membros da Equipe Dinâmicos (Supabase Realtime)
   const [teamMembers, setTeamMembers] = useState<Array<{ username: string; name: string }>>([
     { username: 'Leonardo', name: 'Leonardo' },
     { username: 'Icaro', name: 'Icaro' },
@@ -79,87 +76,80 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   ]);
 
   useEffect(() => {
-    async function loadTeam() {
-      try {
-        const [supabaseUsers, localUsers] = await Promise.all([
-          fetchTeamMembers(),
-          getLocalUsers(),
-        ]);
+    const unsubUsers = subscribeToAppUsers((users) => {
+      const map = new Map<string, { username: string; name: string }>();
 
-        const map = new Map<string, { username: string; name: string }>();
+      // Padrões
+      [
+        { username: 'Leonardo', name: 'Leonardo' },
+        { username: 'Icaro', name: 'Icaro' },
+        { username: 'Wallace', name: 'Wallace' },
+        { username: 'Whitalo', name: 'Whitalo' },
+      ].forEach((u) => map.set(u.username.toLowerCase(), u));
 
-        // Padrões
-        [
-          { username: 'Leonardo', name: 'Leonardo' },
-          { username: 'Icaro', name: 'Icaro' },
-          { username: 'Wallace', name: 'Wallace' },
-          { username: 'Whitalo', name: 'Whitalo' },
-        ].forEach((u) => map.set(u.username.toLowerCase(), u));
+      // Supabase & Locais
+      users.forEach((u) => {
+        if (u.username) {
+          map.set(u.username.toLowerCase(), {
+            username: u.username,
+            name: u.name || u.username,
+          });
+        }
+      });
 
-        // Locais
-        localUsers.forEach((u) => {
-          if (u.username) {
-            map.set(u.username.toLowerCase(), {
-              username: u.username,
-              name: u.name || u.username,
-            });
-          }
-        });
-
-        // Supabase
-        supabaseUsers.forEach((u) => {
-          if (u.username) {
-            map.set(u.username.toLowerCase(), {
-              username: u.username,
-              name: u.name || u.username,
-            });
-          }
-        });
-
-        setTeamMembers(Array.from(map.values()));
-      } catch (err) {
-        console.warn('Erro ao carregar membros da equipe para o Kanban:', err);
-      }
-    }
-    loadTeam();
+      setTeamMembers(Array.from(map.values()));
+    });
+    return unsubUsers;
   }, []);
 
-  // 2. Colunas e Cartões
-  const [columns, setColumns] = useState<MuralColumn[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_COLUMNS);
-    return saved ? JSON.parse(saved) : DEFAULT_COLUMNS;
-  });
+  // 2. Colunas do Quadro (Supabase + Realtime + Cache Local)
+  const [columns, setColumns] = useState<MuralColumn[]>(() => getCachedMuralColumns());
 
-  const [cards, setCards] = useState<MuralCard[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CARDS);
-    return saved ? JSON.parse(saved) : [];
-  });
+  useEffect(() => {
+    fetchMuralColumns().then((fetched) => {
+      if (fetched && fetched.length > 0) setColumns(fetched);
+    });
+    const unsubCols = subscribeToMuralColumns((updatedCols) => {
+      if (updatedCols && updatedCols.length > 0) setColumns(updatedCols);
+    });
+    return unsubCols;
+  }, []);
 
-  // 3. Marcadores Disponíveis
-  const [availableMarkers, setAvailableMarkers] = useState<MuralMarker[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CUSTOM_MARKERS);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch {
-        // fallback
-      }
-    }
-    return DEFAULT_MARKERS;
-  });
+  // 3. Cartões do Quadro (Supabase + Realtime + Cache Local)
+  const [cards, setCards] = useState<MuralCard[]>(() => getCachedMuralCards());
 
-  // 4. Filtros
+  useEffect(() => {
+    fetchMuralCards().then((fetched) => {
+      if (fetched) setCards(fetched);
+    });
+    const unsubCards = subscribeToMuralCards((updatedCards) => {
+      setCards(updatedCards);
+    });
+    return unsubCards;
+  }, []);
+
+  // 4. Marcadores Disponíveis (Supabase + Realtime + Cache Local)
+  const [availableMarkers, setAvailableMarkers] = useState<MuralMarker[]>(() => getCachedMuralMarkers());
+
+  useEffect(() => {
+    fetchMuralMarkers().then((fetched) => {
+      if (fetched && fetched.length > 0) setAvailableMarkers(fetched);
+    });
+    const unsubMarkers = subscribeToMuralMarkers((updatedMarkers) => {
+      if (updatedMarkers && updatedMarkers.length > 0) setAvailableMarkers(updatedMarkers);
+    });
+    return unsubMarkers;
+  }, []);
+
+  // 5. Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMember, setFilterMember] = useState<'all' | 'mine' | 'shared'>('all');
 
-  // 5. Modal: Nova Coluna
+  // 6. Modal: Nova Coluna
   const [isNewColOpen, setIsNewColOpen] = useState(false);
   const [newColTitle, setNewColTitle] = useState('');
 
-  // 6. Modal: Novo Cartão
+  // 7. Modal: Novo Cartão
   const [isNewCardOpen, setIsNewCardOpen] = useState(false);
   const [targetColumnId, setTargetColumnId] = useState<string>('col-todo');
   const [newCardTitle, setNewCardTitle] = useState('');
@@ -179,7 +169,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   const [customMarkerLabel, setCustomMarkerLabel] = useState('');
   const [customMarkerColor, setCustomMarkerColor] = useState('#ef4444');
 
-  // 7. Modal: Detalhes do Cartão Ativo
+  // 8. Modal: Detalhes do Cartão Ativo
   const [activeCard, setActiveCard] = useState<MuralCard | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   
@@ -188,29 +178,17 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   const [isEditingCardShared, setIsEditingCardShared] = useState(false);
   const [activeCardMarkerCreating, setActiveCardMarkerCreating] = useState(false);
 
-  // 8. Lightbox para visualização de imagem
+  // 9. Lightbox para visualização de imagem
   const [lightboxImg, setLightboxImg] = useState<{ url: string; title: string } | null>(null);
 
   // Refs de arquivo
   const newCardFileInputRef = useRef<HTMLInputElement | null>(null);
   const activeCardFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    fetchMuralCards().then((fetched) => {
-      if (fetched) {
-        setCards(fetched);
-      }
-    });
-    const unsub = subscribeToMuralCards((updatedCards) => {
-      setCards(updatedCards);
-    });
-    return unsub;
-  }, []);
-
-  // Sincronização LocalStorage e Supabase
+  // Sincronização Supabase e Cache Local
   const saveColumns = (newCols: MuralColumn[]) => {
     setColumns(newCols);
-    localStorage.setItem(STORAGE_KEY_COLUMNS, JSON.stringify(newCols));
+    saveMuralColumns(newCols);
   };
 
   const saveCards = (newCards: MuralCard[]) => {
@@ -220,7 +198,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
   const saveCustomMarkers = (markers: MuralMarker[]) => {
     setAvailableMarkers(markers);
-    localStorage.setItem(STORAGE_KEY_CUSTOM_MARKERS, JSON.stringify(markers));
+    saveMuralMarkers(markers);
   };
 
   // Helper para criar novo marcador
@@ -285,17 +263,28 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
     reader.readAsDataURL(file);
   };
 
-  // Cartões Filtrados
+  // 1. Cartões Acessíveis ao Usuário (Regra Estrita de Privacidade):
+  // O Kanban é individual por padrão. Um cartão SÓ é visível se:
+  // - O usuário atual for o Autor (card.author)
+  // - O cartão tiver sido compartilhado com o usuário atual (card.sharedWith)
+  // - O usuário for o responsável atribuído (card.assignee)
+  const accessibleCards = useMemo(() => {
+    return cards.filter((card) => isCardVisibleToUser(card, currentUser));
+  }, [cards, currentUser]);
+
+  // 2. Cartões Filtrados por Membro e Busca Textual sobre os Cartões Acessíveis
   const filteredCards = useMemo(() => {
-    return cards.filter((card) => {
+    return accessibleCards.filter((card) => {
+      const isAuthor = matchesUser(card.author, currentUser);
+      const isAssigned = matchesUser(card.assignee, currentUser);
+      const isShared = Array.isArray(card.sharedWith) && card.sharedWith.some((m) => matchesUser(m, currentUser));
+
       // Filtro de membro
-      if (filterMember === 'mine' && card.author !== currentUserName && card.assignee !== currentUserName) {
-        return false;
-      }
-      if (filterMember === 'shared') {
-        const isShared = card.sharedWith.includes(currentUserName);
-        const isAssigned = card.assignee === currentUserName;
-        if (!isShared && !isAssigned) return false;
+      if (filterMember === 'mine') {
+        if (!isAuthor && !isAssigned) return false;
+      } else if (filterMember === 'shared') {
+        // Compartilhados com este usuário ou atribuídos por outros
+        if (isAuthor || (!isShared && !isAssigned)) return false;
       }
 
       // Filtro de busca
@@ -310,7 +299,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
       }
       return true;
     });
-  }, [cards, filterMember, currentUserName, searchTerm]);
+  }, [accessibleCards, filterMember, currentUser, searchTerm]);
 
   // Criar Coluna
   const handleCreateColumn = (e: React.FormEvent) => {
@@ -330,11 +319,12 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
   // Excluir Coluna
   const handleDeleteColumn = (colId: string) => {
-    if (confirm('Deseja excluir esta coluna e seus cartões?')) {
+    if (confirm('Deseja excluir esta coluna e seus cartões permanentemente?')) {
       const remCols = columns.filter((c) => c.id !== colId);
       const remCards = cards.filter((c) => c.columnId !== colId);
       saveColumns(remCols);
       saveCards(remCards);
+      deleteMuralColumn(colId);
     }
   };
 
@@ -426,8 +416,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
   // Excluir Cartão
   const handleDeleteCard = (cardId: string) => {
     if (confirm('Deseja excluir este cartão permanentemente?')) {
+      deleteMuralCard(cardId);
       const rem = cards.filter((c) => c.id !== cardId);
-      saveCards(rem);
+      setCards(rem);
       if (activeCard?.id === cardId) {
         setActiveCard(null);
       }
@@ -471,7 +462,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
         </div>
         <div className="capture">
           <span className="live-dot" /> Quadro Kanban
-          <span id="captured">{cards.length} cartões no quadro</span>
+          <span id="captured">{accessibleCards.length} cartões no quadro</span>
         </div>
       </section>
 
@@ -484,7 +475,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
             value={filterMember}
             onChange={(e) => setFilterMember(e.target.value as any)}
           >
-            <option value="all">Todos os Cartões</option>
+            <option value="all">Todos os Acessíveis ({accessibleCards.length})</option>
             <option value="mine">Meus Cartões / Atribuídos a Mim</option>
             <option value="shared">Compartilhados Comigo</option>
           </select>
@@ -926,23 +917,44 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                             </div>
                           )}
 
-                          {/* Membros Compartilhados */}
-                          {card.sharedWith.length > 0 && (
+                          {/* Indicador de Privacidade: Individual vs Compartilhado */}
+                          {(!card.sharedWith || card.sharedWith.length === 0) ? (
                             <div
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '3px',
-                                fontSize: '0.68rem',
-                                color: 'var(--text-muted)',
-                                background: 'var(--bg-secondary)',
-                                padding: '1px 5px',
+                                fontSize: '0.67rem',
+                                color: '#10b981',
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                padding: '1px 6px',
                                 borderRadius: '4px',
+                                fontWeight: 700,
+                              }}
+                              title="Cartão Individual (Privado - Visível apenas para você)"
+                            >
+                              <Lock size={10} />
+                              <span>Individual</span>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '0.67rem',
+                                color: 'var(--primary-500, #38bdf8)',
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700,
                               }}
                               title={`Compartilhado com: ${card.sharedWith.join(', ')}`}
                             >
                               <Users size={11} />
-                              <span>+{card.sharedWith.length}</span>
+                              <span>Compartilhado ({card.sharedWith.length})</span>
                             </div>
                           )}
 
@@ -1804,6 +1816,38 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 )}
               </div>
 
+              {/* Indicador de Privacidade e Visibilidade do Cartão */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  fontSize: '0.78rem',
+                  background: newCardShared.length === 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(56, 189, 248, 0.08)',
+                  border: newCardShared.length === 0 ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)',
+                  color: newCardShared.length === 0 ? '#10b981' : 'var(--primary-500, #38bdf8)',
+                }}
+              >
+                {newCardShared.length === 0 ? (
+                  <>
+                    <Lock size={15} style={{ flexShrink: 0 }} />
+                    <span>
+                      <strong>Cartão Individual (Privado):</strong> Visível apenas para você. Se quiser que outros membros vejam no quadro deles, clique em "Compartilhar".
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Users size={15} style={{ flexShrink: 0 }} />
+                    <span>
+                      <strong>Cartão Compartilhado:</strong> Visível para você e para os colaboradores selecionados ({newCardShared.join(', ')}).
+                    </span>
+                  </>
+                )}
+              </div>
+
               {/* Botões do Rodapé */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button
@@ -2101,8 +2145,9 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                       </span>
                     ))
                   ) : (
-                    <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      Nenhum membro adicional compartilhado.
+                    <span style={{ fontSize: '0.76rem', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+                      <Lock size={12} />
+                      Cartão Individual (Privado — visível exclusivamente para você).
                     </span>
                   )}
                 </div>

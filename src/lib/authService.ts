@@ -35,8 +35,36 @@ export const DEFAULT_USERS: AppUser[] = [
   },
 ];
 
-// Carregar lista de usuários (Supabase com fallback LocalStorage)
+// Carregar lista de usuários (Supabase como fonte única da verdade com fallback LocalStorage)
 export async function getLocalUsers(): Promise<AppUser[]> {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const normalized: AppUser[] = data.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name || u.username,
+          password: u.password,
+          must_change_password: !!u.must_change_password,
+          avatar_url: u.avatar_url || undefined,
+          created_at: u.created_at,
+          updated_at: u.updated_at,
+        }));
+        saveLocalUsers(normalized);
+        return normalized;
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar app_users do Supabase:', err);
+    }
+  }
+
+  // Fallback LocalStorage se offline
   const local = localStorage.getItem(LOCAL_USERS_KEY);
   if (local) {
     try {
@@ -46,12 +74,61 @@ export async function getLocalUsers(): Promise<AppUser[]> {
       // fallback
     }
   }
-  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(DEFAULT_USERS));
   return DEFAULT_USERS;
 }
 
 export function saveLocalUsers(users: AppUser[]): void {
   localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  window.dispatchEvent(new CustomEvent('app-users-updated', { detail: users }));
+}
+
+export function subscribeToAppUsers(callback: (users: AppUser[]) => void): () => void {
+  let isSubscribed = true;
+
+  getLocalUsers().then((users) => {
+    if (isSubscribed) callback(users);
+  });
+
+  const handleLocalEvent = (e: Event) => {
+    if (!isSubscribed) return;
+    const custom = e as CustomEvent<AppUser[]>;
+    if (custom.detail) callback(custom.detail);
+    else getLocalUsers().then((u) => isSubscribed && callback(u));
+  };
+
+  window.addEventListener('app-users-updated', handleLocalEvent);
+
+  const supabase = getSupabase();
+  let channel: any = null;
+
+  if (supabase) {
+    try {
+      channel = supabase
+        .channel(`app_users_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'app_users' },
+          async () => {
+            if (!isSubscribed) return;
+            const updated = await getLocalUsers();
+            if (isSubscribed) callback(updated);
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Erro ao conectar Supabase Realtime para app_users:', err);
+    }
+  }
+
+  return () => {
+    isSubscribed = false;
+    window.removeEventListener('app-users-updated', handleLocalEvent);
+    if (channel && supabase) {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+    }
+  };
 }
 
 export function getCurrentUser(): AppUser | null {
