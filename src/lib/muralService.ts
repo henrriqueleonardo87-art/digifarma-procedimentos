@@ -151,14 +151,14 @@ export function getCachedMuralCards(): MuralCard[] {
     const saved = localStorage.getItem(STORAGE_KEY_CARDS);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed.map(normalizeCard);
       }
     }
   } catch {
     // fallback
   }
-  return INITIAL_CARDS;
+  return [];
 }
 
 export function setCachedMuralCards(cards: MuralCard[]): void {
@@ -182,15 +182,10 @@ export async function fetchMuralCards(): Promise<MuralCard[]> {
         .select('*')
         .order('createdAt', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const normalized = data.map(normalizeCard);
         setCachedMuralCards(normalized);
         return normalized;
-      } else if (!error && Array.isArray(data) && data.length === 0) {
-        // Se a tabela estiver vazia, faz o seed com INITIAL_CARDS
-        const cached = getCachedMuralCards();
-        await saveAllMuralCards(cached);
-        return cached;
       }
     } catch (err) {
       console.warn('Falha ao buscar mural_cards do Supabase:', err);

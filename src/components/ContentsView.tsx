@@ -13,11 +13,11 @@ export const ContentsView: React.FC<ContentsViewProps> = ({
   onSelectVersion,
 }) => {
   const v10Count = procedures.filter(
-    (p) => (p.status === 'aprovado' || !p.status) && (p.systemVersion === 'v10' || !p.systemVersion)
+    (p) => (p.status === 'aprovado' || !p.status) && (p.systemVersion === 'v10' || !p.systemVersion) && p.isActive !== false
   ).length;
 
   const classicoCount = procedures.filter(
-    (p) => (p.status === 'aprovado' || !p.status) && (p.systemVersion === 'classico' || p.systemVersion === 'r78')
+    (p) => (p.status === 'aprovado' || !p.status) && (p.systemVersion === 'classico' || p.systemVersion === 'r78') && p.isActive !== false
   ).length;
 
   return (

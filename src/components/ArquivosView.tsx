@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Folder,
   FolderPlus,
@@ -15,6 +15,15 @@ import {
   Edit2,
 } from 'lucide-react';
 import type { AppUser } from '../types/auth';
+import {
+  fetchExplorerFolders,
+  fetchExplorerItems,
+  saveExplorerFolder,
+  deleteExplorerFolder,
+  saveExplorerItem,
+  deleteExplorerItem,
+  subscribeToExplorer,
+} from '../lib/explorerService';
 
 export interface ExplorerFolder {
   id: string;
@@ -42,34 +51,6 @@ interface ArquivosViewProps {
 const STORAGE_KEY_FOLDERS = 'digifarma_explorer_folders';
 const STORAGE_KEY_ITEMS = 'digifarma_explorer_items';
 
-const INITIAL_FOLDERS: ExplorerFolder[] = [
-  { id: 'f-1', name: 'Telas do ERP', parentId: null, createdAt: new Date().toISOString() },
-  { id: 'f-2', name: 'Fluxos de Trabalho', parentId: null, createdAt: new Date().toISOString() },
-  { id: 'f-3', name: 'Erros e Soluções', parentId: null, createdAt: new Date().toISOString() },
-  { id: 'f-sub-1', name: 'Módulo Caixa', parentId: 'f-1', createdAt: new Date().toISOString() },
-];
-
-const INITIAL_ITEMS: ExplorerItem[] = [
-  {
-    id: 'it-1',
-    folderId: 'f-sub-1',
-    type: 'note',
-    title: 'Procedimento de Sangria e Fechamento Cego',
-    contentOrUrl: 'Passo 1: Abrir o PDV pelo atalho F2.\nPasso 2: Digitar a senha de supervisor caso exigido.\nPasso 3: Conferir dinheiro em espécie sem olhar o total do sistema.',
-    author: 'Leonardo',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'it-2',
-    folderId: 'f-2',
-    type: 'note',
-    title: 'Checklist de Atendimento no Balcão',
-    contentOrUrl: '1. Saudação cordial ao cliente.\n2. Consulta do CPF no convênio.\n3. Verificação de estoque e validade do medicamento.',
-    author: 'Icaro',
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export const ArquivosView: React.FC<ArquivosViewProps> = ({
   currentUser,
 }) => {
@@ -78,13 +59,35 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
   // Pastas e Itens persistentes
   const [folders, setFolders] = useState<ExplorerFolder[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FOLDERS);
-    return saved ? JSON.parse(saved) : INITIAL_FOLDERS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [items, setItems] = useState<ExplorerItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_ITEMS);
-    return saved ? JSON.parse(saved) : INITIAL_ITEMS;
+    return saved ? JSON.parse(saved) : [];
   });
+
+  // Carregar dados centralizados do Supabase e sincronizar
+  const loadExplorerData = async () => {
+    try {
+      const [loadedFolders, loadedItems] = await Promise.all([
+        fetchExplorerFolders(),
+        fetchExplorerItems(),
+      ]);
+      setFolders(loadedFolders);
+      setItems(loadedItems);
+    } catch (err) {
+      console.warn('Erro ao sincronizar arquivos do Supabase:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadExplorerData();
+    const unsubscribe = subscribeToExplorer(() => {
+      loadExplorerData();
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Pasta atual navegada (null = raiz)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -101,17 +104,6 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
 
   const [viewingItem, setViewingItem] = useState<ExplorerItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Sincronizar LocalStorage
-  const saveFolders = (newFolders: ExplorerFolder[]) => {
-    setFolders(newFolders);
-    localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(newFolders));
-  };
-
-  const saveItems = (newItems: ExplorerItem[]) => {
-    setItems(newItems);
-    localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(newItems));
-  };
 
   // Breadcrumbs da navegação
   const breadcrumbs = useMemo(() => {
@@ -156,7 +148,7 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
   };
 
   // Criar nova pasta
-  const handleCreateFolder = (e: React.FormEvent) => {
+  const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
     const newFolder: ExplorerFolder = {
@@ -165,22 +157,22 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
       parentId: currentFolderId,
       createdAt: new Date().toISOString(),
     };
-    saveFolders([...folders, newFolder]);
+    setFolders((prev) => [...prev, newFolder]);
     setNewFolderName('');
     setIsNewFolderOpen(false);
+    await saveExplorerFolder(newFolder);
   };
 
   // Excluir pasta (e cascata de itens)
-  const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
+  const handleDeleteFolder = async (folderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Deseja excluir esta pasta e seu conteúdo interno?')) {
-      const remainingFolders = folders.filter((f) => f.id !== folderId && f.parentId !== folderId);
-      const remainingItems = items.filter((it) => it.folderId !== folderId);
-      saveFolders(remainingFolders);
-      saveItems(remainingItems);
+      setFolders((prev) => prev.filter((f) => f.id !== folderId && f.parentId !== folderId));
+      setItems((prev) => prev.filter((it) => it.folderId !== folderId));
       if (currentFolderId === folderId) {
         setCurrentFolderId(null);
       }
+      await deleteExplorerFolder(folderId);
     }
   };
 
@@ -194,7 +186,7 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
       const isImg = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
 
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const result = event.target?.result as string;
         if (!result) return;
 
@@ -208,14 +200,11 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
           createdAt: new Date().toISOString(),
           size: `${(file.size / 1024).toFixed(1)} KB`,
         };
-        saveItems([...items, newItem]);
+        setItems((prev) => [...prev, newItem]);
+        await saveExplorerItem(newItem);
       };
 
-      if (isImg || isPdf || file.type.startsWith('text/')) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsDataURL(file);
-      }
+      reader.readAsDataURL(file);
     });
 
     if (fileInputRef.current) {
@@ -224,17 +213,24 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
   };
 
   // Salvar Anotação (Nova ou Editada)
-  const handleSaveNote = (e: React.FormEvent) => {
+  const handleSaveNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteTitle.trim()) return;
 
     if (editingNoteId) {
-      const updated = items.map((it) =>
-        it.id === editingNoteId
-          ? { ...it, title: noteTitle.trim(), contentOrUrl: noteContent.trim() }
-          : it
-      );
-      saveItems(updated);
+      const existing = items.find((it) => it.id === editingNoteId);
+      const updated: ExplorerItem = {
+        ...(existing || { id: editingNoteId, folderId: currentFolderId, type: 'note', createdAt: new Date().toISOString() }),
+        id: editingNoteId,
+        folderId: existing?.folderId || currentFolderId,
+        type: 'note',
+        title: noteTitle.trim(),
+        contentOrUrl: noteContent.trim(),
+        author: existing?.author || currentUserName,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+      };
+      setItems((prev) => prev.map((it) => (it.id === editingNoteId ? updated : it)));
+      await saveExplorerItem(updated);
     } else {
       const newNote: ExplorerItem = {
         id: `note-${Date.now()}`,
@@ -245,7 +241,8 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
         author: currentUserName,
         createdAt: new Date().toISOString(),
       };
-      saveItems([...items, newNote]);
+      setItems((prev) => [...prev, newNote]);
+      await saveExplorerItem(newNote);
     }
 
     setNoteTitle('');
@@ -262,14 +259,14 @@ export const ArquivosView: React.FC<ArquivosViewProps> = ({
     setIsNoteModalOpen(true);
   };
 
-  const handleDeleteItem = (itemId: string, e: React.MouseEvent) => {
+  const handleDeleteItem = async (itemId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Deseja excluir este item?')) {
-      const remaining = items.filter((it) => it.id !== itemId);
-      saveItems(remaining);
+      setItems((prev) => prev.filter((it) => it.id !== itemId));
       if (viewingItem?.id === itemId) {
         setViewingItem(null);
       }
+      await deleteExplorerItem(itemId);
     }
   };
 

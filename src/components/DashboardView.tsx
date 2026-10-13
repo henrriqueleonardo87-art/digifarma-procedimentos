@@ -104,7 +104,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ];
   }, [totalProcedures]);
 
-  const [statusFilter, setStatusFilter] = useState<'todos' | 'publicados' | 'revisao' | 'inativos'>('todos');
+  const [statusFilter, setStatusFilter] = useState<'publicados' | 'revisao' | 'despublicados' | 'inativos' | 'todos'>('publicados');
   const [versionFilter, setVersionFilter] = useState<'todas' | 'v10' | 'classico'>('todas');
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
 
@@ -143,13 +143,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Contagens por status
   const publishedCount = useMemo(() => {
-    return procedures.filter((p) => p.status === 'aprovado' && p.isActive !== false).length;
+    return procedures.filter((p) => (p.status === 'aprovado' || !p.status) && p.isActive !== false).length;
   }, [procedures]);
 
   const reviewCount = useMemo(() => {
     return procedures.filter(
       (p) => (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false
     ).length;
+  }, [procedures]);
+
+  const unpublishedCount = useMemo(() => {
+    return procedures.filter((p) => p.status === 'despublicado' && p.isActive !== false).length;
   }, [procedures]);
 
   const inactiveCount = useMemo(() => {
@@ -166,11 +170,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
 
     if (statusFilter === 'publicados') {
-      list = list.filter((p) => p.status === 'aprovado' && p.isActive !== false);
+      list = list.filter((p) => (p.status === 'aprovado' || !p.status) && p.isActive !== false);
     } else if (statusFilter === 'revisao') {
       list = list.filter(
         (p) => (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false
       );
+    } else if (statusFilter === 'despublicados') {
+      list = list.filter((p) => p.status === 'despublicado' && p.isActive !== false);
     } else if (statusFilter === 'inativos') {
       list = list.filter((p) => p.isActive === false);
     }
@@ -289,10 +295,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
           >
-            <option value="todos">Todos os status</option>
             <option value="publicados">Publicados ({publishedCount})</option>
             <option value="revisao">Em Revisão ({reviewCount})</option>
+            <option value="despublicados">Despublicados ({unpublishedCount})</option>
             <option value="inativos">Inativos ({inactiveCount})</option>
+            <option value="todos">Todos os status ({procedures.length})</option>
           </select>
         </div>
 
@@ -459,13 +466,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                         <td>
                           {proc.isActive === false ? (
-                            <span className="tag warn">Inativo</span>
-                          ) : proc.status === 'aprovado' ? (
-                            <span className="tag success">Publicado</span>
+                            <span className="tag warn" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>Inativo</span>
+                          ) : proc.status === 'despublicado' ? (
+                            <span className="tag" style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }}>Despublicado</span>
+                          ) : proc.status === 'aprovado' || !proc.status ? (
+                            <span className="tag success" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>Publicado</span>
                           ) : proc.status === 'pendente' ? (
-                            <span className="tag warn">Em Revisão</span>
+                            <span className="tag warn" style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' }}>Em Revisão</span>
                           ) : proc.status === 'ajustes_solicitados' ? (
-                            <span className="tag danger">Ajustes</span>
+                            <span className="tag danger" style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa' }}>Ajustes</span>
                           ) : (
                             <span className="tag">Rascunho</span>
                           )}

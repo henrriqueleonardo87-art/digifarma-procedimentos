@@ -42,7 +42,7 @@ import type { SystemMenu, SubmenuItem, SystemVersion, Procedure } from '../types
 import type { AppUser } from '../types/auth';
 import { updatePassword } from '../lib/authService';
 import { getSavedConfig, saveConfig, testConnection } from '../lib/supabase';
-import { INITIAL_PROCEDURES, DEFAULT_SYSTEM_MENUS } from '../lib/storageService';
+import { DEFAULT_SYSTEM_MENUS } from '../lib/storageService';
 import { THEME_PALETTES, getCurrentThemeColor, applyThemeColor } from '../lib/themeService';
 
 interface SettingsViewProps {
@@ -397,11 +397,10 @@ CREATE POLICY "Storage Acesso Publico Insercao" ON storage.objects FOR INSERT WI
   };
 
   const handleResetDefaults = async () => {
-    if (confirm('Deseja restaurar os módulos e procedimentos padrão de demonstração?')) {
+    if (confirm('Deseja restaurar a estrutura de módulos padrão do sistema?')) {
       await onSaveMenus(DEFAULT_SYSTEM_MENUS);
       setCurrentMenus(DEFAULT_SYSTEM_MENUS);
-      await onSaveProcedures(INITIAL_PROCEDURES);
-      alert('Padrões restaurados com sucesso!');
+      alert('Estrutura de módulos padrão restaurada com sucesso!');
     }
   };
 

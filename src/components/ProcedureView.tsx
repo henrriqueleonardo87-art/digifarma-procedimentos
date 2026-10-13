@@ -721,6 +721,20 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
                     </button>
                   )}
 
+                  {procedure.status === 'despublicado' && onPublish && (
+                    <button
+                      type="button"
+                      className="proc-menu-item"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        onPublish();
+                      }}
+                    >
+                      <CheckCircle2 size={15} color="#10b981" />
+                      <span>Publicar (Colocar no Ar)</span>
+                    </button>
+                  )}
+
                   {onToggleActive && (
                     <button
                       type="button"
@@ -1130,7 +1144,7 @@ export const ProcedureView: React.FC<ProcedureViewProps> = ({
             <iframe
               srcDoc={procedure.htmlFileData}
               title={procedure.title}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-modals"
+              sandbox="allow-scripts allow-popups allow-modals"
               style={{
                 width: '100%',
                 height: '100%',

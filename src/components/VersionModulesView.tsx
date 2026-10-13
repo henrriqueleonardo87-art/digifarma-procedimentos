@@ -1,27 +1,41 @@
 import React, { useState, useMemo } from 'react';
 import {
-  CreditCard,
-  ShoppingCart,
-  FileText,
-  BarChart3,
-  Users,
-  Package,
-  ShieldAlert,
-  ShieldCheck,
-  Settings,
+  Upload,
+  Plus,
   ArrowLeft,
   BookOpen,
   Printer,
-  Plus,
+  FileText,
   FolderPlus,
-  Boxes,
-  Wrench,
+  Folder,
+  Package,
+  Users,
   Truck,
+  Tag,
+  Boxes,
+  FileInput,
+  ClipboardCheck,
+  Calendar,
+  ArrowLeftRight,
+  ShoppingCart,
+  UserCheck,
+  Award,
+  ShieldCheck,
+  DollarSign,
+  Lock,
+  CreditCard,
+  TrendingUp,
+  FileSpreadsheet,
+  Receipt,
+  Percent,
+  FileCode,
+  ShieldAlert,
+  Settings,
+  UserCog,
   Database,
   Layers,
-  Folder,
-  Sliders,
-  Upload,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import type { Procedure, SystemMenu } from '../types/procedure';
 import { downloadProcedureHtml } from '../lib/htmlExporter';
@@ -35,44 +49,40 @@ interface VersionModulesViewProps {
   onNewProcedure: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
   onOpenConfig?: () => void;
   isEditorEnabled?: boolean;
-  onOpenImport?: (category?: string, menuId?: string, version?: 'v10' | 'r78') => void;
+  onOpenImport?: (defaultCategory?: string, defaultMenuId?: string, forceVersion?: 'v10' | 'r78') => void;
 }
 
-// Mapeamento dinâmico de ícones para menus e submenus configurados
-const getMenuIconComponent = (iconName?: string): React.FC<{ size?: number; className?: string }> => {
+const getMenuIconComponent = (iconName?: string) => {
   switch (iconName) {
-    case 'CreditCard':
-      return CreditCard;
-    case 'ShoppingCart':
-      return ShoppingCart;
-    case 'FileText':
-      return FileText;
-    case 'BarChart3':
-      return BarChart3;
-    case 'Users':
-      return Users;
-    case 'Package':
-      return Package;
-    case 'ShieldAlert':
-      return ShieldAlert;
-    case 'ShieldCheck':
-      return ShieldCheck;
-    case 'Settings':
-      return Settings;
-    case 'FolderPlus':
-      return FolderPlus;
-    case 'Boxes':
-      return Boxes;
-    case 'Wrench':
-      return Wrench;
-    case 'Truck':
-      return Truck;
-    case 'Database':
-      return Database;
-    case 'Layers':
-      return Layers;
-    default:
-      return Folder;
+    case 'FolderPlus': return FolderPlus;
+    case 'Package': return Package;
+    case 'Users': return Users;
+    case 'Truck': return Truck;
+    case 'Tag': return Tag;
+    case 'Boxes': return Boxes;
+    case 'FileInput': return FileInput;
+    case 'ClipboardCheck': return ClipboardCheck;
+    case 'CalendarAlert': return Calendar;
+    case 'ArrowLeftRight': return ArrowLeftRight;
+    case 'ShoppingCart': return ShoppingCart;
+    case 'UserCheck': return UserCheck;
+    case 'Award': return Award;
+    case 'ShieldCheck': return ShieldCheck;
+    case 'DollarSign': return DollarSign;
+    case 'Lock': return Lock;
+    case 'CreditCard': return CreditCard;
+    case 'TrendingUp': return TrendingUp;
+    case 'FileSpreadsheet': return FileSpreadsheet;
+    case 'Receipt': return Receipt;
+    case 'Percent': return Percent;
+    case 'FileCode': return FileCode;
+    case 'ShieldAlert': return ShieldAlert;
+    case 'BookOpen': return BookOpen;
+    case 'Settings': return Settings;
+    case 'UserCog': return UserCog;
+    case 'Database': return Database;
+    case 'Layers': return Layers;
+    default: return Folder;
   }
 };
 
@@ -83,40 +93,72 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   onSelectProcedure,
   onBackToDashboard,
   onNewProcedure,
-  onOpenConfig,
   isEditorEnabled = false,
   onOpenImport,
 }) => {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'publicados' | 'revisao' | 'despublicados' | 'inativos' | 'todos'>('publicados');
+  const [viewTab, setViewTab] = useState<'modules' | 'list'>('modules');
 
   const versionName = version === 'v10' ? 'v10' : 'Clássico';
 
-  // Procedimentos da versão selecionada (APENAS revisados e aprovados/publicados)
-  const versionProcedures = useMemo(() => {
-    return procedures.filter((p) => {
-      // Regra de ouro: só fica disponível para os usuários se for revisado e publicado
-      const isApproved = p.status === 'aprovado' || !p.status;
-      if (!isApproved) return false;
-
+  // Todos os procedimentos correspondentes a esta versão do sistema
+  const allVersionProcedures = useMemo(() => {
+    return (procedures || []).filter((p) => {
       const pVer = p.systemVersion || 'v10';
       if (version === 'v10') return pVer === 'v10';
       return pVer === 'classico' || pVer === 'r78';
     });
   }, [procedures, version]);
 
-  // Menus da versão selecionada:
-  // Se for Clássico: SOMENTE menus cadastrados como 'classico'/'r78' OU menus que possuam procedimentos aprovados para o Clássico!
+  // Contagens por status
+  const publishedCount = useMemo(() => {
+    return allVersionProcedures.filter((p) => (p.status === 'aprovado' || !p.status) && p.isActive !== false).length;
+  }, [allVersionProcedures]);
+
+  const reviewCount = useMemo(() => {
+    return allVersionProcedures.filter(
+      (p) => (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false
+    ).length;
+  }, [allVersionProcedures]);
+
+  const unpublishedCount = useMemo(() => {
+    return allVersionProcedures.filter((p) => p.status === 'despublicado' && p.isActive !== false).length;
+  }, [allVersionProcedures]);
+
+  const inactiveCount = useMemo(() => {
+    return allVersionProcedures.filter((p) => p.isActive === false).length;
+  }, [allVersionProcedures]);
+
+  // Procedimentos da versão filtrados pelo statusFilter (padrão: publicados)
+  const versionProcedures = useMemo(() => {
+    return allVersionProcedures.filter((p) => {
+      if (statusFilter === 'publicados') {
+        return (p.status === 'aprovado' || !p.status) && p.isActive !== false;
+      }
+      if (statusFilter === 'revisao') {
+        return (p.status === 'pendente' || p.status === 'ajustes_solicitados') && p.isActive !== false;
+      }
+      if (statusFilter === 'despublicados') {
+        return p.status === 'despublicado' && p.isActive !== false;
+      }
+      if (statusFilter === 'inativos') {
+        return p.isActive === false;
+      }
+      return true; // 'todos'
+    });
+  }, [allVersionProcedures, statusFilter]);
+
+  // Menus da versão selecionada
   const versionMenus = useMemo(() => {
     return (menus || []).filter((m) => {
       const mVer = m.version;
       if (version === 'v10') {
         return mVer === 'v10' || mVer === 'ambos' || !mVer;
       }
-      // Clássico
       if (mVer === 'classico' || mVer === 'r78') return true;
-      // Se mVer for ambos ou indefinido, só mostra no Clássico se tiver procedimentos do clássico nele!
-      return versionProcedures.some((p) => {
+      return allVersionProcedures.some((p) => {
         const cat = (p.category || '').toLowerCase();
         const mId = (p.menuId || '').toLowerCase();
         const path = (p.systemPath || '').toLowerCase();
@@ -124,7 +166,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
         return mId === m.id.toLowerCase() || cat === target || cat.includes(target) || path.includes(target);
       });
     });
-  }, [menus, version, versionProcedures]);
+  }, [menus, version, allVersionProcedures]);
 
   // Módulo ativo atualmente selecionado (se houver)
   const activeMenu = useMemo(() => {
@@ -156,7 +198,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     });
   }, [versionProcedures, selectedModuleId, activeMenu]);
 
-  // Procedimentos filtrados pela busca
+  // Procedimentos filtrados pela busca textual
   const searchResults = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const q = searchTerm.toLowerCase();
@@ -169,12 +211,65 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     );
   }, [versionProcedures, searchTerm]);
 
+  // Helper para renderizar tag/badge de estado
+  const renderStatusBadge = (p: Procedure) => {
+    if (p.isActive === false) {
+      return (
+        <span className="tag warn" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', fontWeight: 700 }}>
+          Inativo
+        </span>
+      );
+    }
+    if (p.status === 'despublicado') {
+      return (
+        <span className="tag" style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', fontWeight: 700 }}>
+          Despublicado
+        </span>
+      );
+    }
+    if (p.status === 'pendente') {
+      return (
+        <span className="tag warn" style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontWeight: 700 }}>
+          Em Revisão
+        </span>
+      );
+    }
+    if (p.status === 'ajustes_solicitados') {
+      return (
+        <span className="tag danger" style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa', fontWeight: 700 }}>
+          Ajustes
+        </span>
+      );
+    }
+    return (
+      <span className="tag success" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 700 }}>
+        Publicado
+      </span>
+    );
+  };
+
+  // Contagem de procedimentos de um módulo com base no filtro ativo
+  const getMenuCount = (modId: string, modLabel: string) => {
+    return versionProcedures.filter((p) => {
+      const cat = (p.category || '').toLowerCase();
+      const mId = (p.menuId || '').toLowerCase();
+      const path = (p.systemPath || '').toLowerCase();
+      const label = modLabel.toLowerCase();
+      return (
+        mId === modId.toLowerCase() ||
+        cat === label ||
+        cat.includes(label) ||
+        path.includes(label) ||
+        p.tags?.some((t) => t.toLowerCase() === label)
+      );
+    }).length;
+  };
+
   // =========================================================================
   // CENÁRIO 2: SUBMENUS E ROTINAS EM CARDS (QUANDO UM MÓDULO É CLICADO)
   // =========================================================================
   if (selectedModuleId && activeMenu) {
     const ActiveIcon = getMenuIconComponent(activeMenu.icon);
-    const submenus = activeMenu.submenus || [];
 
     return (
       <div className="modules-drilldown-container" style={{ marginTop: '20px' }}>
@@ -204,42 +299,69 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             </div>
           </div>
 
-          {onOpenImport && (
-            <button
-              type="button"
-              className="button subtle"
-              onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+            {/* Filtro de Status no Drilldown */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
               style={{
-                marginLeft: 'auto',
-                padding: '6px 12px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '6px 10px',
                 fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
               }}
-              title="Importar POP em PDF ou HTML para este módulo"
             >
-              <Upload size={12} />
-              <span>Importar POP</span>
-            </button>
-          )}
+              <option value="publicados">Publicados ({publishedCount})</option>
+              <option value="revisao">Em Revisão ({reviewCount})</option>
+              <option value="despublicados">Despublicados ({unpublishedCount})</option>
+              <option value="inativos">Inativos ({inactiveCount})</option>
+              <option value="todos">Todos ({allVersionProcedures.length})</option>
+            </select>
+
+            {onOpenImport && (
+              <button
+                type="button"
+                className="button subtle"
+                onClick={() => onOpenImport(activeMenu.label, activeMenu.id, version)}
+                style={{ padding: '6px 12px', fontSize: '11px' }}
+                title="Importar POP em PDF ou HTML para este módulo"
+              >
+                <Upload size={12} />
+                <span>Importar POP</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Cabeçalho do Módulo */}
-        <div className="module-focus-header">
-          <div className="module-focus-icon-wrap">
-            <ActiveIcon size={28} />
+        {/* Cabeçalho do Módulo Ativo */}
+        <div className="drilldown-header-hero" style={{ marginBottom: '24px' }}>
+          <div className="drilldown-hero-icon" style={{ color: 'var(--red)', background: 'var(--red-soft)' }}>
+            <ActiveIcon size={32} />
           </div>
           <div>
-            <h1 className="module-focus-title">Módulo {activeMenu.label}</h1>
-            <p className="module-focus-sub">
-              {submenus.length > 0
-                ? `${submenus.length} rotinas e submenus configurados · Selecione uma opção para abrir o passo a passo homologado`
-                : 'Selecione ou cadastre uma rotina abaixo para abrir o passo a passo homologado'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span className="tag" style={{ background: '#fff0f0', color: 'var(--red)', fontWeight: 700 }}>
+                {versionName}
+              </span>
+              <span className="tag">
+                {moduleProcedures.length} {moduleProcedures.length === 1 ? 'procedimento' : 'procedimentos'} ({statusFilter})
+              </span>
+            </div>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 6px', color: 'var(--ink)' }}>
+              {activeMenu.label}
+            </h1>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>
+              Procedimentos operacionais homologados e rotinas oficiais do ERP Digifarma.
             </p>
           </div>
         </div>
 
-        {/* Grade de Submenus e Procedimentos em Cards */}
+        {/* Grade de Procedimentos e Submenus dentro deste Módulo */}
         <div className="image-cards-grid">
-          {/* Card Importar para o Módulo Ativo */}
+          {/* Card Importar POP em Destaque para este módulo */}
           {onOpenImport && (
             <div
               className="image-card-item image-card-import-item"
@@ -251,10 +373,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 border: '1.5px dashed var(--red)',
               }}
             >
-              <div
-                className="image-card-icon-center"
-                style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
-              >
+              <div className="image-card-icon-center" style={{ color: 'var(--red)', background: 'var(--red-soft)' }}>
                 <Upload size={24} />
               </div>
               <h3 className="image-card-title">Importar POP</h3>
@@ -267,7 +386,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             </div>
           )}
 
-          {/* Card Novo para o Módulo Ativo (Apenas se editor ativado) */}
+          {/* Card Novo para o Módulo Ativo (se editor ativado) */}
           {isEditorEnabled && (
             <div
               className="image-card-item image-card-new-item"
@@ -288,151 +407,75 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             </div>
           )}
 
-          {/* Cards para cada Submenu configurado em Configurações */}
-          {submenus.map((sub) => {
-            const SubIcon = getMenuIconComponent(sub.icon || activeMenu.icon);
-            const subProcs = moduleProcedures.filter((p) => {
-              const subId = (p.submenuId || '').toLowerCase();
-              const cat = (p.category || '').toLowerCase();
-              const path = (p.systemPath || '').toLowerCase();
-              const target = sub.label.toLowerCase();
-              return subId === sub.id.toLowerCase() || cat.includes(target) || path.includes(target);
-            });
-
+          {/* Lista de TODOS os procedimentos deste módulo */}
+          {moduleProcedures.map((proc) => {
             return (
               <div
-                key={sub.id}
-                className="image-card-item"
-                onClick={() => {
-                  if (subProcs.length > 0) {
-                    onSelectProcedure(subProcs[0].id, false);
-                  } else {
-                    onNewProcedure(activeMenu.label, activeMenu.id, version);
-                  }
-                }}
+                key={proc.id}
+                className="image-card-item proc-card-clean"
+                onClick={() => onSelectProcedure(proc.id, false)}
                 role="button"
                 tabIndex={0}
               >
-                <div
-                  className="image-card-icon-center"
-                  style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
-                >
-                  <SubIcon size={24} />
+                <div className="proc-clean-top-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="proc-clean-icon">
+                      <ActiveIcon size={16} />
+                    </div>
+                    {renderStatusBadge(proc)}
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
+                      <span className="tag" style={{ background: '#fff0f0', color: 'var(--red)', fontSize: '9px', padding: '2px 6px' }}>PDF</span>
+                    )}
+                    {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
+                      <span className="tag" style={{ background: '#eef5fc', color: '#3b82f6', fontSize: '9px', padding: '2px 6px' }}>HTML</span>
+                    )}
+                  </div>
                 </div>
-                <h3 className="image-card-title">{sub.label}</h3>
-                <p className="image-card-subtitle">
-                  {subProcs.length > 0
-                    ? subProcs[0].title
-                    : `Rotina do módulo ${activeMenu.label}`}
+
+                <h3 className="image-card-title">{proc.title}</h3>
+                <p className="image-card-subtitle-clean">
+                  {proc.subtitle || 'Procedimento operacional padronizado'}
                 </p>
 
-                {subProcs.length > 0 ? (
-                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="btn-subcard-action"
-                      onClick={() => onSelectProcedure(subProcs[0].id, false)}
-                      title="Abrir passo a passo interativo"
-                    >
-                      <BookOpen size={12} />
-                      <span>Abrir</span>
-                    </button>
+                <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="btn-subcard-action"
+                    onClick={() => onSelectProcedure(proc.id, false)}
+                    title="Abrir rotina"
+                  >
+                    <BookOpen size={12} />
+                    <span>Abrir</span>
+                  </button>
 
-                    <button
-                      type="button"
-                      className="btn-subcard-print"
-                      onClick={() => onSelectProcedure(subProcs[0].id, true)}
-                      title="Visualizar / Imprimir em PDF"
-                    >
-                      <Printer size={12} />
-                      <span>PDF</span>
-                    </button>
+                  <button
+                    type="button"
+                    className="btn-subcard-print"
+                    onClick={() => onSelectProcedure(proc.id, true)}
+                    title="Visualizar / Imprimir em PDF"
+                  >
+                    <Printer size={12} />
+                    <span>PDF</span>
+                  </button>
 
-                    <button
-                      type="button"
-                      className="btn-subcard-html"
-                      onClick={() => downloadProcedureHtml(subProcs[0])}
-                      title="Baixar versão HTML offline deste procedimento"
-                    >
-                      <FileText size={12} />
-                      <span>HTML</span>
-                    </button>
-                  </div>
-                ) : (
-                  <span className="image-card-count-badge">
-                    Submenu Configurado
-                  </span>
-                )}
+                  <button
+                    type="button"
+                    className="btn-subcard-html"
+                    onClick={() => downloadProcedureHtml(proc)}
+                    title="Baixar versão HTML offline deste procedimento"
+                  >
+                    <FileText size={12} />
+                    <span>HTML</span>
+                  </button>
+                </div>
               </div>
             );
           })}
 
-          {/* Procedimentos vinculados diretamente a este módulo que não são de submenus acima */}
-          {moduleProcedures
-            .filter((proc) => !submenus.some((s) => (proc.submenuId || '').toLowerCase() === s.id.toLowerCase()))
-            .map((proc) => {
-              const reviewerName = proc.reviewedBy || proc.author || 'Qualidade Digifarma';
-              return (
-                <div
-                  key={proc.id}
-                  className="image-card-item proc-card-clean"
-                  onClick={() => onSelectProcedure(proc.id, false)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="proc-clean-top-bar">
-                    <div className="proc-clean-icon">
-                      <ActiveIcon size={18} />
-                    </div>
-                    <span
-                      className="proc-reviewer-tag"
-                      title={`Homologado por: ${reviewerName}`}
-                    >
-                      ✓ <strong>{reviewerName}</strong>
-                    </span>
-                  </div>
-                  <h3 className="image-card-title">{proc.title}</h3>
-                  <p className="image-card-subtitle-clean">
-                    {proc.subtitle || 'Procedimento homologado e validado'}
-                  </p>
-
-                  <div className="image-card-actions-quick" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="btn-subcard-action"
-                      onClick={() => onSelectProcedure(proc.id, false)}
-                      title="Abrir passo a passo interativo"
-                    >
-                      <BookOpen size={12} />
-                      <span>Abrir</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-subcard-print"
-                      onClick={() => onSelectProcedure(proc.id, true)}
-                      title="Visualizar / Imprimir em PDF"
-                    >
-                      <Printer size={12} />
-                      <span>PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-subcard-html"
-                      onClick={() => downloadProcedureHtml(proc)}
-                      title="Baixar versão HTML offline deste procedimento"
-                    >
-                      <FileText size={12} />
-                      <span>HTML</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-
-          {/* Estado Vazio Moderno e Minimalista dentro de um Módulo sem Rotinas */}
-          {submenus.length === 0 && moduleProcedures.length === 0 && (
+          {/* Estado Vazio dentro de um Módulo sem Rotinas */}
+          {moduleProcedures.length === 0 && (
             <div
               style={{
                 gridColumn: '1 / -1',
@@ -464,7 +507,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 </span>
               </div>
               <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px', letterSpacing: '-0.01em' }}>
-                Nenhum POP cadastrado em {activeMenu.label}
+                Nenhum POP com status "{statusFilter}" em {activeMenu.label}
               </h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '420px', margin: '0 auto 20px', lineHeight: 1.55 }}>
                 Disponibilize os manuais oficiais em PDF ou HTML para sua equipe farmacêutica neste módulo.
@@ -486,10 +529,9 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                     alignItems: 'center',
                     gap: '8px',
                     boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
-                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <Upload size={16} />
+                  <Upload size={14} />
                   <span>Importar POP para {activeMenu.label}</span>
                 </button>
               )}
@@ -501,7 +543,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   }
 
   // =========================================================================
-  // CENÁRIO 1: GRADE DE MÓDULOS PRINCIPAIS EM CARDS (BASEADA EM CONFIGURAÇÕES)
+  // CENÁRIO 1: GRADE DE MÓDULOS PRINCIPAIS EM CARDS + LISTAGEM COMPLETA
   // =========================================================================
   return (
     <>
@@ -511,26 +553,90 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           <span className="eyebrow">REPOSITÓRIO &amp; MÓDULOS</span>
           <h1 id="pageTitle">Digifarma {version === 'v10' ? 'v10' : 'Clássico'}</h1>
           <p id="pageSubtitle">
-            Repositório de rotinas e procedimentos operacionais padronizados do ERP Digifarma.
+            Repositório unificado de rotinas e procedimentos operacionais padronizados.
           </p>
         </div>
         <div className="capture">
           <span className="live-dot" /> Módulos cadastrados
           <span id="captured">
-            {versionMenus.length} módulos · {versionProcedures.length} procedimentos
+            {versionMenus.length} módulos · {versionProcedures.length} {statusFilter}
           </span>
         </div>
       </section>
 
       {/* ── 2. Barra Contínua de Filtros Globais (.filters) ── */}
       <section className="filters" aria-label="Filtros globais">
+        {/* Filtro de Status conforme solicitado pelo usuário (padrão: Publicados) */}
+        <div className="filter">
+          <label htmlFor="ver-status">FILTRO DE STATUS</label>
+          <select
+            id="ver-status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+          >
+            <option value="publicados">Publicados ({publishedCount})</option>
+            <option value="revisao">Em Revisão ({reviewCount})</option>
+            <option value="despublicados">Despublicados ({unpublishedCount})</option>
+            <option value="inativos">Inativos ({inactiveCount})</option>
+            <option value="todos">Todos os status ({allVersionProcedures.length})</option>
+          </select>
+        </div>
+
+        {/* Alternância de Visualização: Módulos vs Lista Completa */}
+        <div className="filter">
+          <label>VISUALIZAÇÃO</label>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              type="button"
+              onClick={() => setViewTab('modules')}
+              style={{
+                background: viewTab === 'modules' ? 'var(--red)' : 'var(--bg-secondary)',
+                color: viewTab === 'modules' ? '#fff' : 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <LayoutGrid size={12} />
+              <span>Módulos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab('list')}
+              style={{
+                background: viewTab === 'list' ? 'var(--red)' : 'var(--bg-secondary)',
+                color: viewTab === 'list' ? '#fff' : 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <List size={12} />
+              <span>Lista Geral</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Busca textual */}
         <div className="filter store-filter" style={{ flex: 1, borderRight: 'none' }}>
           <label htmlFor="ver-search">BUSCA POR ROTINA OU PALAVRA-CHAVE</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input
               id="ver-search"
               type="text"
-              placeholder="Pesquise por nome do procedimento, palavra-chave ou rotina..."
+              placeholder="Pesquise por nome do procedimento, rota ou palavra-chave..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -554,7 +660,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
         </div>
 
         <div className="status" style={{ marginLeft: 'auto' }}>
-          <span className="live-dot" /> {versionProcedures.length} Homologados
+          <span className="live-dot" /> {publishedCount} Publicados
         </div>
       </section>
 
@@ -567,7 +673,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             onClick={() => onOpenImport(undefined, undefined, version)}
           >
             <Upload size={14} />
-            <span>Importar POP ({version === 'v10' ? 'v10' : 'Clássico'})</span>
+            <span>Importar POP ({versionName})</span>
           </button>
         )}
 
@@ -591,7 +697,6 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
           </h2>
           <div className="image-cards-grid">
             {searchResults.map((proc) => {
-              const reviewerName = proc.reviewedBy || proc.author || 'Qualidade Digifarma';
               return (
                 <div
                   key={proc.id}
@@ -600,16 +705,14 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="proc-clean-top-bar">
-                    <div className="proc-clean-icon">
-                      <FileText size={18} />
+                  <div className="proc-clean-top-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div className="proc-clean-icon">
+                        <FileText size={16} />
+                      </div>
+                      {renderStatusBadge(proc)}
                     </div>
-                    <span
-                      className="proc-reviewer-tag"
-                      title={`Homologado por: ${reviewerName}`}
-                    >
-                      ✓ <strong>{reviewerName}</strong>
-                    </span>
+                    <span className="tag">{proc.category || 'Geral'}</span>
                   </div>
                   <h3 className="image-card-title">{proc.title}</h3>
                   <p className="image-card-subtitle-clean">{proc.subtitle || 'Procedimento homologado e validado'}</p>
@@ -650,213 +753,277 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
             })}
           </div>
         </div>
+      ) : viewTab === 'list' ? (
+        /* VISUALIZAÇÃO: TABELA GERAL COMPLETA DE PROCEDIMENTOS */
+        <div className="panel" style={{ marginTop: '10px' }}>
+          <div className="panel-title">
+            <div>
+              <h3>Todos os Procedimentos do {versionName} ({versionProcedures.length})</h3>
+              <p>Filtro ativo: {statusFilter.toUpperCase()}</p>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '50%' }}>PROCEDIMENTO</th>
+                  <th style={{ width: '20%' }}>MÓDULO</th>
+                  <th style={{ width: '15%' }}>STATUS</th>
+                  <th style={{ width: '15%', textAlign: 'right' }}>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {versionProcedures.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '36px 12px', color: 'var(--muted)' }}>
+                      Nenhum procedimento encontrado com o status "{statusFilter}".
+                    </td>
+                  </tr>
+                ) : (
+                  versionProcedures.map((proc) => (
+                    <tr
+                      key={proc.id}
+                      onClick={() => onSelectProcedure(proc.id, false)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <strong style={{ opacity: proc.isActive === false ? 0.6 : 1 }}>
+                              {proc.title}
+                            </strong>
+                            {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
+                              <span className="tag" style={{ background: '#fff0f0', color: 'var(--red)', fontSize: '9px', padding: '1px 5px' }}>
+                                PDF
+                              </span>
+                            )}
+                            {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
+                              <span className="tag" style={{ background: '#eef5fc', color: '#3b82f6', fontSize: '9px', padding: '1px 5px' }}>
+                                HTML
+                              </span>
+                            )}
+                          </div>
+                          {proc.systemPath && (
+                            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                              {proc.systemPath}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="tag">{proc.category || 'Geral'}</span>
+                      </td>
+
+                      <td>
+                        {renderStatusBadge(proc)}
+                      </td>
+
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="button subtle"
+                          style={{ padding: '5px 10px', fontSize: '11px' }}
+                          onClick={() => onSelectProcedure(proc.id, false)}
+                        >
+                          Abrir
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
-        /* Grade de Menus em Cards Baseada nos Menus Cadastrados em Configurações */
-        <div className="image-cards-grid">
-          {/* Card Importar POP em Destaque */}
-          {onOpenImport && (
-            <div
-              className="image-card-item image-card-import-item"
-              onClick={() => onOpenImport(undefined, undefined, version)}
-              role="button"
-              tabIndex={0}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1.5px dashed var(--red)',
-                boxShadow: 'var(--shadow-subtle)',
-              }}
-            >
+        /* VISUALIZAÇÃO: GRADE DE MÓDULOS EM CARDS */
+        <>
+          <div className="image-cards-grid">
+            {/* Card Importar POP em Destaque */}
+            {onOpenImport && (
               <div
-                className="image-card-icon-center"
-                style={{
-                  color: 'var(--red)',
-                  background: 'var(--red-soft)',
-                }}
-              >
-                <Upload size={24} />
-              </div>
-              <h3 className="image-card-title">Importar POP</h3>
-              <p className="image-card-subtitle">
-                Anexe manuais em PDF ou HTML para o {versionName}
-              </p>
-              <span
-                className="image-card-count-badge"
-                style={{
-                  background: 'var(--red)',
-                  color: '#ffffff',
-                }}
-              >
-                + Importar Arquivo
-              </span>
-            </div>
-          )}
-
-          {/* Card Novo (apenas se editor ativado) */}
-          {isEditorEnabled && onNewProcedure && (
-            <div
-              className="image-card-item image-card-new-item"
-              onClick={() => onNewProcedure(undefined, undefined, version)}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="image-card-icon-center new-icon-center">
-                <Plus size={26} />
-              </div>
-              <h3 className="image-card-title">Novo Manual</h3>
-              <p className="image-card-subtitle">Criar slides interativos no estúdio</p>
-              <span className="image-card-count-badge new-badge">
-                + Criar no Editor
-              </span>
-            </div>
-          )}
-
-          {/* Cards dos Menus da Versão configurados pelo usuário */}
-          {versionMenus.map((mod) => {
-            const ModIcon = getMenuIconComponent(mod.icon);
-            const count = versionProcedures.filter((p) => {
-              const cat = (p.category || '').toLowerCase();
-              const mId = (p.menuId || '').toLowerCase();
-              const path = (p.systemPath || '').toLowerCase();
-              const label = mod.label.toLowerCase();
-              return (
-                mId === mod.id.toLowerCase() ||
-                cat === label ||
-                cat.includes(label) ||
-                path.includes(label) ||
-                p.tags?.some((t) => t.toLowerCase() === label)
-              );
-            }).length;
-
-            return (
-              <div
-                key={mod.id}
-                className="image-card-item"
-                onClick={() => setSelectedModuleId(mod.id)}
+                className="image-card-item image-card-import-item"
+                onClick={() => onOpenImport(undefined, undefined, version)}
                 role="button"
                 tabIndex={0}
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1.5px dashed var(--red)',
+                  boxShadow: 'var(--shadow-subtle)',
+                }}
               >
                 <div
                   className="image-card-icon-center"
-                  style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
+                  style={{
+                    color: 'var(--red)',
+                    background: 'var(--red-soft)',
+                  }}
                 >
-                  <ModIcon size={24} />
+                  <Upload size={24} />
                 </div>
-                <h3 className="image-card-title">{mod.label}</h3>
+                <h3 className="image-card-title">Importar POP</h3>
                 <p className="image-card-subtitle">
-                  {mod.submenus && mod.submenus.length > 0
-                    ? `${mod.submenus.length} ${mod.submenus.length === 1 ? 'rotina' : 'rotinas'} (${mod.submenus.map((s) => s.label).slice(0, 2).join(', ')}${mod.submenus.length > 2 ? '...' : ''})`
-                    : `Módulo do ${versionName}`}
+                  Anexe manuais em PDF ou HTML para o {versionName}
                 </p>
-
-                {count > 0 ? (
-                  <span className="image-card-count-badge">
-                    {count} {count === 1 ? 'procedimento' : 'procedimentos'}
-                  </span>
-                ) : mod.submenus && mod.submenus.length > 0 ? (
-                  <span className="image-card-count-badge">
-                    {mod.submenus.length} submenus
-                  </span>
-                ) : (
-                  <span className="image-card-count-badge" style={{ opacity: 0.7 }}>
-                    Módulo ativo
-                  </span>
-                )}
+                <span
+                  className="image-card-count-badge"
+                  style={{
+                    background: 'var(--red)',
+                    color: '#ffffff',
+                  }}
+                >
+                  + Importar Arquivo
+                </span>
               </div>
-            );
-          })}
+            )}
 
-          {/* Estado Vazio Moderno, Limpo e Minimalista em Branco e Vermelho */}
-          {versionMenus.length === 0 && (
-            <div
-              className="version-empty-menus-box"
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                padding: '60px 28px',
-                background: 'var(--bg-primary)',
-                borderRadius: '20px',
-                border: '1px solid var(--border)',
-                boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.05)',
-                marginTop: '1rem',
-              }}
-            >
+            {/* Card Novo (apenas se editor ativado) */}
+            {isEditorEnabled && onNewProcedure && (
               <div
-                style={{
-                  width: '68px',
-                  height: '68px',
-                  borderRadius: '18px',
-                  background: 'var(--red-soft)',
-                  border: '1px solid rgba(231, 76, 60, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 18px',
-                  boxShadow: '0 6px 18px rgba(231, 76, 60, 0.18)',
-                }}
+                className="image-card-item image-card-new-item"
+                onClick={() => onNewProcedure(undefined, undefined, version)}
+                role="button"
+                tabIndex={0}
               >
-                <FolderPlus size={32} color="var(--red)" />
+                <div className="image-card-icon-center new-icon-center">
+                  <Plus size={26} />
+                </div>
+                <h3 className="image-card-title">Novo Manual</h3>
+                <p className="image-card-subtitle">Criar slides interativos no estúdio</p>
+                <span className="image-card-count-badge new-badge">
+                  + Criar no Editor
+                </span>
               </div>
+            )}
 
-              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
-                Nenhum módulo ativo no {versionName}
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '500px', margin: '0 auto 26px', lineHeight: 1.6 }}>
-                Você pode importar procedimentos oficiais em formato PDF e HTML ou estruturar os módulos do sistema nas configurações.
-              </p>
+            {/* Cards dos Menus da Versão configurados */}
+            {versionMenus.map((mod) => {
+              const ModIcon = getMenuIconComponent(mod.icon);
+              const count = getMenuCount(mod.id, mod.label);
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                {onOpenImport && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenImport(undefined, undefined, version)}
-                    style={{
-                      background: 'var(--red)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '11px',
-                      padding: '11px 24px',
-                      fontSize: '0.88rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      boxShadow: '0 4px 14px rgba(231, 76, 60, 0.35)',
-                      transition: 'all 0.15s ease',
-                    }}
+              return (
+                <div
+                  key={mod.id}
+                  className="image-card-item"
+                  onClick={() => setSelectedModuleId(mod.id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div
+                    className="image-card-icon-center"
+                    style={{ color: 'var(--red)', background: 'var(--red-soft)' }}
                   >
-                    <Upload size={17} />
-                    <span>Importar POP para o {versionName}</span>
-                  </button>
-                )}
+                    <ModIcon size={24} />
+                  </div>
+                  <h3 className="image-card-title">{mod.label}</h3>
+                  <p className="image-card-subtitle">
+                    {mod.submenus && mod.submenus.length > 0
+                      ? `${mod.submenus.length} ${mod.submenus.length === 1 ? 'rotina' : 'rotinas'} (${mod.submenus.map((s) => s.label).slice(0, 2).join(', ')}${mod.submenus.length > 2 ? '...' : ''})`
+                      : `Módulo do ${versionName}`}
+                  </p>
 
-                {onOpenConfig && (
-                  <button
-                    type="button"
-                    onClick={onOpenConfig}
-                    style={{
-                      background: 'var(--bg-primary)',
-                      color: 'var(--text-primary)',
-                      border: '1.5px solid var(--border)',
-                      borderRadius: '11px',
-                      padding: '11px 22px',
-                      fontSize: '0.88rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <Sliders size={16} color="var(--red)" />
-                    <span>Configurar Módulos do Sistema</span>
-                  </button>
-                )}
+                  <span className="image-card-count-badge">
+                    {count} {count === 1 ? 'procedimento' : 'procedimentos'} ({statusFilter})
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* TABELA DE PROCEDIMENTOS RECENTES DA VERSÃO ABAIXO DOS MÓDULOS */}
+          <div className="panel" style={{ marginTop: '28px' }}>
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3>Procedimentos da Versão ({versionProcedures.length})</h3>
+                <p>Exibindo: {statusFilter.toUpperCase()}</p>
               </div>
+              <button
+                type="button"
+                className="button subtle"
+                onClick={() => setViewTab('list')}
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+              >
+                Ver em tela cheia
+              </button>
             </div>
-          )}
-        </div>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: '50%' }}>PROCEDIMENTO</th>
+                    <th style={{ width: '20%' }}>MÓDULO</th>
+                    <th style={{ width: '15%' }}>STATUS</th>
+                    <th style={{ width: '15%', textAlign: 'right' }}>AÇÃO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {versionProcedures.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '36px 12px', color: 'var(--muted)' }}>
+                        Nenhum procedimento encontrado com o status "{statusFilter}".
+                      </td>
+                    </tr>
+                  ) : (
+                    versionProcedures.slice(0, 10).map((proc) => (
+                      <tr
+                        key={proc.id}
+                        onClick={() => onSelectProcedure(proc.id, false)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <strong style={{ opacity: proc.isActive === false ? 0.6 : 1 }}>
+                                {proc.title}
+                              </strong>
+                              {(proc.pdfFileUrl || proc.formatType === 'pdf' || proc.formatType === 'both') && (
+                                <span className="tag" style={{ background: '#fff0f0', color: 'var(--red)', fontSize: '9px', padding: '1px 5px' }}>
+                                  PDF
+                                </span>
+                              )}
+                              {(proc.htmlFileData || proc.formatType === 'html' || proc.formatType === 'both') && (
+                                <span className="tag" style={{ background: '#eef5fc', color: '#3b82f6', fontSize: '9px', padding: '1px 5px' }}>
+                                  HTML
+                                </span>
+                              )}
+                            </div>
+                            {proc.systemPath && (
+                              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                                {proc.systemPath}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="tag">{proc.category || 'Geral'}</span>
+                        </td>
+
+                        <td>
+                          {renderStatusBadge(proc)}
+                        </td>
+
+                        <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="button subtle"
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                            onClick={() => onSelectProcedure(proc.id, false)}
+                          >
+                            Abrir
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </>
   );

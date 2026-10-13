@@ -80,7 +80,7 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
     existingProcedure?.author || currentUser?.name || currentUser?.username || 'Farmacêutico Responsável'
   );
   const [publishDirectly, setPublishDirectly] = useState(
-    existingProcedure ? existingProcedure.status === 'aprovado' : true
+    existingProcedure ? existingProcedure.status === 'aprovado' : false
   );
 
   // Mostrar segundo anexo opcional

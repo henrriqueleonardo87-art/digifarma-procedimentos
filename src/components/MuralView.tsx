@@ -31,7 +31,6 @@ import {
   saveAllMuralCards,
   subscribeToMuralCards,
   DEFAULT_COLUMNS,
-  INITIAL_CARDS,
 } from '../lib/muralService';
 import { fetchTeamMembers } from '../lib/publicacoesService';
 import { getLocalUsers } from '../lib/authService';
@@ -133,7 +132,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
   const [cards, setCards] = useState<MuralCard[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_CARDS);
-    return saved ? JSON.parse(saved) : INITIAL_CARDS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   // 3. Marcadores Disponíveis
@@ -198,7 +197,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
 
   useEffect(() => {
     fetchMuralCards().then((fetched) => {
-      if (fetched && fetched.length > 0) {
+      if (fetched) {
         setCards(fetched);
       }
     });
