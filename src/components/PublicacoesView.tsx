@@ -55,7 +55,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const [teamMembers, setTeamMembers] = useState<Array<{ username: string; name: string }>>([]);
 
   // Filtros
-  const [filterTab, setFilterTab] = useState<'all' | 'mine' | 'targeted' | 'unread'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'general' | 'all_targeted' | 'mine' | 'targeted' | 'unread'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [periodPreset, setPeriodPreset] = useState<
     'all' | 'today' | 'yesterday' | '7days' | '15days' | '30days' | 'thisMonth' | 'lastMonth' | 'custom'
@@ -145,6 +145,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     return publicacoes
       .filter((p) => {
         // Filtro de aba
+        if (filterTab === 'general' && p.targetUsers && p.targetUsers.length > 0) return false;
+        if (filterTab === 'all_targeted' && (!p.targetUsers || p.targetUsers.length === 0)) return false;
         if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
         if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
         if (filterTab === 'unread') {
@@ -417,6 +419,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
             onChange={(e) => setFilterTab(e.target.value as any)}
           >
             <option value="all">Todos ({publicacoes.length})</option>
+            <option value="general">🟢 Para Todos ({publicacoes.filter((p) => !p.targetUsers || p.targetUsers.length === 0).length})</option>
+            <option value="all_targeted">🟣 Direcionados ({publicacoes.filter((p) => p.targetUsers && p.targetUsers.length > 0).length})</option>
             <option value="unread">Não Lidos por Mim</option>
             <option value="targeted">Direcionados a Mim</option>
             <option value="mine">Meus Recados</option>
@@ -522,8 +526,20 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           </div>
         </div>
 
-        <div className="status">
-          <span className="live-dot" /> {loading ? 'Sincronizando...' : `${filteredList.length} ${filteredList.length === 1 ? 'Recado' : 'Recados'}`}
+        <div className="status" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <span className="live-dot" /> {loading ? 'Sincronizando...' : `${filteredList.length} ${filteredList.length === 1 ? 'Recado' : 'Recados'}`}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981', fontWeight: 600 }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              Para Todos
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#8b5cf6', fontWeight: 600 }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', display: 'inline-block' }} />
+              Direcionado
+            </span>
+          </div>
         </div>
       </section>
 
@@ -535,23 +551,25 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           const isAuthor = isUserAuthor(pub.author, currentUser);
           const hasRead = isUserRead(pub.readBy, currentUser, pub.id);
           const readCount = (pub.readBy || []).length;
+          const accentColor = isEveryone ? '#10b981' : '#8b5cf6';
 
           return (
             <div
               key={pub.id}
               style={{
                 background: 'var(--bg-primary)',
-                border: isTargetedToMe
-                  ? '1px solid #94a3b8'
-                  : !hasRead
+                border: !hasRead
                   ? '1.5px solid var(--red)'
+                  : isTargetedToMe
+                  ? '1px solid rgba(139, 92, 246, 0.35)'
                   : '1px solid var(--border)',
+                borderTop: `4px solid ${accentColor}`,
                 borderRadius: '16px',
                 padding: '24px',
-                boxShadow: isTargetedToMe
-                  ? '0 2px 10px rgba(100, 116, 139, 0.06)'
-                  : !hasRead
+                boxShadow: !hasRead
                   ? '0 8px 24px rgba(237, 38, 43, 0.09)'
+                  : isTargetedToMe
+                  ? '0 4px 16px rgba(139, 92, 246, 0.08)'
                   : '0 2px 10px rgba(0,0,0,0.03)',
                 position: 'relative',
                 transition: 'all 0.18s ease',
@@ -593,8 +611,8 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                           width: '10px',
                           height: '10px',
                           borderRadius: '50%',
-                          background: isTargetedToMe ? '#94a3b8' : 'var(--red)',
-                          boxShadow: isTargetedToMe ? '0 0 6px rgba(148, 163, 184, 0.5)' : '0 0 8px var(--red)',
+                          background: 'var(--red)',
+                          boxShadow: '0 0 8px var(--red)',
                           display: 'inline-block',
                           animation: 'pulse-dot 1.4s infinite ease-in-out',
                         }}
@@ -602,14 +620,14 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     </button>
                   )}
 
-                  {/* Avatar do Autor */}
+                  {/* Avatar do Autor com a cor da categoria */}
                   <div
                     style={{
                       width: '38px',
                       height: '38px',
                       borderRadius: '50%',
-                      background: 'var(--red-soft)',
-                      color: 'var(--red)',
+                      background: isEveryone ? 'rgba(16, 185, 129, 0.12)' : 'rgba(139, 92, 246, 0.12)',
+                      color: accentColor,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -627,17 +645,20 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                       {pub.author}
                     </span>
 
-                    {/* Tag de Direcionamento */}
+                    {/* Tag de Direcionamento / Categoria */}
                     {isTargetedToMe ? (
                       <span
                         style={{
-                          background: 'rgba(148, 163, 184, 0.12)',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.70rem',
+                          background: 'rgba(139, 92, 246, 0.14)',
+                          color: '#8b5cf6',
+                          fontSize: '0.72rem',
                           fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '5px',
-                          border: '1px solid rgba(148, 163, 184, 0.3)',
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(139, 92, 246, 0.35)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
                         🎯 Para você
@@ -645,13 +666,16 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     ) : !isEveryone ? (
                       <span
                         style={{
-                          background: 'var(--bg-secondary)',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.70rem',
-                          fontWeight: 600,
-                          padding: '2px 7px',
-                          borderRadius: '5px',
-                          border: '1px solid var(--border)',
+                          background: 'rgba(139, 92, 246, 0.10)',
+                          color: '#8b5cf6',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(139, 92, 246, 0.25)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
                         👤 Para: {pub.targetUsers.join(', ')}
@@ -659,15 +683,19 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     ) : (
                       <span
                         style={{
-                          background: 'rgba(16, 185, 129, 0.08)',
-                          color: '#059669',
-                          fontSize: '0.70rem',
-                          fontWeight: 600,
-                          padding: '2px 7px',
-                          borderRadius: '5px',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          color: '#10b981',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
-                        🌐 Todos
+                        🌐 Para Todos
                       </span>
                     )}
                   </div>
@@ -1198,25 +1226,57 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                   Visibilidade / Destinatários:
                 </label>
 
-                <div style={{ display: 'flex', gap: '18px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', cursor: 'pointer', fontWeight: 600 }}>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.86rem',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: targetType === 'all' ? '1.5px solid #10b981' : '1px solid var(--border)',
+                      background: targetType === 'all' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-secondary)',
+                      color: targetType === 'all' ? '#10b981' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
                     <input
                       type="radio"
                       name="targetType"
                       checked={targetType === 'all'}
                       onChange={() => setTargetType('all')}
+                      style={{ accentColor: '#10b981' }}
                     />
-                    <span>Geral (Todos visualizam)</span>
+                    <span>🌐 Geral (Para Todos)</span>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', cursor: 'pointer', fontWeight: 600 }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.86rem',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: targetType === 'specific' ? '1.5px solid #8b5cf6' : '1px solid var(--border)',
+                      background: targetType === 'specific' ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-secondary)',
+                      color: targetType === 'specific' ? '#8b5cf6' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
                     <input
                       type="radio"
                       name="targetType"
                       checked={targetType === 'specific'}
                       onChange={() => setTargetType('specific')}
+                      style={{ accentColor: '#8b5cf6' }}
                     />
-                    <span>Pessoa(s) Específica(s)</span>
+                    <span>🎯 Direcionado (Pessoa específica)</span>
                   </label>
                 </div>
 
@@ -1243,9 +1303,9 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                               gap: '6px',
                               padding: '6px 12px',
                               borderRadius: '8px',
-                              border: isChecked ? '1.5px solid var(--red)' : '1px solid var(--border)',
-                              background: isChecked ? 'var(--red-soft)' : 'var(--bg-primary)',
-                              color: isChecked ? 'var(--red)' : 'var(--text-secondary)',
+                              border: isChecked ? '1.5px solid #8b5cf6' : '1px solid var(--border)',
+                              background: isChecked ? 'rgba(139, 92, 246, 0.15)' : 'var(--bg-primary)',
+                              color: isChecked ? '#8b5cf6' : 'var(--text-secondary)',
                               fontSize: '0.8rem',
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -1342,6 +1402,41 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     />
                   </label>
                 )}
+              </div>
+
+              {/* Indicador em tempo real da faixa colorida superior */}
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '9px',
+                  background: targetType === 'all' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(139, 92, 246, 0.08)',
+                  border: `1px solid ${targetType === 'all' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(139, 92, 246, 0.25)'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '0.82rem',
+                  color: targetType === 'all' ? '#10b981' : '#8b5cf6',
+                  fontWeight: 600,
+                  marginBottom: '16px',
+                }}
+              >
+                <span
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: targetType === 'all' ? '#10b981' : '#8b5cf6',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                  }}
+                />
+                <span>
+                  {targetType === 'all'
+                    ? 'Identificação visual: Faixa superior Verde (Recado para Todos).'
+                    : selectedTargets.length > 0
+                    ? `Identificação visual: Faixa superior Roxa (Direcionado para: ${selectedTargets.join(', ')}).`
+                    : 'Identificação visual: Faixa superior Roxa (Selecione pelo menos um membro destinatário acima).'}
+                </span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

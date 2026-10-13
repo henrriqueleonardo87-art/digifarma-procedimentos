@@ -280,14 +280,18 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   }, [menus]);
 
   const versionMenus = useMemo(() => {
-    return localMenus.filter(
-      (m) => (m.version || 'v10') === (selectedVersion === 'classico' ? 'r78' : 'v10')
-    );
+    const isClassico = selectedVersion === 'classico';
+    return localMenus.filter((m) => {
+      const ver = m.version || 'ambos';
+      if (ver === 'ambos') return true;
+      if (isClassico) return ver === 'r78' || ver === 'classico';
+      return ver === 'v10';
+    });
   }, [localMenus, selectedVersion]);
 
   const handleSaveModules = async () => {
     await onSaveMenus(localMenus);
-    setSaveSuccessMsg('Estrutura de módulos salva com sucesso!');
+    setSaveSuccessMsg('Estrutura de módulos salva e sincronizada para toda a plataforma!');
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
 
@@ -296,7 +300,7 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
       id: `m-${Date.now()}`,
       label: 'Novo Módulo',
       icon: 'Layers',
-      version: selectedVersion === 'classico' ? 'r78' : 'v10',
+      version: 'ambos',
       submenus: [],
     };
     const updated = [...localMenus, newMenu];
@@ -309,6 +313,13 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
       const updated = localMenus.filter((m) => m.id !== id);
       setLocalMenus(updated);
       if (editingMenu?.id === id) setEditingMenu(null);
+    }
+  };
+
+  const handleClearAllModules = () => {
+    if (confirm('Tem certeza de que deseja apagar TODOS os módulos? Você poderá recriar tudo do zero manualmente.')) {
+      setLocalMenus([]);
+      setEditingMenu(null);
     }
   };
 
@@ -712,6 +723,30 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
+              {localMenus.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllModules}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 12px',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: 'var(--red)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  title="Apagar todos os módulos da lista"
+                >
+                  <Trash2 size={14} />
+                  <span>Limpar Todos</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleAddModule}
@@ -748,10 +783,11 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
                   fontSize: '0.82rem',
                   fontWeight: 700,
                   cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
                 }}
               >
                 <Check size={15} />
-                <span>Salvar Alterações</span>
+                <span>Salvar Geral (Todos)</span>
               </button>
             </div>
           </div>
@@ -759,64 +795,102 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
             {/* Lista de Módulos */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {versionMenus.map((m) => {
-                const isSelected = editingMenu?.id === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => setEditingMenu(m)}
-                    role="button"
-                    tabIndex={0}
+              {versionMenus.length === 0 ? (
+                <div
+                  style={{
+                    padding: '36px 20px',
+                    textAlign: 'center',
+                    background: 'var(--bg-primary)',
+                    borderRadius: '12px',
+                    border: '1px dashed var(--border)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <FolderPlus size={36} color="var(--red)" style={{ margin: '0 auto 12px auto', opacity: 0.8 }} />
+                  <h4 style={{ fontSize: '0.94rem', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                    Nenhum módulo cadastrado nesta versão
+                  </h4>
+                  <p style={{ fontSize: '0.80rem', margin: '0 0 16px 0', lineHeight: 1.45 }}>
+                    Crie sua estrutura de módulos personalizada clicando no botão abaixo.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddModule}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      border: isSelected ? '1.5px solid var(--red)' : '1px solid var(--border)',
-                      background: isSelected ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+                      padding: '7px 16px',
+                      borderRadius: '8px',
+                      background: 'var(--red)',
+                      color: '#fff',
+                      border: 'none',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
                       cursor: 'pointer',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '8px',
-                          background: 'var(--red-soft)',
-                          color: 'var(--red)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {renderIconByName(m.icon, 16)}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {m.label}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {m.submenus?.length || 0} submenus / rotinas
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteModule(m.id);
+                    + Criar Novo Módulo
+                  </button>
+                </div>
+              ) : (
+                versionMenus.map((m) => {
+                  const isSelected = editingMenu?.id === m.id;
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => setEditingMenu(m)}
+                      role="button"
+                      tabIndex={0}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: isSelected ? '1.5px solid var(--red)' : '1px solid var(--border)',
+                        background: isSelected ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+                        cursor: 'pointer',
                       }}
-                      title="Excluir módulo"
-                      style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
                     >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'var(--red-soft)',
+                            color: 'var(--red)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {renderIconByName(m.icon, 16)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {m.label}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {m.submenus?.length || 0} submenus / rotinas •{' '}
+                            {m.version === 'v10' ? 'V10' : m.version === 'r78' ? 'Clássico' : 'Ambos'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteModule(m.id);
+                        }}
+                        title="Excluir módulo"
+                        style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Painel de Edição do Módulo Selecionado */}
@@ -854,6 +928,34 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
                       fontSize: '0.86rem',
                     }}
                   />
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '4px' }}>
+                    Versão do Sistema:
+                  </label>
+                  <select
+                    value={editingMenu.version || 'ambos'}
+                    onChange={(e) => {
+                      const updated = { ...editingMenu, version: e.target.value as any };
+                      setEditingMenu(updated);
+                      setLocalMenus((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.86rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <option value="ambos">Ambos (Digifarma V10 e Clássico)</option>
+                    <option value="v10">Exclusivo Digifarma V10</option>
+                    <option value="r78">Exclusivo Digifarma Clássico</option>
+                  </select>
                 </div>
 
                 {/* Galeria de Seleção de Ícone */}

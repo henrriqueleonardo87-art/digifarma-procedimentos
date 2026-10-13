@@ -93,6 +93,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   onSelectProcedure,
   onBackToDashboard,
   onNewProcedure,
+  onOpenConfig,
   isEditorEnabled = false,
   onOpenImport,
 }) => {
@@ -924,6 +925,46 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
                 </div>
               );
             })}
+
+            {versionMenus.length === 0 && (
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  padding: '36px 20px',
+                  textAlign: 'center',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '14px',
+                  border: '1px dashed var(--border)',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <FolderPlus size={36} color="var(--red)" style={{ margin: '0 auto 12px auto', opacity: 0.8 }} />
+                <h4 style={{ fontSize: '0.96rem', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                  Nenhum módulo cadastrado nesta versão
+                </h4>
+                <p style={{ fontSize: '0.82rem', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                  Você pode cadastrar seus módulos e rotinas personalizadas em <strong>Utilitários do Sistema &rarr; Módulos &amp; Rotinas</strong>.
+                </p>
+                {onOpenConfig && (
+                  <button
+                    type="button"
+                    onClick={onOpenConfig}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      background: 'var(--red)',
+                      color: '#fff',
+                      border: 'none',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Gerenciar Módulos em Utilitários
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* TABELA DE PROCEDIMENTOS RECENTES DA VERSÃO ABAIXO DOS MÓDULOS */}

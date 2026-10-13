@@ -117,7 +117,7 @@ export async function fetchSystemMenus(): Promise<SystemMenu[]> {
         .select('*')
         .order('order_index', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const parsedMenus: SystemMenu[] = data.map((row: any) => ({
           id: row.id,
           label: row.label,
@@ -138,42 +138,46 @@ export async function fetchSystemMenus(): Promise<SystemMenu[]> {
   if (local !== null) {
     try {
       const parsed = JSON.parse(local);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     } catch {}
   }
 
-  localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(DEFAULT_SYSTEM_MENUS));
-  return DEFAULT_SYSTEM_MENUS;
+  return [];
 }
 
 export async function saveSystemMenus(menus: SystemMenu[]): Promise<void> {
   const client = getSupabase();
   if (client) {
     try {
-      // 1. Carregar IDs atuais para remover os deletados
-      const { data: existing } = await client.from('system_menus').select('id');
-      const existingIds = new Set((existing || []).map((e: any) => e.id));
-      const newIds = new Set(menus.map((m) => m.id));
+      if (menus.length === 0) {
+        // Se a lista estiver vazia (usuário excluiu todos), limpa a tabela no Supabase
+        await client.from('system_menus').delete().neq('id', '');
+      } else {
+        // 1. Carregar IDs atuais para remover os deletados
+        const { data: existing } = await client.from('system_menus').select('id');
+        const existingIds = new Set((existing || []).map((e: any) => e.id));
+        const newIds = new Set(menus.map((m) => m.id));
 
-      const idsToDelete = [...existingIds].filter((id) => !newIds.has(id));
-      if (idsToDelete.length > 0) {
-        await client.from('system_menus').delete().in('id', idsToDelete);
+        const idsToDelete = [...existingIds].filter((id) => !newIds.has(id));
+        if (idsToDelete.length > 0) {
+          await client.from('system_menus').delete().in('id', idsToDelete);
+        }
+
+        // 2. Upsert todos os menus com order_index
+        const rows = menus.map((m, index) => ({
+          id: m.id,
+          label: m.label,
+          icon: m.icon,
+          version: m.version || 'ambos',
+          submenus: m.submenus || [],
+          order_index: index + 1,
+          updated_at: new Date().toISOString(),
+        }));
+
+        await client.from('system_menus').upsert(rows);
       }
-
-      // 2. Upsert todos os menus com order_index
-      const rows = menus.map((m, index) => ({
-        id: m.id,
-        label: m.label,
-        icon: m.icon,
-        version: m.version || 'ambos',
-        submenus: m.submenus || [],
-        order_index: index + 1,
-        updated_at: new Date().toISOString(),
-      }));
-
-      await client.from('system_menus').upsert(rows);
     } catch (err) {
       console.warn('Erro ao salvar system_menus no Supabase:', err);
     }
