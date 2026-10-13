@@ -164,9 +164,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const filteredProcedures = useMemo(() => {
     let list = procedures;
     if (versionFilter === 'v10') {
-      list = list.filter((p) => p.systemVersion === 'v10' || !p.systemVersion);
+      list = list.filter((p) => p.systemVersion === 'v10' || p.systemVersion === 'ambos' || !p.systemVersion);
     } else if (versionFilter === 'classico') {
-      list = list.filter((p) => p.systemVersion === 'classico' || p.systemVersion === 'r78');
+      list = list.filter((p) => p.systemVersion === 'classico' || p.systemVersion === 'r78' || p.systemVersion === 'ambos');
     }
 
     if (statusFilter === 'publicados') {

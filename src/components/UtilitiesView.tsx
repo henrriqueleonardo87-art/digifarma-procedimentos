@@ -41,6 +41,12 @@ import {
   STATUS_COLORS,
   type SugestaoItem,
 } from '../lib/sugestoesService';
+import {
+  fetchClients,
+  saveClient as persistClient,
+  deleteClient as removeClient,
+  subscribeToClients,
+} from '../lib/clientsService';
 
 // Tipos para Clientes e Colaboradores
 export interface PharmacyCollaborator {
@@ -117,65 +123,6 @@ interface UtilitiesViewProps {
   currentUser?: AppUser | null;
   onBackToDashboard?: () => void;
 }
-
-const STORAGE_KEY_CLIENTS = 'digifarma_clients_registry_v2';
-
-const INITIAL_CLIENTS: ClientProfile[] = [
-  {
-    id: 'cli-1',
-    clientId: 'DF-0142',
-    cnpj: '12.345.678/0001-90',
-    razaoSocial: 'Drogaria Santa Luzia Ltda',
-    nomeFantasia: 'Farmácia Santa Luzia - Matriz',
-    phone: '(11) 98765-4321',
-    notes: 'Cliente em implantação do módulo V10 Fiscal e SNGPC.',
-    createdAt: new Date().toISOString(),
-    collaborators: [
-      {
-        id: 'colab-1',
-        name: 'Dra. Camila Silveira',
-        role: 'Farmacêutico(a) Responsável Técnico (RT)',
-        phone: '(11) 99111-2233',
-        email: 'camila.rt@santaluzia.com.br',
-      },
-      {
-        id: 'colab-2',
-        name: 'Marcos Vinicius',
-        role: 'Balconista / Atendente de Farmácia',
-        phone: '(11) 99222-3344',
-      },
-      {
-        id: 'colab-3',
-        name: 'Patrícia Souza',
-        role: 'Operador(a) de Caixa',
-      },
-    ],
-  },
-  {
-    id: 'cli-2',
-    clientId: 'DF-0208',
-    cnpj: '98.765.432/0001-10',
-    razaoSocial: 'Farmácia Popular Centro Eireli',
-    nomeFantasia: 'Drogaria Centro Saúde',
-    phone: '(21) 99876-5432',
-    notes: 'Configurar integração de TEF com PinPad serial.',
-    createdAt: new Date().toISOString(),
-    collaborators: [
-      {
-        id: 'colab-4',
-        name: 'Dr. Roberto Mendes',
-        role: 'Farmacêutico(a) Responsável Técnico (RT)',
-        phone: '(21) 98888-1111',
-      },
-      {
-        id: 'colab-5',
-        name: 'Ana Cláudia',
-        role: 'Gerente de Farmácia / Loja',
-        phone: '(21) 98777-2222',
-      },
-    ],
-  },
-];
 
 export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   menus,
@@ -393,13 +340,26 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   // ----------------------------------------------------
   // ABA 2: CADASTRO DE CLIENTES & COLABORADORES
   // ----------------------------------------------------
-  const [clients, setClients] = useState<ClientProfile[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CLIENTS);
-    return saved ? JSON.parse(saved) : INITIAL_CLIENTS;
-  });
+  const [clients, setClients] = useState<ClientProfile[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchClients().then((items) => {
+      if (isMounted) setClients(items);
+    });
+
+    const unsubscribe = subscribeToClients((items) => {
+      if (isMounted) setClients(items);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Form states do cliente
   const [clientCnpj, setClientCnpj] = useState('');
@@ -415,11 +375,6 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   const [colabRole, setColabRole] = useState(PHARMACY_ROLES[0]);
   const [colabPhone, setColabPhone] = useState('');
   const [colabEmail, setColabEmail] = useState('');
-
-  const saveClientsList = (updated: ClientProfile[]) => {
-    setClients(updated);
-    localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(updated));
-  };
 
   const handleOpenClientModal = (cli?: ClientProfile) => {
     if (cli) {
@@ -467,26 +422,23 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
     setClientColabs(clientColabs.filter((c) => c.id !== id));
   };
 
-  const handleSaveClient = (e: React.FormEvent) => {
+  const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientRazao.trim()) return;
 
     if (editingClient) {
-      const updated = clients.map((c) =>
-        c.id === editingClient.id
-          ? {
-              ...c,
-              cnpj: clientCnpj.trim(),
-              razaoSocial: clientRazao.trim(),
-              nomeFantasia: clientFantasia.trim() || clientRazao.trim(),
-              phone: clientPhone.trim(),
-              clientId: clientIdCode.trim(),
-              notes: clientNotes.trim(),
-              collaborators: clientColabs,
-            }
-          : c
-      );
-      saveClientsList(updated);
+      const updatedCli: ClientProfile = {
+        ...editingClient,
+        cnpj: clientCnpj.trim(),
+        razaoSocial: clientRazao.trim(),
+        nomeFantasia: clientFantasia.trim() || clientRazao.trim(),
+        phone: clientPhone.trim(),
+        clientId: clientIdCode.trim(),
+        notes: clientNotes.trim(),
+        collaborators: clientColabs,
+      };
+      setClients((prev) => prev.map((c) => (c.id === updatedCli.id ? updatedCli : c)));
+      await persistClient(updatedCli);
     } else {
       const newCli: ClientProfile = {
         id: `cli-${Date.now()}`,
@@ -499,16 +451,17 @@ export const UtilitiesView: React.FC<UtilitiesViewProps> = ({
         collaborators: clientColabs,
         createdAt: new Date().toISOString(),
       };
-      saveClientsList([newCli, ...clients]);
+      setClients((prev) => [newCli, ...prev]);
+      await persistClient(newCli);
     }
 
     setIsClientModalOpen(false);
   };
 
-  const handleDeleteClient = (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     if (confirm('Deseja excluir este cliente e seus colaboradores?')) {
-      const updated = clients.filter((c) => c.id !== id);
-      saveClientsList(updated);
+      setClients((prev) => prev.filter((c) => c.id !== id));
+      await removeClient(id);
     }
   };
 

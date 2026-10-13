@@ -284,6 +284,7 @@ export interface Procedure {
   activeViewFormat?: 'pdf' | 'html';
   checklistItems?: ChecklistItem[];
   coverStats?: SlideStatItem[];
+  operationalItems?: any[];
   isActive?: boolean;
   is_favorite?: boolean;
   created_at?: string;

@@ -50,6 +50,7 @@ import {
   fetchSystemMenus,
   saveSystemMenus,
   subscribeToProcedures,
+  subscribeToSystemMenus,
 } from './lib/storageService';
 import { testConnection } from './lib/supabase';
 import { initThemeColor } from './lib/themeService';
@@ -297,11 +298,16 @@ export function App() {
       setMuralCards(cards);
     });
 
+    const unsubMenus = subscribeToSystemMenus((items) => {
+      setMenus(items);
+    });
+
     if (!currentUser) {
       setNotesNotificationCount(0);
       return () => {
         unsubProc();
         unsubMural();
+        unsubMenus();
       };
     }
 
@@ -325,6 +331,7 @@ export function App() {
     return () => {
       unsubProc();
       unsubMural();
+      unsubMenus();
       unsubPub();
       unsubSug();
     };

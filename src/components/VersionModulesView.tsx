@@ -107,6 +107,7 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
   const allVersionProcedures = useMemo(() => {
     return (procedures || []).filter((p) => {
       const pVer = p.systemVersion || 'v10';
+      if (pVer === 'ambos') return true;
       if (version === 'v10') return pVer === 'v10';
       return pVer === 'classico' || pVer === 'r78';
     });
@@ -150,23 +151,16 @@ export const VersionModulesView: React.FC<VersionModulesViewProps> = ({
     });
   }, [allVersionProcedures, statusFilter]);
 
-  // Menus da versão selecionada
+  // Menus da versão selecionada (exibição consistente e unificada para todos os usuários)
   const versionMenus = useMemo(() => {
     return (menus || []).filter((m) => {
       const mVer = m.version;
       if (version === 'v10') {
         return mVer === 'v10' || mVer === 'ambos' || !mVer;
       }
-      if (mVer === 'classico' || mVer === 'r78') return true;
-      return allVersionProcedures.some((p) => {
-        const cat = (p.category || '').toLowerCase();
-        const mId = (p.menuId || '').toLowerCase();
-        const path = (p.systemPath || '').toLowerCase();
-        const target = m.label.toLowerCase();
-        return mId === m.id.toLowerCase() || cat === target || cat.includes(target) || path.includes(target);
-      });
+      return mVer === 'classico' || mVer === 'r78' || mVer === 'ambos' || !mVer;
     });
-  }, [menus, version, allVersionProcedures]);
+  }, [menus, version]);
 
   // Módulo ativo atualmente selecionado (se houver)
   const activeMenu = useMemo(() => {

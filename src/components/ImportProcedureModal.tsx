@@ -829,30 +829,51 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
                     }}
                   />
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
-                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    Publicar imediatamente:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPublishDirectly(!publishDirectly)}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border)',
-                      background: publishDirectly ? 'var(--success-bg)' : 'var(--bg-primary)',
-                      color: publishDirectly ? 'var(--success-text)' : 'var(--text-secondary)',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {publishDirectly ? '✓ Publicado' : '⏳ Enviar p/ Revisão'}
-                  </button>
-                </div>
               </div>
             )}
+          </div>
+
+          {/* DESTINO DA PUBLICAÇÃO */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            marginTop: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}>
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {publishDirectly ? '✓ Publicar Imediatamente (No Ar)' : '⏳ Enviar para Homologação Técnica (Revisão)'}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {publishDirectly
+                  ? 'Ficará ativo e visível na aba "Publicados" para todos os usuários.'
+                  : 'Entrará na aba "Em Revisão" aguardando homologação do farmacêutico.'}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPublishDirectly(!publishDirectly)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '7px',
+                border: '1px solid var(--border)',
+                background: publishDirectly ? 'var(--red)' : 'var(--bg-primary)',
+                color: publishDirectly ? '#ffffff' : 'var(--text-secondary)',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {publishDirectly ? 'Publicar Direto' : 'Enviar p/ Revisão'}
+            </button>
           </div>
 
           {/* RODAPÉ DE AÇÃO */}

@@ -107,18 +107,41 @@ export const DEFAULT_SYSTEM_MENUS: SystemMenu[] = [
 
 export const INITIAL_PROCEDURES: Procedure[] = [];
 
-// Gerenciamento de Menus e Submenus
+// Gerenciamento de Menus e Submenus (Sincronizado via Supabase e Realtime)
 export async function fetchSystemMenus(): Promise<SystemMenu[]> {
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('system_menus')
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const parsedMenus: SystemMenu[] = data.map((row: any) => ({
+          id: row.id,
+          label: row.label,
+          icon: row.icon || 'FolderPlus',
+          version: (row.version || 'ambos') as any,
+          submenus: Array.isArray(row.submenus) ? row.submenus : [],
+        }));
+        localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(parsedMenus));
+        return parsedMenus;
+      }
+    } catch (err) {
+      console.warn('Falha ao carregar system_menus do Supabase:', err);
+    }
+  }
+
+  // Fallback LocalStorage se offline
   const local = localStorage.getItem(MENUS_STORAGE_KEY);
   if (local !== null) {
     try {
       const parsed = JSON.parse(local);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }
-    } catch {
-      // Fallback
-    }
+    } catch {}
   }
 
   localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(DEFAULT_SYSTEM_MENUS));
@@ -126,7 +149,86 @@ export async function fetchSystemMenus(): Promise<SystemMenu[]> {
 }
 
 export async function saveSystemMenus(menus: SystemMenu[]): Promise<void> {
+  const client = getSupabase();
+  if (client) {
+    try {
+      // 1. Carregar IDs atuais para remover os deletados
+      const { data: existing } = await client.from('system_menus').select('id');
+      const existingIds = new Set((existing || []).map((e: any) => e.id));
+      const newIds = new Set(menus.map((m) => m.id));
+
+      const idsToDelete = [...existingIds].filter((id) => !newIds.has(id));
+      if (idsToDelete.length > 0) {
+        await client.from('system_menus').delete().in('id', idsToDelete);
+      }
+
+      // 2. Upsert todos os menus com order_index
+      const rows = menus.map((m, index) => ({
+        id: m.id,
+        label: m.label,
+        icon: m.icon,
+        version: m.version || 'ambos',
+        submenus: m.submenus || [],
+        order_index: index + 1,
+        updated_at: new Date().toISOString(),
+      }));
+
+      await client.from('system_menus').upsert(rows);
+    } catch (err) {
+      console.warn('Erro ao salvar system_menus no Supabase:', err);
+    }
+  }
+
   localStorage.setItem(MENUS_STORAGE_KEY, JSON.stringify(menus));
+  window.dispatchEvent(new CustomEvent('system-menus-updated', { detail: menus }));
+}
+
+export function subscribeToSystemMenus(onData: (menus: SystemMenu[]) => void): () => void {
+  let isSubscribed = true;
+  const client = getSupabase();
+  let channel: any = null;
+
+  if (client) {
+    try {
+      channel = client
+        .channel(`system_menus_realtime_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'system_menus' },
+          async () => {
+            if (!isSubscribed) return;
+            const updated = await fetchSystemMenus();
+            if (isSubscribed) onData(updated);
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Erro ao conectar Supabase Realtime para system_menus:', err);
+    }
+  }
+
+  const handleLocal = (e: Event) => {
+    if (!isSubscribed) return;
+    const custom = e as CustomEvent<SystemMenu[]>;
+    if (custom.detail) onData(custom.detail);
+  };
+
+  window.addEventListener('system-menus-updated', handleLocal);
+
+  const intervalId = setInterval(async () => {
+    if (!isSubscribed) return;
+    const updated = await fetchSystemMenus();
+    if (isSubscribed) onData(updated);
+  }, 20000);
+
+  return () => {
+    isSubscribed = false;
+    window.removeEventListener('system-menus-updated', handleLocal);
+    clearInterval(intervalId);
+    if (channel && client) {
+      try { client.removeChannel(channel); } catch {}
+    }
+  };
 }
 
 // Gerenciamento de Procedimentos
@@ -162,6 +264,13 @@ export async function fetchAllProcedures(): Promise<Procedure[]> {
             htmlFileSize: (p.htmlFileSize || metaBlock?.htmlFileSize) as number | undefined,
             activeViewFormat: (p.activeViewFormat || metaBlock?.activeViewFormat || 'pdf') as 'pdf' | 'html',
             reviewedBy: (p.reviewedBy || metaBlock?.reviewedBy) as string | undefined,
+            reviewedAt: (p.reviewedAt || metaBlock?.reviewedAt) as string | undefined,
+            rejectionReason: (p.rejectionReason || metaBlock?.rejectionReason) as string | undefined,
+            slidesConfig: p.slidesConfig || metaBlock?.slidesConfig,
+            signatures: p.signatures || metaBlock?.signatures,
+            coverStats: p.coverStats || metaBlock?.coverStats,
+            checklistItems: p.checklistItems || metaBlock?.checklistItems,
+            operationalItems: p.operationalItems || metaBlock?.operationalItems,
             blocks: blocks.filter((b: Record<string, unknown>) => !b || !b._isProcMeta),
           };
         }) as unknown as Procedure[];
@@ -195,6 +304,7 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
   const now = new Date().toISOString();
   const updatedProcedure: Procedure = {
     ...procedure,
+    isActive: procedure.isActive !== false,
     updated_at: now,
     created_at: procedure.created_at || now,
   };
@@ -203,70 +313,53 @@ export async function saveProcedure(procedure: Procedure): Promise<Procedure> {
 
   if (client) {
     try {
-      // Tentativa 1: upsert completo direto
+      const payload: Record<string, unknown> = {
+        id: updatedProcedure.id,
+        title: updatedProcedure.title,
+        subtitle: updatedProcedure.subtitle || '',
+        category: updatedProcedure.category || 'Geral',
+        systemVersion: updatedProcedure.systemVersion || 'v10',
+        menuId: updatedProcedure.menuId || 'geral',
+        submenuId: updatedProcedure.submenuId || '',
+        systemPath: updatedProcedure.systemPath || '',
+        author: updatedProcedure.author || 'Administrador',
+        status: updatedProcedure.status || 'aprovado',
+        isActive: updatedProcedure.isActive !== false,
+        reviewedBy: updatedProcedure.reviewedBy || null,
+        reviewedAt: updatedProcedure.reviewedAt || null,
+        rejectionReason: updatedProcedure.rejectionReason || null,
+        formatType: updatedProcedure.formatType || 'both',
+        pdfFileUrl: updatedProcedure.pdfFileUrl || null,
+        pdfFileName: updatedProcedure.pdfFileName || null,
+        pdfFileSize: updatedProcedure.pdfFileSize || null,
+        htmlFileData: updatedProcedure.htmlFileData || null,
+        htmlFileName: updatedProcedure.htmlFileName || null,
+        htmlFileSize: updatedProcedure.htmlFileSize || null,
+        activeViewFormat: updatedProcedure.activeViewFormat || 'pdf',
+        blocks: updatedProcedure.blocks || [],
+        tags: updatedProcedure.tags || [],
+        is_favorite: Boolean(updatedProcedure.is_favorite),
+        history: updatedProcedure.history || [],
+        slidesConfig: updatedProcedure.slidesConfig || null,
+        signatures: updatedProcedure.signatures || null,
+        coverStats: updatedProcedure.coverStats || null,
+        checklistItems: updatedProcedure.checklistItems || null,
+        operationalItems: updatedProcedure.operationalItems || null,
+        createdBy: updatedProcedure.createdBy || null,
+        updatedBy: updatedProcedure.updatedBy || null,
+        created_at: updatedProcedure.created_at,
+        updated_at: updatedProcedure.updated_at,
+      };
+
       const { error } = await client
         .from('procedures')
-        .upsert(updatedProcedure)
-        .select()
-        .single();
+        .upsert(payload);
 
       if (error) {
-        // Modo de compatibilidade: inclui todas as colunas com segurança
-        const metaBlock = {
-          _isProcMeta: true,
-          status: updatedProcedure.status || 'aprovado',
-          isActive: updatedProcedure.isActive !== false,
-          systemVersion: updatedProcedure.systemVersion || 'v10',
-          menuId: updatedProcedure.menuId,
-          submenuId: updatedProcedure.submenuId,
-          systemPath: updatedProcedure.systemPath,
-          formatType: updatedProcedure.formatType,
-          pdfFileUrl: updatedProcedure.pdfFileUrl,
-          pdfFileName: updatedProcedure.pdfFileName,
-          pdfFileSize: updatedProcedure.pdfFileSize,
-          htmlFileData: updatedProcedure.htmlFileData,
-          htmlFileName: updatedProcedure.htmlFileName,
-          htmlFileSize: updatedProcedure.htmlFileSize,
-          activeViewFormat: updatedProcedure.activeViewFormat,
-          reviewedBy: updatedProcedure.reviewedBy,
-        };
-
-        const safePayload: Record<string, unknown> = {
-          id: updatedProcedure.id,
-          title: updatedProcedure.title,
-          subtitle: updatedProcedure.subtitle,
-          category: updatedProcedure.category || 'Geral',
-          author: updatedProcedure.author || 'Administrador',
-          status: updatedProcedure.status || 'aprovado',
-          isActive: updatedProcedure.isActive !== false,
-          reviewedBy: updatedProcedure.reviewedBy || null,
-          reviewedAt: updatedProcedure.reviewedAt || null,
-          rejectionReason: updatedProcedure.rejectionReason || null,
-          formatType: updatedProcedure.formatType || null,
-          pdfFileUrl: updatedProcedure.pdfFileUrl || null,
-          pdfFileName: updatedProcedure.pdfFileName || null,
-          pdfFileSize: updatedProcedure.pdfFileSize || null,
-          htmlFileData: updatedProcedure.htmlFileData || null,
-          htmlFileName: updatedProcedure.htmlFileName || null,
-          htmlFileSize: updatedProcedure.htmlFileSize || null,
-          activeViewFormat: updatedProcedure.activeViewFormat || null,
-          blocks: [metaBlock, ...(updatedProcedure.blocks || []).filter((b: any) => !b?._isProcMeta)],
-          tags: updatedProcedure.tags || [],
-          is_favorite: Boolean(updatedProcedure.is_favorite),
-          created_at: updatedProcedure.created_at,
-          updated_at: updatedProcedure.updated_at,
-        };
-
-        const { error: safeError } = await client
-          .from('procedures')
-          .upsert(safePayload);
-
-        if (safeError) {
-          console.warn('Erro ao salvar no Supabase (modo compatibilidade):', safeError.message);
-        }
+        console.error('Erro ao salvar procedure no Supabase:', error.message, error.details);
       }
     } catch (err) {
-      console.warn('Exceção ao salvar no Supabase:', err);
+      console.error('Exceção ao salvar procedure no Supabase:', err);
     }
   }
 
