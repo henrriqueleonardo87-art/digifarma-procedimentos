@@ -1,5 +1,26 @@
 import { getSupabase } from './supabase';
-import type { ExplorerFolder, ExplorerItem } from '../components/ArquivosView';
+export interface ExplorerFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  author?: string;
+  sharedWith?: string[];
+  sharedType?: 'everyone' | 'restricted' | 'private';
+}
+
+export interface ExplorerItem {
+  id: string;
+  folderId: string | null;
+  type: 'file' | 'image' | 'pdf' | 'note' | 'html';
+  title: string;
+  contentOrUrl: string; // Base64 / URL ou texto da anotação
+  author: string;
+  createdAt: string;
+  size?: string;
+  sharedWith?: string[];
+  sharedType?: 'everyone' | 'restricted' | 'private';
+}
 
 const STORAGE_KEY_FOLDERS = 'digifarma_explorer_folders';
 const STORAGE_KEY_ITEMS = 'digifarma_explorer_items';
@@ -19,6 +40,9 @@ export async function fetchExplorerFolders(): Promise<ExplorerFolder[]> {
           name: f.name,
           parentId: f.parentId || f.parent_id || null,
           createdAt: f.createdAt || f.created_at || new Date().toISOString(),
+          author: f.author || 'Equipe Digifarma',
+          sharedWith: Array.isArray(f.sharedWith) ? f.sharedWith : Array.isArray(f.shared_with) ? f.shared_with : [],
+          sharedType: f.sharedType || f.shared_type || 'everyone',
         }));
         localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(normalized));
         return normalized;
@@ -51,12 +75,14 @@ export async function fetchExplorerItems(): Promise<ExplorerItem[]> {
         const normalized: ExplorerItem[] = data.map((it) => ({
           id: it.id,
           folderId: it.folderId || it.folder_id || null,
-          type: it.type as 'file' | 'image' | 'pdf' | 'note',
+          type: (it.type || 'file') as 'file' | 'image' | 'pdf' | 'note' | 'html',
           title: it.title,
           contentOrUrl: it.contentOrUrl || it.content_or_url || '',
           author: it.author || 'Equipe Digifarma',
           createdAt: it.createdAt || it.created_at || new Date().toISOString(),
           size: it.size || undefined,
+          sharedWith: Array.isArray(it.sharedWith) ? it.sharedWith : Array.isArray(it.shared_with) ? it.shared_with : [],
+          sharedType: it.sharedType || it.shared_type || 'everyone',
         }));
         localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(normalized));
         return normalized;
@@ -85,6 +111,9 @@ export async function saveExplorerFolder(folder: ExplorerFolder): Promise<void> 
         name: folder.name,
         parentId: folder.parentId,
         createdAt: folder.createdAt,
+        author: folder.author || 'Equipe Digifarma',
+        sharedWith: folder.sharedWith || [],
+        sharedType: folder.sharedType || 'everyone',
       });
     } catch (err) {
       console.warn('Erro ao salvar pasta no Supabase:', err);
@@ -146,6 +175,8 @@ export async function saveExplorerItem(item: ExplorerItem): Promise<void> {
         author: item.author,
         size: item.size || null,
         createdAt: item.createdAt,
+        sharedWith: item.sharedWith || [],
+        sharedType: item.sharedType || 'everyone',
       });
     } catch (err) {
       console.warn('Erro ao salvar item no Supabase:', err);

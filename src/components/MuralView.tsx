@@ -232,22 +232,20 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
     setCustomMarkerColor('#ef4444');
   };
 
-  // Upload de Arquivo
+  // Upload de Arquivo com suporte completo a Imagens, PDF, HTML e documentos
   const handleFileUpload = (
     file: File,
     onSuccess: (attachment: NonNullable<MuralCard['attachment']>) => void
   ) => {
-    if (file.size > 15 * 1024 * 1024) {
-      alert('O arquivo selecionado deve ter menos de 15MB.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('O arquivo selecionado deve ter menos de 25MB.');
       return;
     }
     const isImage = file.type.startsWith('image/');
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isHtml = file.type === 'text/html' || file.name.toLowerCase().endsWith('.html') || file.name.toLowerCase().endsWith('.htm');
 
-    if (!isImage && !isPdf) {
-      alert('Formato não suportado. Por favor, anexe uma imagem (PNG, JPG, WEBP) ou PDF.');
-      return;
-    }
+    const attType: NonNullable<MuralCard['attachment']>['type'] = isImage ? 'image' : isPdf ? 'pdf' : isHtml ? 'html' : 'file';
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -255,13 +253,37 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
       const attachment: NonNullable<MuralCard['attachment']> = {
         name: file.name,
         url,
-        type: isImage ? 'image' : 'pdf',
+        type: attType,
         size: file.size,
       };
       onSuccess(attachment);
     };
     reader.readAsDataURL(file);
   };
+
+  // Suporte a colar arquivos e imagens com Ctrl + V no Kanban
+  useEffect(() => {
+    if (!isNewCardOpen && !activeCard) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+        e.preventDefault();
+        const file = e.clipboardData.files[0];
+        if (isNewCardOpen) {
+          handleFileUpload(file, (att) => setNewCardAttachment(att));
+        } else if (activeCard) {
+          handleFileUpload(file, (att) => {
+            const nextCard = { ...activeCard, attachment: att };
+            setActiveCard(nextCard);
+            saveCards(cards.map((c) => (c.id === nextCard.id ? nextCard : c)));
+          });
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isNewCardOpen, activeCard, cards]);
 
   // 1. Cartões Acessíveis ao Usuário (Regra Estrita de Privacidade):
   // O Kanban é individual por padrão. Um cartão SÓ é visível se:
@@ -1373,7 +1395,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                   <input
                     ref={newCardFileInputRef}
                     type="file"
-                    accept="image/*,.pdf"
+                    accept="image/*,.pdf,.html,.htm,.doc,.docx,.xls,.xlsx,.txt"
                     style={{ display: 'none' }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -2500,7 +2522,7 @@ export const MuralView: React.FC<MuralViewProps> = ({ currentUser }) => {
                 <input
                   ref={activeCardFileInputRef}
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,.pdf,.html,.htm,.doc,.docx,.xls,.xlsx,.txt"
                   style={{ display: 'none' }}
                   onChange={(e) => {
                     const file = e.target.files?.[0];

@@ -142,6 +142,25 @@ export const ImportProcedureModal: React.FC<ImportProcedureModalProps> = ({
     }
   };
 
+  // Suporte a colar arquivo PDF ou HTML com Ctrl + V
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+        e.preventDefault();
+        handlePrimaryFile(e.clipboardData.files[0]);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen, title]);
+
   const hasPdf = !!pdfFile || !!existingPdfUrl;
   const hasHtml = !!htmlFile || !!existingHtmlData;
   const hasAnyFile = hasPdf || hasHtml;

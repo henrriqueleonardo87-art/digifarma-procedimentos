@@ -10,7 +10,7 @@ export interface PublicacaoComment {
 
 export interface PublicacaoAttachment {
   name: string;
-  type: 'image' | 'pdf';
+  type: 'image' | 'pdf' | 'html' | 'file';
   url: string; // Data URL Base64 ou URL remota
   size?: number;
 }

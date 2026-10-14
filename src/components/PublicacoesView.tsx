@@ -144,11 +144,21 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
   const filteredList = useMemo(() => {
     return publicacoes
       .filter((p) => {
+        // Regra de privacidade e visibilidade:
+        // Se o recado for direcionado, só deve ser visível para os destinatários ou para o autor que o criou!
+        const isEveryone = !p.targetUsers || p.targetUsers.length === 0;
+        const isTargetedToMe = isUserTargeted(p.targetUsers, currentUser);
+        const isAuthor = isUserAuthor(p.author, currentUser);
+
+        if (!isEveryone && !isTargetedToMe && !isAuthor) {
+          return false;
+        }
+
         // Filtro de aba
-        if (filterTab === 'general' && p.targetUsers && p.targetUsers.length > 0) return false;
-        if (filterTab === 'all_targeted' && (!p.targetUsers || p.targetUsers.length === 0)) return false;
-        if (filterTab === 'mine' && !isUserAuthor(p.author, currentUser)) return false;
-        if (filterTab === 'targeted' && !isUserTargeted(p.targetUsers, currentUser)) return false;
+        if (filterTab === 'general' && !isEveryone) return false;
+        if (filterTab === 'all_targeted' && isEveryone) return false;
+        if (filterTab === 'mine' && !isAuthor) return false;
+        if (filterTab === 'targeted' && !isTargetedToMe) return false;
         if (filterTab === 'unread') {
           const hasRead = isUserRead(p.readBy, currentUser, p.id);
           if (hasRead) return false;
@@ -226,18 +236,13 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
 
   const hasMore = !isFilteringOrSearching && filteredList.length > visibleCount;
 
-  // Upload de Anexo
-  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+  // Upload de Anexo com suporte completo a PDF, HTML, Imagens e Arquivos
+  const handleAttachmentFile = (file: File) => {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
+    const isHtml = file.type === 'text/html' || file.name.toLowerCase().endsWith('.html') || file.name.toLowerCase().endsWith('.htm');
 
-    if (!isPdf && !isImage) {
-      alert('Selecione apenas arquivos de imagem (PNG, JPG) ou documentos PDF.');
-      return;
-    }
+    const attType: PublicacaoAttachment['type'] = isImage ? 'image' : isPdf ? 'pdf' : isHtml ? 'html' : 'file';
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -245,7 +250,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
       if (result) {
         setAttachment({
           name: file.name,
-          type: isPdf ? 'pdf' : 'image',
+          type: attType,
           url: result,
           size: file.size,
         });
@@ -253,6 +258,27 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
     };
     reader.readAsDataURL(file);
   };
+
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleAttachmentFile(file);
+  };
+
+  // Suporte a colar arquivos ou imagens diretamente com Ctrl + V no modal de criação
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+        e.preventDefault();
+        handleAttachmentFile(e.clipboardData.files[0]);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isModalOpen]);
 
   // Submeter Nova Publicação
   const handleCreate = async (e: React.FormEvent) => {
@@ -814,6 +840,63 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                         </span>
                       </div>
                     </div>
+                  ) : pub.attachment.type === 'html' ? (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px 18px',
+                        borderRadius: '10px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          background: 'rgba(249, 115, 22, 0.12)',
+                          color: '#f97316',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {pub.attachment.name}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          Documento HTML Oficial Anexo
+                        </div>
+                      </div>
+                      <a
+                        href={pub.attachment.url}
+                        download={pub.attachment.name}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          background: '#f97316',
+                          color: '#fff',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          marginLeft: '12px',
+                        }}
+                      >
+                        <Download size={13} />
+                        <span>Abrir / Baixar HTML</span>
+                      </a>
+                    </div>
                   ) : (
                     <div
                       style={{
@@ -845,7 +928,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                           {pub.attachment.name}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Documento PDF Oficial Anexo
+                          {pub.attachment.type === 'pdf' ? 'Documento PDF Oficial Anexo' : 'Arquivo Anexo'}
                         </div>
                       </div>
                       <a
@@ -868,7 +951,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                         }}
                       >
                         <Download size={13} />
-                        <span>Abrir / Baixar PDF</span>
+                        <span>Abrir / Baixar Arquivo</span>
                       </a>
                     </div>
                   )}
@@ -1386,7 +1469,7 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
-                      {attachment.type === 'image' ? '🖼' : '📄'}
+                      {attachment.type === 'image' ? '🖼' : attachment.type === 'html' ? '🌐' : '📄'}
                       <span style={{ fontWeight: 700 }}>{attachment.name}</span>
                     </div>
                     <button
@@ -1398,30 +1481,58 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <label
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        handleAttachmentFile(e.dataTransfer.files[0]);
+                      }
+                    }}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
                       gap: '8px',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: '1px dashed var(--border-strong)',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '1.5px dashed var(--border-strong)',
                       background: 'var(--bg-secondary)',
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
+                      textAlign: 'center',
+                      alignItems: 'center',
                     }}
                   >
-                    <Paperclip size={14} />
-                    <span>Anexar Imagem ou Arquivo PDF</span>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleAttachmentChange}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Paperclip size={14} color="var(--red)" />
+                      <span>Selecionar Arquivo (PDF, HTML, Imagens, Documentos)</span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,.html,.htm,.doc,.docx,.xls,.xlsx,.txt"
+                        onChange={handleAttachmentChange}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      Ou arraste o arquivo até aqui ou pressione <strong>Ctrl + V</strong> para colar imagem ou arquivo.
+                    </span>
+                  </div>
                 )}
               </div>
 

@@ -28,7 +28,7 @@ export interface MuralCard {
   attachment?: {
     name: string;
     url: string;
-    type: 'image' | 'pdf';
+    type: 'image' | 'pdf' | 'html' | 'file';
     size?: number;
   } | null;
 }
