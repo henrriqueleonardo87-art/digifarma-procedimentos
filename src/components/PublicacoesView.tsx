@@ -1151,11 +1151,32 @@ export const PublicacoesView: React.FC<PublicacoesViewProps> = ({
           >
             <StickyNote size={42} color="var(--text-muted)" style={{ margin: '0 auto 12px auto' }} />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-              Nenhuma publicação encontrada
+              Nenhum recado publicado ainda
             </h3>
-            <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Use o botão "Nova Publicação" para comunicar algo à equipe ou a uma pessoa específica.
+            <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: '0 0 18px 0' }}>
+              O mural está pronto para uso oficial. Use o botão abaixo para criar o primeiro comunicado da equipe.
             </p>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 20px',
+                background: 'var(--red)',
+                border: 'none',
+                borderRadius: '9px',
+                color: '#ffffff',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(237, 38, 43, 0.22)',
+              }}
+            >
+              <Plus size={16} />
+              <span>Publicar Primeiro Recado</span>
+            </button>
           </div>
         )}
       </div>
