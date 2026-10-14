@@ -27,7 +27,12 @@ export interface PublicacaoItem {
   comments: PublicacaoComment[];
 }
 
-export const STORAGE_KEY_PUBLICACOES = 'digifarma_publicacoes_feed_list';
+export const STORAGE_KEY_PUBLICACOES = 'digifarma_publicacoes_prod_v1';
+
+// Limpeza imediata da chave legada que continha publicações de teste
+try {
+  localStorage.removeItem('digifarma_publicacoes_feed_list');
+} catch {}
 
 // Publicações iniciais (vazio para ambiente de produção oficial)
 export const INITIAL_PUBLICACOES: PublicacaoItem[] = [];
@@ -246,6 +251,7 @@ export function sortPublicacoesDesc(items: PublicacaoItem[]): PublicacaoItem[] {
  */
 export function getCachedPublicacoes(): PublicacaoItem[] {
   try {
+    localStorage.removeItem('digifarma_publicacoes_feed_list');
     const saved = localStorage.getItem(STORAGE_KEY_PUBLICACOES);
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -527,16 +533,25 @@ export function subscribeToPublicacoes(
     }
   }
 
-  // Polling fallback a cada 10 segundos para garantir sincronização entre diferentes abas/máquinas
+  // Polling suave de segurança a cada 2 minutos (respeitando cotas do Supabase)
   const intervalId = setInterval(async () => {
     if (!isSubscribed) return;
     const updated = await fetchPublicacoes();
     if (isSubscribed) onData(updated);
-  }, 10000);
+  }, 120000);
+
+  // Sincroniza também quando o usuário foca na janela
+  const handleFocus = async () => {
+    if (!isSubscribed) return;
+    const updated = await fetchPublicacoes();
+    if (isSubscribed) onData(updated);
+  };
+  window.addEventListener('focus', handleFocus);
 
   return () => {
     isSubscribed = false;
     clearInterval(intervalId);
+    window.removeEventListener('focus', handleFocus);
     if (channel && supabase) {
       try {
         supabase.removeChannel(channel);

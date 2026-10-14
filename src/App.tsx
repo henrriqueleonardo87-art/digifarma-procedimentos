@@ -286,6 +286,9 @@ export function App() {
   const initialDesktopSnapshotTaken = useRef(false);
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('digifarma_publicacoes_feed_list');
+    } catch {}
     fetchPublicacoes().then(setPublicacoes);
     fetchSugestoes().then(setSugestoes);
     fetchMuralCards().then(setMuralCards);
